@@ -71,7 +71,7 @@ def build_project(t: MaterialTest) -> Project:
             bb = g.bbox(polys)
             cxx, cyy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
             it = Item(id=new_id("I"), name=txt, kind="vector", x=cx, y=cy, rotation=rot)
-            it.paths = [VectorPath(g.Polyline(q.pts - [cxx, cyy], q.closed), lab.id) for q in polys]
+            it.paths = [VectorPath(q.transformed(g.translate(-cxx, -cyy)), lab.id) for q in polys]
             p.items.append(it)
 
         for c, power in enumerate(t.powers()):

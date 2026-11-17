@@ -11,7 +11,13 @@ from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem
                              QGraphicsSimpleTextItem, QGraphicsView)
 
 from ..core.model import Item, Project
+from ..core.geometry import BezPath as _BezPath
 from ..core.geometry import apply_matrix as g_apply
+
+
+def g_bez_from_points(pts, closed):
+    return _BezPath.from_points(pts, closed)
+
 from ..core.raster import preview_image
 
 
@@ -63,6 +69,19 @@ class ItemGraphic(QGraphicsItem):
             by_layer: dict[str, QPainterPath] = {}
             for vp in it.paths:
                 pp = by_layer.setdefault(vp.layer_id, QPainterPath())
+                bez = vp.poly.bez
+                if bez is not None and len(bez.anchors) >= 2:
+                    a0 = bez.anchors[0]
+                    pp.moveTo(a0[0], -a0[1])
+                    for i in range(bez.n_segments()):
+                        p0, c1, c2, p1 = bez.segment(i)
+                        if bez.is_line(i):
+                            pp.lineTo(p1[0], -p1[1])
+                        else:
+                            pp.cubicTo(c1[0], -c1[1], c2[0], -c2[1], p1[0], -p1[1])
+                    if bez.closed:
+                        pp.closeSubpath()
+                    continue
                 pts = vp.poly.loop_pts()
                 pp.moveTo(pts[0][0], -pts[0][1])
                 for x, y in pts[1:]:
@@ -548,95 +567,195 @@ class LaserCanvas(QGraphicsView):
         self._cancel_draw()
 
     # ------------------------------------------------------------ Knotenbearbeitung
-    def _node_world(self):
+    # Jede Kontur wird als BezPath bearbeitet (Polylinien werden bei Bedarf umgewandelt).
+    # Auswahl: (Pfad, Knoten); Anfasser des ausgewählten Knotens sind ebenfalls ziehbar.
+    def _px(self):
+        return 1.0 / max(self.transform().m11(), 1e-6)
+
+    def _node_bez_world(self):
+        """[(BezPath in Weltkoordinaten), ...] des bearbeiteten Objekts."""
         n = self._node
         if not n or n["gi"] is None:
             return []
         it = n["gi"].item
         m = it.matrix()
-        return [g_apply(m, vp.poly.pts) for vp in it.paths]
+        out = []
+        for vp in it.paths:
+            bez = vp.poly.bez if vp.poly.bez is not None else g_bez_from_points(vp.poly.pts, vp.poly.closed)
+            out.append(bez.transformed(m))
+        return out
 
     def _update_nodes(self):
         pp, sp = QPainterPath(), QPainterPath()
         n = self._node
         if n and n["gi"] is not None:
-            px = 1.0 / max(self.transform().m11(), 1e-6)
-            hs = 3.5 * px
-            world = self._node_world()
-            total = sum(len(w) for w in world)
-            if total <= 5000:
-                for pi, pts in enumerate(world):
-                    for vi, (x, y) in enumerate(pts):
+            hs = 3.5 * self._px()
+            world = self._node_bez_world()
+            if sum(len(b.anchors) for b in world) <= 5000:
+                for pi, b in enumerate(world):
+                    for vi, (x, y) in enumerate(b.anchors):
                         target = sp if n["sel"] == (pi, vi) else pp
                         target.addRect(QRectF(x - hs, -y - hs, 2 * hs, 2 * hs))
+                if n["sel"] is not None and n["sel"][0] < len(world):
+                    pi, vi = n["sel"]
+                    b = world[pi]
+                    if vi < len(b.anchors):
+                        ax, ay = b.anchors[vi]
+                        for hx, hy in (b.hin[vi], b.hout[vi]):
+                            if abs(hx - ax) > 1e-9 or abs(hy - ay) > 1e-9:
+                                sp.moveTo(ax, -ay)
+                                sp.lineTo(hx, -hy)
+                                sp.addEllipse(QPointF(hx, -hy), hs, hs)
         self._node_item.setPath(pp)
         self._node_sel_item.setPath(sp)
 
     def _node_hit(self, x, y):
-        px = 1.0 / max(self.transform().m11(), 1e-6)
-        tol = 6 * px
+        """('in'|'out'|'anchor', Pfad, Knoten) oder None."""
+        tol = 6 * self._px()
+        world = self._node_bez_world()
+        n = self._node
+        if n["sel"] is not None and n["sel"][0] < len(world):
+            pi, vi = n["sel"]
+            b = world[pi]
+            if vi < len(b.anchors):
+                for kind, h in (("in", b.hin[vi]), ("out", b.hout[vi])):
+                    if not np.allclose(h, b.anchors[vi]) and np.hypot(h[0] - x, h[1] - y) <= tol:
+                        return kind, pi, vi
         best, bd = None, tol
-        for pi, pts in enumerate(self._node_world()):
-            if not len(pts):
+        for pi, b in enumerate(world):
+            if not len(b.anchors):
                 continue
-            d = np.hypot(pts[:, 0] - x, pts[:, 1] - y)
+            d = np.hypot(b.anchors[:, 0] - x, b.anchors[:, 1] - y)
             vi = int(np.argmin(d))
-            if d[vi] < bd:
-                best, bd = (pi, vi), d[vi]
+            if d[vi] <= bd:
+                best, bd = ("anchor", pi, vi), d[vi]
         return best
 
     def _segment_hit(self, x, y):
-        px = 1.0 / max(self.transform().m11(), 1e-6)
-        tol = 6 * px
+        """(Pfad, Segment, t) der nächstgelegenen Kurve oder None."""
+        tol = 6 * self._px()
         best, bd = None, tol
-        it = self._node["gi"].item
-        for pi, pts in enumerate(self._node_world()):
-            closed = it.paths[pi].poly.closed
-            n = len(pts)
-            for i in range(n if closed else n - 1):
-                a, b = pts[i], pts[(i + 1) % n]
-                ab = b - a
-                L2 = float(np.dot(ab, ab))
-                if L2 < 1e-12:
-                    continue
-                t = max(0.0, min(1.0, float(np.dot([x, y] - a, ab)) / L2))
-                q = a + ab * t
-                d = float(np.hypot(*(q - [x, y])))
-                if d < bd:
-                    best, bd = (pi, i + 1, (q[0], q[1])), d
+        for pi, b in enumerate(self._node_bez_world()):
+            i, t, d = b.nearest((x, y), 40)
+            if i is not None and d < bd:
+                best, bd = (pi, i, t), d
         return best
 
     def _node_detach(self, pi):
-        """Polylinie vor dem Ändern kopieren (Rückgängig-Schnappschüsse teilen die Geometrie)."""
+        """Kontur als eigene BezPath-Kopie (Rückgängig-Schnappschüsse teilen die Geometrie)."""
+        from ..core.geometry import BezPath, Polyline
+        vp = self._node["gi"].item.paths[pi]
+        bez = vp.poly.bez.copy() if vp.poly.bez is not None else BezPath.from_points(vp.poly.pts, vp.poly.closed)
+        vp.poly = Polyline.from_bez(bez)
+        return vp
+
+    def _node_commit(self, pi):
         from ..core.geometry import Polyline
         vp = self._node["gi"].item.paths[pi]
-        vp.poly = Polyline(vp.poly.pts.copy(), vp.poly.closed)
-        return vp
+        vp.poly = Polyline.from_bez(vp.poly.bez)
+        self._node["gi"].rebuild()
+        self._update_nodes()
 
     def _to_local(self, x, y):
         it = self._node["gi"].item
         inv = np.linalg.inv(it.matrix())
         return g_apply(inv, np.array([[x, y]]))[0]
 
-    def delete_node(self):
+    def _node_drag_to(self, x, y, mods):
+        n = self._node
+        d = n["drag"]
+        bez = n["gi"].item.paths[d["pi"]].poly.bez
+        vi = d["vi"]
+        lp = self._to_local(*self._snap_pt(x, y))
+        if d["kind"] == "anchor":
+            delta = lp - d["orig"][0]
+            bez.anchors[vi] = d["orig"][0] + delta
+            bez.hin[vi] = d["orig"][1] + delta
+            bez.hout[vi] = d["orig"][2] + delta
+        else:
+            a = bez.anchors[vi]
+            mine, other = (bez.hin, bez.hout) if d["kind"] == "in" else (bez.hout, bez.hin)
+            mine[vi] = lp
+            if d["smooth"] and not (mods & Qt.KeyboardModifier.AltModifier):
+                v = lp - a
+                L = float(np.hypot(*v))
+                ol = float(np.hypot(*(other[vi] - a)))
+                if L > 1e-9 and ol > 1e-9:
+                    other[vi] = a - v / L * ol
+        self._node_commit(d["pi"])
+
+    def node_command(self, cmd: str) -> bool:
+        """Tastaturbefehle: 'curve' (C), 'line' (L), 'smooth' (S), 'delete' (Entf), 'break' (B)."""
         n = self._node
         if not n or n["gi"] is None or n["sel"] is None:
             return False
         pi, vi = n["sel"]
         it = n["gi"].item
-        poly = it.paths[pi].poly
-        min_pts = 3 if poly.closed else 2
-        self.aboutToModify.emit("Knoten löschen")
-        if len(poly.pts) <= min_pts:
-            del it.paths[pi]                                # ganze Kontur entfernen
-        else:
-            vp = self._node_detach(pi)
-            vp.poly.pts = np.delete(vp.poly.pts, vi, axis=0)
-        n["sel"] = None
-        n["gi"].rebuild()
-        self._update_nodes()
+        if pi >= len(it.paths):
+            return False
+        names = {"curve": "In Kurve umwandeln", "line": "In Linie umwandeln", "smooth": "Knoten glätten",
+                 "delete": "Knoten löschen", "break": "Pfad auftrennen"}
+        self.aboutToModify.emit(names[cmd])
+        vp = self._node_detach(pi)
+        bez = vp.poly.bez
+        N = len(bez.anchors)
+        if cmd == "delete":
+            if N <= (3 if bez.closed else 2):
+                del it.paths[pi]
+                n["sel"] = None
+                n["gi"].rebuild()
+                self._update_nodes()
+                self.nodesEdited.emit(it.id)
+                return True
+            bez.anchors = np.delete(bez.anchors, vi, axis=0)
+            bez.hin = np.delete(bez.hin, vi, axis=0)
+            bez.hout = np.delete(bez.hout, vi, axis=0)
+            n["sel"] = None
+        elif cmd in ("curve", "line"):
+            if not bez.closed and vi >= N - 1:
+                vi = N - 2                                   # letzter Knoten: vorheriges Segment
+            j = (vi + 1) % N
+            a, b = bez.anchors[vi], bez.anchors[j]
+            if cmd == "curve":
+                bez.hout[vi] = a + (b - a) / 3
+                bez.hin[j] = b - (b - a) / 3
+            else:
+                bez.hout[vi] = a
+                bez.hin[j] = b
+        elif cmd == "smooth":
+            a = bez.anchors[vi]
+            prev = bez.anchors[(vi - 1) % N] if (bez.closed or vi > 0) else a
+            nxt = bez.anchors[(vi + 1) % N] if (bez.closed or vi < N - 1) else a
+            direction = nxt - prev
+            L = float(np.hypot(*direction))
+            if L > 1e-9:
+                direction = direction / L
+                lin = float(np.hypot(*(bez.hin[vi] - a))) or float(np.hypot(*(a - prev))) / 3
+                lout = float(np.hypot(*(bez.hout[vi] - a))) or float(np.hypot(*(nxt - a))) / 3
+                bez.hin[vi] = a - direction * lin
+                bez.hout[vi] = a + direction * lout
+        elif cmd == "break":
+            from ..core.geometry import BezPath, Polyline
+            from ..core.model import VectorPath
+            if bez.closed:                                   # an diesem Knoten öffnen
+                order = [(vi + k) % N for k in range(N + 1)]
+                nb = BezPath(bez.anchors[order], bez.hin[order], bez.hout[order], False)
+                vp.poly = Polyline.from_bez(nb)
+            elif 0 < vi < N - 1:                             # offenen Pfad teilen
+                b1 = BezPath(bez.anchors[:vi + 1], bez.hin[:vi + 1], bez.hout[:vi + 1], False)
+                b2 = BezPath(bez.anchors[vi:], bez.hin[vi:], bez.hout[vi:], False)
+                vp.poly = Polyline.from_bez(b1)
+                it.paths.insert(pi + 1, VectorPath(Polyline.from_bez(b2), vp.layer_id))
+            n["gi"].rebuild()
+            self._update_nodes()
+            self.nodesEdited.emit(it.id)
+            return True
+        self._node_commit(pi)
         self.nodesEdited.emit(it.id)
         return True
+
+    def delete_node(self):
+        return self.node_command("delete")
 
     # ------------------------------------------------------------ Simulation
     def clear_simulation(self):
@@ -759,10 +878,17 @@ class LaserCanvas(QGraphicsView):
                 if n["gi"] is not None:
                     hit = self._node_hit(x, y)
                     if hit is not None:
-                        self.aboutToModify.emit("Knoten verschieben")
-                        self._node_detach(hit[0])
-                        n["drag"] = hit
-                        n["sel"] = hit
+                        kind, pi, vi = hit
+                        self.aboutToModify.emit("Knoten verschieben" if kind == "anchor" else "Kurve ändern")
+                        bez = self._node_detach(pi).poly.bez
+                        a = bez.anchors[vi]
+                        v_in, v_out = bez.hin[vi] - a, bez.hout[vi] - a
+                        li, lo = float(np.hypot(*v_in)), float(np.hypot(*v_out))
+                        smooth = (li > 1e-9 and lo > 1e-9 and
+                                  float(np.dot(v_in, v_out)) / (li * lo) < -0.998)      # gegenüberliegend
+                        n["drag"] = {"kind": kind, "pi": pi, "vi": vi, "smooth": smooth,
+                                     "orig": (a.copy(), bez.hin[vi].copy(), bez.hout[vi].copy())}
+                        n["sel"] = (pi, vi)
                         self._update_nodes()
                         return
                 gi = self._graphic_at(e.position().toPoint())
@@ -814,11 +940,7 @@ class LaserCanvas(QGraphicsView):
             if self.tool == "node":
                 n = self._node
                 if n and n["drag"] is not None:
-                    pi, vi = n["drag"]
-                    lx, ly = self._to_local(*self._snap_pt(x, y))
-                    n["gi"].item.paths[pi].poly.pts[vi] = (lx, ly)
-                    n["gi"].rebuild()
-                    self._update_nodes()
+                    self._node_drag_to(x, y, e.modifiers())
                 return
             if self._draw is not None:
                 x, y = self._snap_pt(x, y)
@@ -888,14 +1010,12 @@ class LaserCanvas(QGraphicsView):
             sp = self.mapToScene(e.position().toPoint())
             hit = self._segment_hit(sp.x(), -sp.y())
             if hit is not None:
-                pi, idx, (wx, wy) = hit
+                pi, seg, t = hit
                 self.aboutToModify.emit("Knoten einfügen")
                 vp = self._node_detach(pi)
-                lx, ly = self._to_local(wx, wy)
-                vp.poly.pts = np.insert(vp.poly.pts, idx, [lx, ly], axis=0)
-                self._node["sel"] = (pi, idx)
-                self._node["gi"].rebuild()
-                self._update_nodes()
+                vp.poly.bez.split(seg, t)
+                self._node["sel"] = (pi, seg + 1)
+                self._node_commit(pi)
                 self.nodesEdited.emit(self._node["gi"].item.id)
             return
         if self.tool == "select":
@@ -934,6 +1054,16 @@ class LaserCanvas(QGraphicsView):
                 return it
         return None
 
+    def event(self, e):
+        # Im Knotenmodus haben C/L/S/B/Entf Vorrang vor den Werkzeug-Kürzeln des Fensters
+        from PyQt6.QtCore import QEvent
+        if (e.type() == QEvent.Type.ShortcutOverride and self.tool == "node"
+                and e.key() in (Qt.Key.Key_C, Qt.Key.Key_L, Qt.Key.Key_S, Qt.Key.Key_B, Qt.Key.Key_Delete)
+                and not (e.modifiers() & Qt.KeyboardModifier.ControlModifier)):
+            e.accept()
+            return True
+        return super().event(e)
+
     def keyPressEvent(self, e):
         if self.tool == "line" and self._draw:
             if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
@@ -945,9 +1075,12 @@ class LaserCanvas(QGraphicsView):
         if self.tool != "select" and e.key() == Qt.Key.Key_Escape:
             self.set_tool("select")
             return
-        if self.tool == "node" and e.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-            self.delete_node()
-            return
+        if self.tool == "node":
+            keys = {Qt.Key.Key_Delete: "delete", Qt.Key.Key_Backspace: "delete", Qt.Key.Key_C: "curve",
+                    Qt.Key.Key_L: "line", Qt.Key.Key_S: "smooth", Qt.Key.Key_B: "break"}
+            if e.key() in keys and not (e.modifiers() & Qt.KeyboardModifier.ControlModifier):
+                self.node_command(keys[e.key()])
+                return
         step = 10.0 if e.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1.0
         moves = {Qt.Key.Key_Left: (-step, 0), Qt.Key.Key_Right: (step, 0),
                  Qt.Key.Key_Up: (0, step), Qt.Key.Key_Down: (0, -step)}
