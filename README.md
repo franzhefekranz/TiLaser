@@ -223,7 +223,8 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 
 ## Bekannte Grenzen / Ideen für später
 
-- Noch nicht umgesetzt: EPS-Import (PostScript; als PDF oder SVG speichern), Text in PDFs (in Pfade umwandeln),
-  DXF-Import mit Kurvenerhalt (Bögen werden als Punktfolgen importiert).
+- EPS/PostScript benötigt Ghostscript (https://ghostscript.com) oder Inkscape. Ohne beides die Datei als PDF oder SVG speichern.
+- PDF: Type3-Schriften und eingebettete Bilder werden übersprungen; Type1-Schriften (PostScript) werden durch eine Systemschrift ersetzt.
+- DXF: Splines werden als Punktfolgen importiert (Kreise, Bögen, Ellipsen und Polylinien-Bögen als echte Kurven).
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.

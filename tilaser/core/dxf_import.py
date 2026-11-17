@@ -113,7 +113,7 @@ class _DxfConverter:
         tol = self.tol / g.matrix_scale_factor(m)
         if etype == "LINE":
             p = np.array([[_get(data, 10, 0), _get(data, 20, 0)], [_get(data, 11, 0), _get(data, 21, 0)]])
-            res.append(g.Polyline(p, False))
+            res.append(g.Polyline.from_bez(g.BezPath.from_points(p, False), tol))
         elif etype == "LWPOLYLINE":
             flags = _get(data, 70, 0, int)
             verts, bulges = [], []
@@ -129,13 +129,15 @@ class _DxfConverter:
                     bulges[-1] = float(v)
             res += self._bulge_poly(verts, bulges, bool(flags & 1), tol)
         elif etype == "CIRCLE":
-            res.append(g.Polyline(g.circle_points(_get(data, 10, 0), _get(data, 20, 0), _get(data, 40, 0), tol), True))
+            r = _get(data, 40, 0)
+            if r > 0:
+                res.append(g.Polyline.from_bez(g.ellipse_bez(_get(data, 10, 0), _get(data, 20, 0), r, r), tol))
         elif etype == "ARC":
             cx, cy, r = _get(data, 10, 0), _get(data, 20, 0), _get(data, 40, 0)
             a0, a1 = math.radians(_get(data, 50, 0)), math.radians(_get(data, 51, 360))
             while a1 <= a0:
                 a1 += 2 * math.pi
-            res.append(g.Polyline(g.ellipse_arc_points(cx, cy, r, r, 0, a0, a1, tol), False))
+            res.append(_arc_bez(cx, cy, r, r, 0.0, a0, a1 - a0, tol))
         elif etype == "ELLIPSE":
             cx, cy = _get(data, 10, 0), _get(data, 20, 0)
             mx, my = _get(data, 11, 1), _get(data, 21, 0)
@@ -144,9 +146,11 @@ class _DxfConverter:
             while t1 <= t0:
                 t1 += 2 * math.pi
             a = math.hypot(mx, my)
-            pts = g.ellipse_arc_points(cx, cy, a, a * ratio, math.atan2(my, mx), t0, t1, tol)
-            closed = abs((t1 - t0) - 2 * math.pi) < 1e-6
-            res.append(g.Polyline(pts[:-1] if closed else pts, closed))
+            rot = math.atan2(my, mx)
+            if abs((t1 - t0) - 2 * math.pi) < 1e-6:
+                res.append(g.Polyline.from_bez(g.ellipse_bez(cx, cy, a, a * ratio, rot), tol))
+            else:
+                res.append(_arc_bez(cx, cy, a, a * ratio, rot, t0, t1 - t0, tol))
         elif etype == "SPLINE":
             res += self._spline(data, tol)
         elif etype == "POLYLINE":
@@ -187,18 +191,32 @@ class _DxfConverter:
         return [(p.transformed(m), layer) for p in res if len(p.pts) >= 2]
 
     def _bulge_poly(self, verts, bulges, closed, tol):
+        """Polylinie mit Bulges -> Bézierpfad (Bögen als kubische Segmente)."""
         if len(verts) < 2:
             return []
-        pts = [np.array(verts[0], float)[None, :]]
+        bb = g.BezBuilder(tol)
+        bb.move(np.array(verts[0], float))
         n = len(verts)
         last = n if closed else n - 1
         for i in range(last):
-            p1, p2 = verts[i], verts[(i + 1) % n]
-            pts.append(g.bulge_arc(p1, p2, bulges[i], tol))
-        arr = np.vstack(pts)
-        if closed and len(arr) > 1 and np.allclose(arr[0], arr[-1]):
-            arr = arr[:-1]
-        return [g.Polyline(arr, closed)]
+            p1, p2 = np.array(verts[i], float), np.array(verts[(i + 1) % n], float)
+            b = bulges[i]
+            c = p2 - p1
+            d = math.hypot(*c)
+            if abs(b) < 1e-9 or d < 1e-12:
+                bb.line(p2)
+                continue
+            theta = 4 * math.atan(b)
+            nl = np.array([-c[1], c[0]]) / d
+            center = (p1 + p2) / 2 + nl * ((d / 2) / math.tan(theta / 2))
+            r = math.hypot(*(p1 - center))
+            a0 = math.atan2(p1[1] - center[1], p1[0] - center[0])
+            for c1, c2, q in g.arc_to_cubics(center[0], center[1], r, r, 0.0, a0, theta):
+                bb.cubic(c1, c2, q)
+            bb.a[-1] = p2
+            bb.o[-1] = p2
+        bb.finish(closed)
+        return bb.out
 
     def _spline(self, data, tol):
         degree = _get(data, 71, 3, int)
@@ -325,3 +343,15 @@ def import_dxf(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
         warnings.append("Nicht unterstützt (ignoriert): " +
                         ", ".join(f"{k}×{v}" for k, v in sorted(conv.unsupported.items())))
     return result, warnings
+
+
+def _arc_bez(cx, cy, rx, ry, rot, t0, dt, tol):
+    """Elliptischer Bogen als offener Bézierpfad."""
+    bb = g.BezBuilder(tol)
+    c, s_ = math.cos(rot), math.sin(rot)
+    start = (cx + rx * math.cos(t0) * c - ry * math.sin(t0) * s_, cy + rx * math.cos(t0) * s_ + ry * math.sin(t0) * c)
+    bb.move(start)
+    for c1, c2, q in g.arc_to_cubics(cx, cy, rx, ry, rot, t0, dt):
+        bb.cubic(c1, c2, q)
+    bb.finish(False)
+    return bb.out[0]
