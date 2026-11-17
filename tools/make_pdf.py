@@ -85,6 +85,8 @@ def prepare(md_text: str) -> tuple[str, int]:
         nonlocal missing
         alt, path = m.group(1), m.group(2)
         src = os.path.join(SHOTS, os.path.basename(path))
+        if os.path.exists(src) and os.path.basename(src).startswith("icon_"):
+            return f"![]({src}){{height=5mm}}"                  # Symbol in der Tabelle, ohne Bildunterschrift
         if os.path.exists(src):
             from PIL import Image
             w, h = Image.open(src).size
