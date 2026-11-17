@@ -6,10 +6,10 @@ import os
 
 import numpy as np
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QColor, QKeySequence
+from PyQt6.QtGui import QAction, QActionGroup, QColor, QKeySequence
 from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QDockWidget, QFileDialog, QFrame, QInputDialog,
                              QComboBox, QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QSlider, QTabWidget,
-                             QToolBar, QToolButton,
+                             QDoubleSpinBox, QSpinBox, QToolBar, QToolButton,
                              QVBoxLayout, QWidget)
 
 from .. import __version__
@@ -25,7 +25,12 @@ from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
-from .dialogs import ArrayDialog, GcodeDialog, MachineDialog, MaterialTestDialog, TextDialog, TraceDialog
+from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, OffsetDialog,
+                      PointPickDialog, TextDialog, TraceDialog, camera_devices)
+from ..core import boolean as bo
+from ..core import camera as cam
+from ..core import shapes
+from ..core.export import export_dxf, export_svg
 from .machine_panel import MachinePanel
 from .panels import LayerPanel, ObjectPanel, color_icon
 
@@ -111,6 +116,11 @@ class MainWindow(QMainWindow):
         self.layers.aboutToChange.connect(lambda label, key: self._checkpoint(label, key or None))
         self.objects.aboutToChange.connect(lambda label, key: self._checkpoint(label, key or None))
         self.machine.resumeRequested.connect(self.resume_job)
+        self.canvas.shapeDrawn.connect(self._on_shape_drawn)
+        self.canvas.nodesEdited.connect(self._on_nodes_edited)
+        self.canvas.toolChanged.connect(self._on_tool_changed)
+        self._grabber = None
+        self._camera_img = None
         self.layers.layersChanged.connect(self._on_layers_changed)
         self.objects.changed.connect(self._on_object_changed)
         self.objects.action.connect(self._on_object_action)
@@ -149,6 +159,8 @@ class MainWindow(QMainWindow):
         m.addAction(self.a_import)
         m.addAction(self.a_text)
         m.addAction(self.a_export)
+        m.addAction(self._act("Als SVG exportieren…", lambda: self.export_vector("svg")))
+        m.addAction(self._act("Als DXF exportieren…", lambda: self.export_vector("dxf")))
         m.addSeparator()
         m.addAction(self._act("Beenden", self.close, "Ctrl+Q"))
 
@@ -215,6 +227,22 @@ class MainWindow(QMainWindow):
         ar.addAction(self.a_center)
         ar.addAction(self.a_origin)
 
+        fm = mb.addMenu("&Formen")
+        self.a_union = self._act("Vereinigen", lambda: self.boolean_op("union"), "Ctrl+Shift+U",
+                                 "Ausgewählte Formen zu einer Fläche verschmelzen")
+        self.a_diff = self._act("Abziehen (größte Form minus andere)", lambda: self.boolean_op("difference"),
+                                "Ctrl+Shift+D")
+        self.a_inter = self._act("Schnittmenge", lambda: self.boolean_op("intersection"), "Ctrl+Shift+I")
+        self.a_xor = self._act("Ausschluss (XOR)", lambda: self.boolean_op("xor"))
+        self.a_offset = self._act("Offset…", self.offset_dialog, "Alt+O", "Konturen nach außen oder innen versetzen")
+        self.a_join = self._act("Pfade verbinden / schließen…", self.join_selected, "Alt+J",
+                                "Offene Pfade mit gemeinsamen Endpunkten verbinden und schließen")
+        for a in (self.a_union, self.a_diff, self.a_inter, self.a_xor):
+            fm.addAction(a)
+        fm.addSeparator()
+        fm.addAction(self.a_offset)
+        fm.addAction(self.a_join)
+
         wz = mb.addMenu("&Werkzeuge")
         self.a_trace = self._act("Bild nachzeichnen…", self.trace_selected, "Alt+T",
                                  "Ausgewähltes Bild in Vektorkonturen umwandeln")
@@ -249,6 +277,18 @@ class MainWindow(QMainWindow):
         self.a_rotary.setCheckable(True)
         self.a_rotary.setChecked(self.profile.rotary)
         mm.addAction(self.a_rotary)
+        mm.addSeparator()
+        cm = mm.addMenu("Kamera")
+        cm.addAction(self._act("Kamera wählen…", self.camera_select))
+        cm.addAction(self._act("Passmarken lasern", self.camera_markers, None,
+                               "4 Kreuze mit geringer Leistung an bekannten Positionen lasern"))
+        cm.addAction(self._act("Kamera ausrichten…", self.camera_align, None,
+                               "Bild aufnehmen und die 4 Passmarken anklicken"))
+        self.a_cam_update = self._act("Kamerabild aktualisieren", self.camera_update, "F5")
+        cm.addAction(self.a_cam_update)
+        self.a_cam_show = self._act("Kamerabild anzeigen", self._camera_toggle)
+        self.a_cam_show.setCheckable(True)
+        cm.addAction(self.a_cam_show)
 
         h = mb.addMenu("&Hilfe")
         h.addAction(self._act("Über TiLaser", self.about))
@@ -295,6 +335,46 @@ class MainWindow(QMainWindow):
         tb.addSeparator()
         for a in (self.a_group, self.a_ungroup, self.a_center, self.a_origin, self.a_dup, self.a_del):
             tb.addAction(a)
+
+        tt = QToolBar("Zeichnen")
+        tt.setMovable(False)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tt)
+        self.tool_group = QActionGroup(self)
+        self.tool_actions = {}
+        for key, text, sc, tip in (("select", "⬚", "V", "Auswählen und verschieben (V)"),
+                                   ("rect", "▭", "R", "Rechteck zeichnen (R) – Shift: Quadrat, Strg: von der Mitte"),
+                                   ("ellipse", "◯", "E", "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte"),
+                                   ("polygon", "⬡", "P", "Polygon/Stern zeichnen (P)"),
+                                   ("line", "╱", "L", "Linie/Polylinie (L): klicken, Doppelklick oder Enter beendet, "
+                                                      "Klick auf Startpunkt schließt"),
+                                   ("node", "◆", "N", "Knoten bearbeiten (N): ziehen = verschieben, Doppelklick auf "
+                                                      "Linie = einfügen, Entf = löschen")):
+            a = QAction(text, self)
+            a.setToolTip(tip)
+            a.setShortcut(QKeySequence(sc))
+            a.setCheckable(True)
+            a.triggered.connect(lambda _=False, k=key: self.canvas.set_tool(k))
+            self.tool_group.addAction(a)
+            tt.addAction(a)
+            self.tool_actions[key] = a
+        self.tool_actions["select"].setChecked(True)
+        tt.addSeparator()
+        self.poly_sides = QSpinBox()
+        self.poly_sides.setRange(3, 60)
+        self.poly_sides.setValue(6)
+        self.poly_sides.setToolTip("Ecken für Polygon/Stern")
+        self.poly_star = QCheckBox("★")
+        self.poly_star.setToolTip("Stern statt Polygon")
+        self.rect_radius = QDoubleSpinBox()
+        self.rect_radius.setRange(0, 500)
+        self.rect_radius.setDecimals(1)
+        self.rect_radius.setSuffix(" r")
+        self.rect_radius.setToolTip("Eckenradius für Rechtecke (mm)")
+        for w in (self.poly_sides, self.poly_star, self.rect_radius):
+            tt.addWidget(w)
+        self.poly_sides.valueChanged.connect(lambda v: setattr(self.canvas, "poly_sides", v))
+        self.poly_star.toggled.connect(lambda on: setattr(self.canvas, "poly_star", 0.5 if on else 0.0))
+        self.rect_radius.valueChanged.connect(lambda v: setattr(self.canvas, "rect_radius", v))
 
         self.addToolBarBreak()
         ob = QToolBar("Objekt")
@@ -1117,6 +1197,251 @@ class MainWindow(QMainWindow):
         self._sim_t = t
         self.canvas.set_simulation_time(t)
         self.lbl_sim.setText(f"{fmt_time(t)} / {fmt_time(self.result.time_s)}")
+
+    # ------------------------------------------------------------ Zeichnen / Knoten
+    def _on_tool_changed(self, tool):
+        a = self.tool_actions.get(tool)
+        if a and not a.isChecked():
+            a.setChecked(True)
+        names = {"select": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
+                 "polygon": "Polygon: ziehen", "line": "Linie: klicken, Doppelklick/Enter = fertig, Esc = abbrechen",
+                 "node": "Knoten: Objekt anklicken, Knoten ziehen, Doppelklick fügt ein, Entf löscht"}
+        if names.get(tool):
+            self.statusBar().showMessage(names[tool])
+        else:
+            self.statusBar().clearMessage()
+
+    def _drawing_layer(self):
+        cur = self.layers.current_layer()
+        if cur is not None and cur.mode != "raster":
+            return cur
+        l = next((l for l in self.project.layers if l.mode == "cut"), None)
+        return l or self.project.add_layer("Zeichnung", mode="cut")
+
+    def _on_shape_drawn(self, kind, d):
+        if kind == "line":
+            pts = np.array(d["pts"], float)
+            bb = pts.min(axis=0), pts.max(axis=0)
+            c = (bb[0] + bb[1]) / 2
+            poly = shapes.polyline(pts - c, d["closed"])
+            name = "Polylinie" if len(pts) > 2 else "Linie"
+        else:
+            (x0, y0), (x1, y1) = d["p0"], d["p1"]
+            w, h = abs(x1 - x0), abs(y1 - y0)
+            c = np.array([(x0 + x1) / 2, (y0 + y1) / 2])
+            if kind == "rect":
+                poly, name = shapes.rectangle(w, h, d.get("radius", 0.0)), "Rechteck"
+            elif kind == "ellipse":
+                poly, name = shapes.ellipse(w, h), "Ellipse"
+            else:
+                poly, name = shapes.polygon(d.get("sides", 6), w, h, d.get("star", 0.0)), (
+                    "Stern" if d.get("star") else "Polygon")
+        self._checkpoint(f"{name} zeichnen")
+        layer = self._drawing_layer()
+        it = Item(id=new_id("I"), name=name, kind="vector", x=float(c[0]), y=float(c[1]))
+        it.paths = [VectorPath(poly, layer.id)]
+        self.project.items.append(it)
+        self.canvas.add_item(it)
+        self.layers.refresh(layer.id)
+        self.canvas.set_tool("select")
+        self.canvas.select_only([it.id])
+        self._invalidate()
+
+    def _on_nodes_edited(self, item_id):
+        it = self.project.item(item_id)
+        if it is not None and not it.paths:                    # letzte Kontur gelöscht
+            self.project.remove_item(item_id)
+            self.canvas.remove_item(item_id)
+        self.objects.refresh()
+        self._invalidate()
+
+    # ------------------------------------------------------------ Formen
+    def _vector_selection(self):
+        return [it for it in self._selected_items() if it.kind == "vector"]
+
+    def boolean_op(self, op):
+        items = self._vector_selection()
+        if len(items) < 2:
+            self.statusBar().showMessage("Mindestens zwei Vektorobjekte auswählen.", 4000)
+            return
+        if op == "difference":
+            items.sort(key=lambda it: -((it.world_bbox()[2] - it.world_bbox()[0]) *
+                                        (it.world_bbox()[3] - it.world_bbox()[1])))
+        groups = [[p for p in it.world_paths() if p.closed] for it in items]
+        if any(not grp for grp in groups):
+            QMessageBox.information(self, "Formen", "Boolesche Operationen funktionieren nur mit geschlossenen "
+                                                    "Konturen. Ggf. zuerst „Pfade verbinden / schließen“.")
+            return
+        try:
+            res = bo.boolean_many(groups, op)
+        except bo.BooleanUnavailable as e:
+            QMessageBox.warning(self, "Formen", str(e))
+            return
+        self._checkpoint({"union": "Vereinigen", "difference": "Abziehen", "intersection": "Schnittmenge",
+                          "xor": "Ausschluss"}[op])
+        layer_id = next(iter(items[0].layer_ids()))
+        for it in items:
+            self.project.remove_item(it.id)
+            self.canvas.remove_item(it.id)
+        if not res:
+            self.statusBar().showMessage("Ergebnis ist leer.", 4000)
+            self._invalidate()
+            return
+        new = self.project._item_from_world(items[0].name, [(p, layer_id) for p in res])
+        self.project.items.append(new)
+        self.canvas.add_item(new)
+        self.canvas.select_only([new.id])
+        self._invalidate()
+
+    def offset_dialog(self):
+        items = self._vector_selection()
+        if not items:
+            return
+        dlg = OffsetDialog(self)
+        if dlg.exec() != OffsetDialog.DialogCode.Accepted:
+            return
+        self._checkpoint("Offset")
+        new_ids = []
+        for it in items:
+            res = bo.offset_shapes(it.world_paths(), dlg.dist.value(), dlg.round.isChecked())
+            if not res:
+                continue
+            layer_id = next(iter(it.layer_ids()))
+            n = self.project._item_from_world(f"{it.name} (Offset)", [(p, layer_id) for p in res])
+            self.project.items.append(n)
+            self.canvas.add_item(n)
+            new_ids.append(n.id)
+            if not dlg.keep.isChecked():
+                self.project.remove_item(it.id)
+                self.canvas.remove_item(it.id)
+        self.canvas.select_only(new_ids)
+        self._invalidate()
+
+    def join_selected(self):
+        items = self._vector_selection()
+        if not items:
+            return
+        tol, ok = QInputDialog.getDouble(self, "Pfade verbinden", "Maximaler Abstand der Endpunkte (mm):",
+                                         0.1, 0.0, 10.0, 3)
+        if not ok:
+            return
+        self._checkpoint("Pfade verbinden")
+        before = after = 0
+        for it in items:
+            by_layer = {}
+            for vp in it.paths:
+                by_layer.setdefault(vp.layer_id, []).append(vp.poly)
+            before += len(it.paths)
+            it.paths = [VectorPath(p, lid) for lid, polys in by_layer.items()
+                        for p in g.join_paths(polys, tol / max(it.scale, 1e-9))]
+            after += len(it.paths)
+            self.canvas.refresh_item(it.id, geometry=True)
+        self.statusBar().showMessage(f"{before} Pfade → {after} Pfade", 4000)
+        self._invalidate()
+
+    # ------------------------------------------------------------ Export
+    def export_vector(self, fmt):
+        if not self.project.items:
+            return
+        base = os.path.splitext(os.path.basename(self.project_path))[0] if self.project_path else "zeichnung"
+        filt = "SVG (*.svg)" if fmt == "svg" else "DXF (*.dxf)"
+        p, _ = QFileDialog.getSaveFileName(self, f"Als {fmt.upper()} exportieren",
+                                           os.path.join(self.last_dir, f"{base}.{fmt}"), filt)
+        if not p:
+            return
+        try:
+            if fmt == "svg":
+                export_svg(self.project, p, self.profile.bed_w, self.profile.bed_h)
+            else:
+                export_dxf(self.project, p)
+        except Exception as e:
+            QMessageBox.critical(self, "Export", str(e))
+            return
+        msg = f"Gespeichert: {p}"
+        if fmt == "dxf" and any(it.kind == "raster" for it in self.project.items):
+            msg += "  (Bilder sind in DXF nicht enthalten)"
+        self.statusBar().showMessage(msg, 6000)
+
+    # ------------------------------------------------------------ Kamera
+    def camera_select(self):
+        devs = camera_devices()
+        choices = devs + ["Bild aus Datei (z. B. Handyfoto)"]
+        cur = self.profile.camera_device
+        idx = devs.index(cur) if cur in devs else len(devs)
+        item, ok = QInputDialog.getItem(self, "Kamera", "Kamera wählen:", choices, idx, False)
+        if not ok:
+            return
+        self.profile.camera_device = "__file__" if item not in devs else item
+        storage.save_machine(self.profile)
+
+    def _grab(self, callback):
+        dev = self.profile.camera_device
+        if dev == "__file__" or not camera_devices():
+            p, _ = QFileDialog.getOpenFileName(self, "Kamerabild", self.last_dir,
+                                               "Bilder (*.png *.jpg *.jpeg *.bmp *.tif *.tiff *.webp)")
+            if not p:
+                return
+            from PIL import Image, ImageOps
+            im = ImageOps.exif_transpose(Image.open(p)).convert("RGB")
+            callback(np.asarray(im).copy())
+            return
+        self.statusBar().showMessage("Kamerabild wird aufgenommen …")
+        self._grabber = CameraGrabber(dev, callback,
+                                      lambda msg: QMessageBox.warning(self, "Kamera", f"Aufnahme fehlgeschlagen:\n{msg}"))
+
+    def camera_markers(self):
+        if not self.machine.is_ready():
+            QMessageBox.information(self, "Kamera", "Laser verbinden, dann Passmarken lasern.")
+            return
+        pts = cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset)
+        txt = ", ".join(f"({x:g}/{y:g})" for x, y in pts)
+        if QMessageBox.question(self, "Passmarken", f"4 Kreuze mit 10 % Leistung lasern bei {txt} mm?\n"
+                                "Ein Stück Pappe o. Ä. unterlegen. Schutzbrille tragen!") \
+                != QMessageBox.StandardButton.Yes:
+            return
+        s = round(0.10 * self.profile.s_max, 3)
+        self.machine.run_job(cam.marker_gcode(pts, power_s=s, laser_on=self.profile.laser_on or "M3"))
+
+    def camera_align(self):
+        def got(img):
+            dlg = PointPickDialog(img, self)
+            if dlg.exec() != PointPickDialog.DialogCode.Accepted or len(dlg.points) != 4:
+                return
+            mm = cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset)
+            H = cam.homography(np.array(dlg.points), np.array(mm))
+            self.profile.camera_h = [float(v) for v in H.ravel()]
+            storage.save_machine(self.profile)
+            self._show_camera(img)
+            self.statusBar().showMessage("Kamera ausgerichtet.", 5000)
+        self._grab(got)
+
+    def camera_update(self):
+        if len(self.profile.camera_h) != 9:
+            QMessageBox.information(self, "Kamera", "Kamera zuerst ausrichten (Maschine → Kamera → Kamera ausrichten).")
+            return
+        self._grab(self._show_camera)
+
+    def _show_camera(self, img):
+        H = np.array(self.profile.camera_h, float).reshape(3, 3)
+        try:
+            rect = cam.rectify(img, H, self.profile.bed_w, self.profile.bed_h, 2.0)
+        except Exception as e:
+            QMessageBox.warning(self, "Kamera", f"Entzerrung fehlgeschlagen: {e}")
+            return
+        self._camera_img = rect
+        self.canvas.set_background(rect, self.profile.bed_w, self.profile.bed_h, self.profile.camera_opacity)
+        self.a_cam_show.setChecked(True)
+        self.statusBar().clearMessage()
+
+    def _camera_toggle(self):
+        if self.a_cam_show.isChecked():
+            if self._camera_img is not None:
+                self.canvas.set_background(self._camera_img, self.profile.bed_w, self.profile.bed_h,
+                                           self.profile.camera_opacity)
+            else:
+                self.camera_update()
+        else:
+            self.canvas.clear_background()
 
     def closeEvent(self, e):
         if self.machine.conn.job_active and QMessageBox.question(

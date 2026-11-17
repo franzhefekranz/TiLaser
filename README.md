@@ -99,6 +99,19 @@ ein GitHub-Release an.
 | Spiegeln, 90° drehen | Menü *Anordnen*, Strg+L / Strg+R |
 | Array | *Anordnen → Array erstellen* (Strg+Umschalt+A): Raster oder Kreis |
 
+### Zeichnen und Formen
+
+| Funktion | Bedienung |
+|---|---|
+| Werkzeugleiste links | ⬚ Auswählen (V), ▭ Rechteck (R), ◯ Ellipse (E), ⬡ Polygon/Stern (P), ╱ Linie/Polylinie (L), ◆ Knoten (N). Esc = zurück zu Auswählen |
+| Rechteck, Ellipse, Polygon | Aufziehen; Shift = Quadrat/Kreis, Strg = vom Mittelpunkt aus. Ecken, Stern und Eckenradius in der Leiste darunter |
+| Linie/Polylinie | Punkte klicken, Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form |
+| Knoten bearbeiten | Objekt anklicken, Knoten ziehen; Doppelklick auf eine Linie fügt einen Knoten ein; Entf löscht den markierten Knoten |
+| Boolesche Operationen | Menü *Formen*: Vereinigen, Abziehen (größte Form minus die anderen), Schnittmenge, Ausschluss |
+| Offset | *Formen → Offset*: Konturen nach außen (+) oder innen (−) versetzen, eckig oder rund |
+| Pfade verbinden/schließen | *Formen → Pfade verbinden*: offene Linien mit gemeinsamen Endpunkten zusammenfügen (z. B. nach DXF-Import) |
+| Neue Formen landen auf der gerade gewählten Ebene (bei einer Raster-Ebene auf der ersten Schneid-Ebene). |  |
+
 ### Laser-Funktionen
 
 | Funktion | Wo |
@@ -111,6 +124,19 @@ ein GitHub-Release an.
 | Simulation | Werkzeugweg-Vorschau einschalten, dann ▶ bzw. Schieberegler in der Werkzeugleiste |
 | Rotationsachse (Rolle) | *Maschine → Maschineneinstellungen*: Y-Weg je Rollenumdrehung und Rollendurchmesser; ein/aus unter *Maschine → Rotationsachse aktiv* |
 | Netzwerk | Tab *Verbindung → Art: Netzwerk (TCP/Telnet)*, z. B. für ESP32-Steuerungen mit FluidNC/grblHAL (Port 23) |
+| Unterebenen | Ebenen-Tab, *Arbeitsgang* → **+**: weiterer Arbeitsgang auf derselben Geometrie (z. B. erst Fläche gravieren, dann Kontur schneiden), jeweils mit eigenen Parametern |
+| Z-Schritt | Pro Arbeitsgang: Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |
+| Export | *Datei → Als SVG/DXF exportieren* (Lage wie auf dem Bett, Ebenen als Gruppen bzw. DXF-Layer) |
+
+### Kamera
+
+1. *Maschine → Kamera → Kamera wählen* – USB-Kamera oder „Bild aus Datei“ (z. B. ein Handyfoto von oben).
+2. *Passmarken lasern*: vier Kreuze mit 10 % Leistung, je 30 mm vom Bettrand (auf Pappe).
+3. *Kamera ausrichten*: Bild aufnehmen und die Kreuze der Reihe nach anklicken (links unten, rechts unten, rechts oben, links oben).
+4. Danach legt *Kamerabild aktualisieren* (F5) das entzerrte Bild unter die Arbeitsfläche – Objekte direkt auf dem Werkstück platzieren.
+
+Die Kamera muss fest montiert sein. Objektivverzeichnung wird nicht korrigiert; bei starken Weitwinkelobjektiven
+weichen die Ränder um einige Millimeter ab.
 - **Ansicht → Werkzeugweg-Vorschau** (Strg+P) zeigt, was der Laser tatsächlich fährt.
 - Erkennt das Programm beim Verbinden eine andere Firmware als im Profil eingestellt,
   fragt es, ob es umstellen soll.
@@ -194,7 +220,7 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 
 ## Bekannte Grenzen / Ideen für später
 
-- Noch nicht umgesetzt: Formen zeichnen und Knotenbearbeitung, Boolesche Operationen, Unterebenen,
-  Z-Schritt pro Durchgang, Kamera, Export als SVG/DXF, Import von PDF/AI.
+- Noch nicht umgesetzt: Bézierkurven bei der Knotenbearbeitung (Kurven bestehen aus vielen Punkten),
+  Text auf Pfad, Linsenkorrektur der Kamera, Import von PDF/AI/EPS.
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.

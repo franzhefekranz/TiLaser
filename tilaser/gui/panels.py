@@ -92,6 +92,21 @@ class LayerPanel(QWidget):
         # Einstellungen
         self.box = QGroupBox("Ebeneneinstellungen")
         self.form = QFormLayout(self.box)
+        oprow = QHBoxLayout()
+        self.op_combo = QComboBox()
+        self.op_combo.setToolTip("Hauptarbeitsgang oder Unterebene (weiterer Arbeitsgang auf derselben Geometrie)")
+        self.btn_add_sub = QPushButton("+")
+        self.btn_add_sub.setFixedWidth(28)
+        self.btn_add_sub.setToolTip("Unterebene hinzufügen, z. B. erst gravieren, dann schneiden")
+        self.btn_del_sub = QPushButton("−")
+        self.btn_del_sub.setFixedWidth(28)
+        self.btn_del_sub.setToolTip("Gewählte Unterebene entfernen")
+        oprow.addWidget(self.op_combo, 1)
+        oprow.addWidget(self.btn_add_sub)
+        oprow.addWidget(self.btn_del_sub)
+        self.form.addRow("Arbeitsgang", oprow)
+        self._op_idx = 0
+        self._op_layer = None
         self.f_name = QLineEdit()
         self.f_mode = QComboBox()
         for m in MODES:
@@ -125,6 +140,8 @@ class LayerPanel(QWidget):
         self.f_bright = dspin(-100, 100, 0, 5, "")
         self.f_contrast = dspin(-100, 100, 0, 5, "")
         self.f_gamma = dspin(0.1, 5, 2, 0.1, "")
+        self.f_z = dspin(0, 20, 2, 0.1, " mm")
+        self.f_z.setToolTip("Fokus nach jedem Durchgang um diesen Wert absenken (nur mit motorisierter Z-Achse). 0 = aus")
         self.f_output = QCheckBox("Ausgeben")
 
         self.rows = {}
@@ -139,6 +156,7 @@ class LayerPanel(QWidget):
                               ("tabs", "Haltestege", self.f_tabs), ("tab_w", "Stegbreite", self.f_tab_w),
                               ("tabs_outer", "", self.f_tabs_outer), ("bright", "Helligkeit", self.f_bright),
                               ("contrast", "Kontrast", self.f_contrast), ("gamma", "Gamma", self.f_gamma),
+                              ("z", "Z-Schritt je Durchgang", self.f_z),
                               ("air", "", self.f_air), ("output", "", self.f_output)):
             self.form.addRow(label, w)
             self.rows[key] = w
@@ -148,7 +166,7 @@ class LayerPanel(QWidget):
         lay.addStretch(1)
 
         for w in (self.f_power, self.f_min, self.f_speed, self.f_interval, self.f_angle, self.f_overscan,
-                  self.f_kerf, self.f_tab_w, self.f_bright, self.f_contrast, self.f_gamma):
+                  self.f_kerf, self.f_tab_w, self.f_bright, self.f_contrast, self.f_gamma, self.f_z):
             w.valueChanged.connect(self._commit)
         self.f_passes.valueChanged.connect(self._commit)
         self.f_tabs.valueChanged.connect(self._commit)
@@ -159,6 +177,9 @@ class LayerPanel(QWidget):
         for w in (self.f_cross, self.f_invert, self.f_bidir, self.f_inner, self.f_air, self.f_output):
             w.toggled.connect(self._commit)
         self.f_name.editingFinished.connect(self._commit)
+        self.op_combo.currentIndexChanged.connect(self._on_op)
+        self.btn_add_sub.clicked.connect(self._add_sub)
+        self.btn_del_sub.clicked.connect(self._del_sub)
         self.box.setEnabled(False)
 
     # ------------------------------------------------------------ Liste
@@ -172,6 +193,57 @@ class LayerPanel(QWidget):
             return self.project.layers[row]
         return None
 
+    def current_op(self):
+        l = self.current_layer()
+        if l is None:
+            return None
+        i = self._op_idx
+        return l if i == 0 or i > len(l.subs) else l.subs[i - 1]
+
+    def _fill_ops(self, l):
+        self._loading = True
+        if self._op_layer is not l:
+            self._op_idx = 0
+            self._op_layer = l
+        self._op_idx = min(self._op_idx, len(l.subs))
+        self.op_combo.clear()
+        self.op_combo.addItem(f"Haupt: {MODE_LABELS[l.mode]}")
+        for k, sub in enumerate(l.subs):
+            self.op_combo.addItem(f"Unterebene {k + 1}: {MODE_LABELS[sub.mode]}"
+                                  + ("" if sub.output else " (aus)"))
+        self.op_combo.setCurrentIndex(self._op_idx)
+        self.btn_del_sub.setEnabled(self._op_idx > 0)
+        self._loading = False
+
+    def _on_op(self, idx):
+        if self._loading or idx < 0:
+            return
+        self._op_idx = idx
+        self.btn_del_sub.setEnabled(idx > 0)
+        op = self.current_op()
+        if op is not None:
+            self._load_form(op)
+
+    def _add_sub(self):
+        l = self.current_layer()
+        if not l:
+            return
+        self.aboutToChange.emit("Unterebene hinzufügen", "")
+        l.add_sub("cut" if l.mode != "cut" else "fill")
+        self._op_idx = len(l.subs)
+        self.refresh(l.id)
+        self.layersChanged.emit(False)
+
+    def _del_sub(self):
+        l = self.current_layer()
+        if not l or self._op_idx == 0:
+            return
+        self.aboutToChange.emit("Unterebene entfernen", "")
+        del l.subs[self._op_idx - 1]
+        self._op_idx = 0
+        self.refresh(l.id)
+        self.layersChanged.emit(False)
+
     def refresh(self, keep_id=None):
         cur = keep_id or (self.current_layer().id if self.current_layer() else None)
         self._loading = True
@@ -180,6 +252,8 @@ class LayerPanel(QWidget):
             txt = f"{l.name}  –  {MODE_LABELS[l.mode].split(' ')[0]}  {l.power:g}% · {l.speed:g} mm/min"
             if l.passes > 1:
                 txt += f" · {l.passes}×"
+            if l.subs:
+                txt += f"  +{len(l.subs)} Unterebene{'n' if len(l.subs) > 1 else ''}"
             li = QListWidgetItem(color_icon(l.color), txt)
             li.setFlags(li.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             li.setCheckState(Qt.CheckState.Checked if l.output else Qt.CheckState.Unchecked)
@@ -213,7 +287,8 @@ class LayerPanel(QWidget):
         l = self.current_layer()
         self.box.setEnabled(l is not None)
         if l:
-            self._load_form(l)
+            self._fill_ops(l)
+            self._load_form(self.current_op())
 
     def _load_form(self, l):
         self._loading = True
@@ -241,6 +316,7 @@ class LayerPanel(QWidget):
         self.f_bright.setValue(l.brightness)
         self.f_contrast.setValue(l.contrast)
         self.f_gamma.setValue(l.gamma)
+        self.f_z.setValue(l.z_step)
         self._loading = False
         self._update_visibility(l.mode, l.dither)
 
@@ -261,7 +337,8 @@ class LayerPanel(QWidget):
     def _commit(self, *_):
         if self._loading:
             return
-        l = self.current_layer()
+        layer = self.current_layer()
+        l = self.current_op()
         if not l:
             return
         self.aboutToChange.emit("Ebene ändern", f"layer:{l.id}")
@@ -290,9 +367,10 @@ class LayerPanel(QWidget):
         l.brightness = self.f_bright.value()
         l.contrast = self.f_contrast.value()
         l.gamma = self.f_gamma.value()
+        l.z_step = self.f_z.value()
         self._update_visibility(l.mode, l.dither)
         visual = (old_mode, old_dither, old_iv, old_th, old_inv) != (l.mode, l.dither, l.interval, l.threshold, l.invert)
-        self.refresh(l.id)
+        self.refresh(layer.id)
         self.layersChanged.emit(visual or True)
 
     def _move(self, d):
@@ -364,13 +442,14 @@ class LayerPanel(QWidget):
         if not l or i is None:
             return
         self.aboutToChange.emit("Preset anwenden", "")
-        storage.apply_preset(l, self.presets[i])
-        self._load_form(l)
+        op = self.current_op()
+        storage.apply_preset(op, self.presets[i])
+        self._load_form(op)
         self.refresh(l.id)
         self.layersChanged.emit(True)
 
     def _save_preset(self):
-        l = self.current_layer()
+        l = self.current_op()
         if not l:
             return
         name, ok = QInputDialog.getText(self, "Preset speichern", "Name des Presets:", text=l.name)

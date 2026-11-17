@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem
                              QGraphicsSimpleTextItem, QGraphicsView)
 
 from ..core.model import Item, Project
+from ..core.geometry import apply_matrix as g_apply
 from ..core.raster import preview_image
 
 
@@ -206,6 +207,9 @@ class LaserCanvas(QGraphicsView):
     deleteRequested = pyqtSignal()
     contextMenuRequested = pyqtSignal(object)   # globale Position (QPoint)
     aboutToModify = pyqtSignal(str)             # vor einer Änderung (für Rückgängig)
+    shapeDrawn = pyqtSignal(str, object)        # Art, Daten (Box bzw. Punktliste)
+    nodesEdited = pyqtSignal(str)               # Item-ID nach Knotenbearbeitung
+    toolChanged = pyqtSignal(str)
     itemsTransformed = pyqtSignal(list)         # Anfasser: Skalierung/Drehung geändert
 
     def __init__(self, parent=None):
@@ -232,6 +236,24 @@ class LaserCanvas(QGraphicsView):
         self.scene_.addItem(self.overlay)
         self.overlay.set_bbox(None)
         self.sim_items = []
+        self.tool = "select"
+        self._draw = None              # laufende Zeichnung
+        self._draw_item = QGraphicsPathItem()
+        self._draw_item.setPen(_cosmetic(QColor("#1976d2"), 1.5, Qt.PenStyle.DashLine))
+        self._draw_item.setZValue(60)
+        self.scene_.addItem(self._draw_item)
+        self._node = None              # Knotenbearbeitung: {'gi', 'drag': (pi, vi), 'sel': (pi, vi)}
+        self._node_item = QGraphicsPathItem()
+        self._node_item.setPen(_cosmetic(QColor("#1976d2"), 1))
+        self._node_item.setBrush(QColor("white"))
+        self._node_item.setZValue(61)
+        self.scene_.addItem(self._node_item)
+        self._node_sel_item = QGraphicsPathItem()
+        self._node_sel_item.setPen(_cosmetic(QColor("#d32f2f"), 1))
+        self._node_sel_item.setBrush(QColor("#d32f2f"))
+        self._node_sel_item.setZValue(62)
+        self.scene_.addItem(self._node_sel_item)
+        self.background = None
         self.scene_.selectionChanged.connect(self._on_selection)
 
     # ------------------------------------------------------------ Bett
@@ -316,6 +338,7 @@ class LaserCanvas(QGraphicsView):
         gi = ItemGraphic(item, self.project, self._on_graphic_moved, self._snap)
         self.scene_.addItem(gi)
         self.graphics[item.id] = gi
+        gi.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, self.tool == "select")
         gi.setSelected(select)
         return gi
 
@@ -359,12 +382,18 @@ class LaserCanvas(QGraphicsView):
 
     def update_overlay(self):
         items = [gi.item for gi in self.graphics.values() if gi.isSelected()]
+        if self._node is not None:
+            if self._node.get("gi") is not None:
+                self._node["gi"] = self.graphics.get(self._node["gi"].item.id)   # nach Neuaufbau ersetzen
+            self._update_nodes()
         if not items:
             self.overlay.set_bbox(None)
             return
         bbs = [it.world_bbox() for it in items]
         self.overlay.set_bbox((min(b[0] for b in bbs), min(b[1] for b in bbs),
                                max(b[2] for b in bbs), max(b[3] for b in bbs)))
+        if self.tool != "select":
+            self.overlay.setVisible(False)
 
     def _snap(self, gi, value):
         """Fangen: linke untere Ecke des Objekts auf das Raster legen."""
@@ -413,6 +442,201 @@ class LaserCanvas(QGraphicsView):
             bi.setZValue(21)
             self.scene_.addItem(bi)
             self.toolpath_items.append(bi)
+
+    # ------------------------------------------------------------ Kamera-Hintergrund
+    def set_background(self, img, bed_w, bed_h, opacity=0.75):
+        """Entzerrtes Kamerabild (uint8, H×W oder H×W×3, oben = Y max) unter die Objekte legen."""
+        from PyQt6.QtGui import QPixmap
+        from PyQt6.QtWidgets import QGraphicsPixmapItem
+        self.clear_background()
+        a = np.ascontiguousarray(img)
+        h, w = a.shape[:2]
+        if a.ndim == 2:
+            qi = QImage(a.data, w, h, w, QImage.Format.Format_Grayscale8).copy()
+        else:
+            qi = QImage(a.data, w, h, w * 3, QImage.Format.Format_RGB888).copy()
+        item = QGraphicsPixmapItem(QPixmap.fromImage(qi))
+        item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
+        item.setScale(bed_w / w)
+        item.setPos(0, -bed_h)
+        item.setZValue(-9.5)
+        item.setOpacity(opacity)
+        self.scene_.addItem(item)
+        self.background = item
+
+    def clear_background(self):
+        if self.background is not None:
+            self.scene_.removeItem(self.background)
+            self.background = None
+
+    # ------------------------------------------------------------ Werkzeuge
+    def set_tool(self, tool: str):
+        self._cancel_draw()
+        self.tool = tool
+        drag = QGraphicsView.DragMode.RubberBandDrag if tool == "select" else QGraphicsView.DragMode.NoDrag
+        self.setDragMode(drag)
+        self.setCursor(Qt.CursorShape.CrossCursor if tool not in ("select", "node") else Qt.CursorShape.ArrowCursor)
+        for gi in self.graphics.values():
+            gi.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, tool == "select")
+        self.overlay.setVisible(tool == "select" and self.overlay.bb is not None)
+        if tool == "node":
+            sel = [gi for gi in self.graphics.values() if gi.isSelected() and gi.item.kind == "vector"]
+            self._node = {"gi": sel[0] if len(sel) == 1 else None, "drag": None, "sel": None}
+        else:
+            self._node = None
+        self._update_nodes()
+        self.toolChanged.emit(tool)
+
+    def _snap_pt(self, x, y):
+        if self.snap_enabled:
+            st = self.snap_step
+            return round(x / st) * st, round(y / st) * st
+        return x, y
+
+    def _cancel_draw(self):
+        self._draw = None
+        self._draw_item.setPath(QPainterPath())
+
+    def _draw_preview(self):
+        d = self._draw
+        pp = QPainterPath()
+        if d is None:
+            self._draw_item.setPath(pp)
+            return
+        if d["kind"] == "line":
+            pts = d["pts"] + ([d["cur"]] if d.get("cur") else [])
+            if pts:
+                pp.moveTo(pts[0][0], -pts[0][1])
+                for x, y in pts[1:]:
+                    pp.lineTo(x, -y)
+        else:
+            from ..core import shapes
+            (x0, y0), (x1, y1) = d["p0"], d["p1"]
+            w, h = x1 - x0, y1 - y0
+            if abs(w) < 1e-6 or abs(h) < 1e-6:
+                self._draw_item.setPath(pp)
+                return
+            if d["kind"] == "rect":
+                poly = shapes.rectangle(w, h, d.get("radius", 0.0))
+            elif d["kind"] == "ellipse":
+                poly = shapes.ellipse(w, h)
+            else:
+                poly = shapes.polygon(d.get("sides", 6), w, h, d.get("star", 0.0))
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            pts = poly.pts + [cx, cy]
+            pp.moveTo(pts[0][0], -pts[0][1])
+            for x, y in pts[1:]:
+                pp.lineTo(x, -y)
+            pp.closeSubpath()
+        self._draw_item.setPath(pp)
+
+    def _box_from(self, p0, p, mods):
+        x0, y0 = p0
+        x1, y1 = p
+        if mods & Qt.KeyboardModifier.ShiftModifier:          # Quadrat / Kreis
+            s_ = max(abs(x1 - x0), abs(y1 - y0))
+            x1 = x0 + s_ * (1 if x1 >= x0 else -1)
+            y1 = y0 + s_ * (1 if y1 >= y0 else -1)
+        if mods & Qt.KeyboardModifier.ControlModifier:        # vom Mittelpunkt aus
+            x0, y0 = 2 * x0 - x1, 2 * y0 - y1
+        return (x0, y0), (x1, y1)
+
+    def _finish_line(self, closed=False):
+        d = self._draw
+        if d and len(d["pts"]) >= 2:
+            self.shapeDrawn.emit("line", {"pts": list(d["pts"]), "closed": closed})
+        self._cancel_draw()
+
+    # ------------------------------------------------------------ Knotenbearbeitung
+    def _node_world(self):
+        n = self._node
+        if not n or n["gi"] is None:
+            return []
+        it = n["gi"].item
+        m = it.matrix()
+        return [g_apply(m, vp.poly.pts) for vp in it.paths]
+
+    def _update_nodes(self):
+        pp, sp = QPainterPath(), QPainterPath()
+        n = self._node
+        if n and n["gi"] is not None:
+            px = 1.0 / max(self.transform().m11(), 1e-6)
+            hs = 3.5 * px
+            world = self._node_world()
+            total = sum(len(w) for w in world)
+            if total <= 5000:
+                for pi, pts in enumerate(world):
+                    for vi, (x, y) in enumerate(pts):
+                        target = sp if n["sel"] == (pi, vi) else pp
+                        target.addRect(QRectF(x - hs, -y - hs, 2 * hs, 2 * hs))
+        self._node_item.setPath(pp)
+        self._node_sel_item.setPath(sp)
+
+    def _node_hit(self, x, y):
+        px = 1.0 / max(self.transform().m11(), 1e-6)
+        tol = 6 * px
+        best, bd = None, tol
+        for pi, pts in enumerate(self._node_world()):
+            if not len(pts):
+                continue
+            d = np.hypot(pts[:, 0] - x, pts[:, 1] - y)
+            vi = int(np.argmin(d))
+            if d[vi] < bd:
+                best, bd = (pi, vi), d[vi]
+        return best
+
+    def _segment_hit(self, x, y):
+        px = 1.0 / max(self.transform().m11(), 1e-6)
+        tol = 6 * px
+        best, bd = None, tol
+        it = self._node["gi"].item
+        for pi, pts in enumerate(self._node_world()):
+            closed = it.paths[pi].poly.closed
+            n = len(pts)
+            for i in range(n if closed else n - 1):
+                a, b = pts[i], pts[(i + 1) % n]
+                ab = b - a
+                L2 = float(np.dot(ab, ab))
+                if L2 < 1e-12:
+                    continue
+                t = max(0.0, min(1.0, float(np.dot([x, y] - a, ab)) / L2))
+                q = a + ab * t
+                d = float(np.hypot(*(q - [x, y])))
+                if d < bd:
+                    best, bd = (pi, i + 1, (q[0], q[1])), d
+        return best
+
+    def _node_detach(self, pi):
+        """Polylinie vor dem Ändern kopieren (Rückgängig-Schnappschüsse teilen die Geometrie)."""
+        from ..core.geometry import Polyline
+        vp = self._node["gi"].item.paths[pi]
+        vp.poly = Polyline(vp.poly.pts.copy(), vp.poly.closed)
+        return vp
+
+    def _to_local(self, x, y):
+        it = self._node["gi"].item
+        inv = np.linalg.inv(it.matrix())
+        return g_apply(inv, np.array([[x, y]]))[0]
+
+    def delete_node(self):
+        n = self._node
+        if not n or n["gi"] is None or n["sel"] is None:
+            return False
+        pi, vi = n["sel"]
+        it = n["gi"].item
+        poly = it.paths[pi].poly
+        min_pts = 3 if poly.closed else 2
+        self.aboutToModify.emit("Knoten löschen")
+        if len(poly.pts) <= min_pts:
+            del it.paths[pi]                                # ganze Kontur entfernen
+        else:
+            vp = self._node_detach(pi)
+            vp.poly.pts = np.delete(vp.poly.pts, vi, axis=0)
+        n["sel"] = None
+        n["gi"].rebuild()
+        self._update_nodes()
+        self.nodesEdited.emit(it.id)
+        return True
 
     # ------------------------------------------------------------ Simulation
     def clear_simulation(self):
@@ -517,6 +741,7 @@ class LaserCanvas(QGraphicsView):
         if 0.05 < cur * f < 200:
             self.scale(f, f)
             self.overlay.set_bbox(self.overlay.bb)
+            self._update_nodes()
 
     def mousePressEvent(self, e):
         # Mitte: verschieben. Rechts: verschieben beim Ziehen, Kontextmenü beim Klicken.
@@ -525,6 +750,46 @@ class LaserCanvas(QGraphicsView):
             self._pan_origin = e.position()
             self._pan_button = e.button()
             self._panned = False
+            return
+        if e.button() == Qt.MouseButton.LeftButton and self.tool not in ("select",):
+            sp = self.mapToScene(e.position().toPoint())
+            x, y = sp.x(), -sp.y()
+            if self.tool == "node":
+                n = self._node
+                if n["gi"] is not None:
+                    hit = self._node_hit(x, y)
+                    if hit is not None:
+                        self.aboutToModify.emit("Knoten verschieben")
+                        self._node_detach(hit[0])
+                        n["drag"] = hit
+                        n["sel"] = hit
+                        self._update_nodes()
+                        return
+                gi = self._graphic_at(e.position().toPoint())
+                if gi is not None and gi.item.kind == "vector":
+                    self.scene_.clearSelection()
+                    gi.setSelected(True)
+                    n["gi"], n["sel"] = gi, None
+                    self.overlay.setVisible(False)
+                    self._update_nodes()
+                return
+            x, y = self._snap_pt(x, y)
+            if self.tool == "line":
+                d = self._draw or {"kind": "line", "pts": []}
+                if len(d["pts"]) >= 2:
+                    fx, fy = d["pts"][0]
+                    px = 1.0 / max(self.transform().m11(), 1e-6)
+                    if np.hypot(fx - x, fy - y) < 8 * px:            # Klick auf Startpunkt = schließen
+                        self._draw = d
+                        self._finish_line(closed=True)
+                        return
+                d["pts"].append((x, y))
+                self._draw = d
+                self._draw_preview()
+                return
+            self._draw = {"kind": self.tool, "p0": (x, y), "p1": (x, y), "start": (x, y),
+                          "sides": getattr(self, "poly_sides", 6), "star": getattr(self, "poly_star", 0.0),
+                          "radius": getattr(self, "rect_radius", 0.0)}
             return
         if e.button() == Qt.MouseButton.LeftButton:
             sp = self.mapToScene(e.position().toPoint())
@@ -542,6 +807,27 @@ class LaserCanvas(QGraphicsView):
         super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
+        if self.tool != "select" and self._pan_start is None:
+            sp = self.mapToScene(e.position().toPoint())
+            x, y = sp.x(), -sp.y()
+            self.mouseMoved.emit(x, y)
+            if self.tool == "node":
+                n = self._node
+                if n and n["drag"] is not None:
+                    pi, vi = n["drag"]
+                    lx, ly = self._to_local(*self._snap_pt(x, y))
+                    n["gi"].item.paths[pi].poly.pts[vi] = (lx, ly)
+                    n["gi"].rebuild()
+                    self._update_nodes()
+                return
+            if self._draw is not None:
+                x, y = self._snap_pt(x, y)
+                if self._draw["kind"] == "line":
+                    self._draw["cur"] = (x, y)
+                else:
+                    self._draw["p0"], self._draw["p1"] = self._box_from(self._draw["start"], (x, y), e.modifiers())
+                self._draw_preview()
+            return
         if self._drag is not None:
             sp = self.mapToScene(e.position().toPoint())
             self._drag_update(sp.x(), -sp.y(), e.modifiers())
@@ -562,6 +848,20 @@ class LaserCanvas(QGraphicsView):
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
+        if self.tool != "select" and e.button() == Qt.MouseButton.LeftButton:
+            if self.tool == "node":
+                n = self._node
+                if n and n["drag"] is not None:
+                    n["drag"] = None
+                    self.nodesEdited.emit(n["gi"].item.id)
+                return
+            d = self._draw
+            if d is not None and d["kind"] != "line":
+                (x0, y0), (x1, y1) = d["p0"], d["p1"]
+                if abs(x1 - x0) > 0.2 and abs(y1 - y0) > 0.2:
+                    self.shapeDrawn.emit(d["kind"], dict(d))
+                self._cancel_draw()
+            return
         if self._drag is not None and e.button() == Qt.MouseButton.LeftButton:
             self._drag = None
             self.update_overlay()
@@ -579,6 +879,27 @@ class LaserCanvas(QGraphicsView):
                 self.contextMenuRequested.emit(e.globalPosition().toPoint())
             return
         super().mouseReleaseEvent(e)
+
+    def mouseDoubleClickEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton and self.tool == "line" and self._draw:
+            self._finish_line(False)
+            return
+        if e.button() == Qt.MouseButton.LeftButton and self.tool == "node" and self._node and self._node["gi"]:
+            sp = self.mapToScene(e.position().toPoint())
+            hit = self._segment_hit(sp.x(), -sp.y())
+            if hit is not None:
+                pi, idx, (wx, wy) = hit
+                self.aboutToModify.emit("Knoten einfügen")
+                vp = self._node_detach(pi)
+                lx, ly = self._to_local(wx, wy)
+                vp.poly.pts = np.insert(vp.poly.pts, idx, [lx, ly], axis=0)
+                self._node["sel"] = (pi, idx)
+                self._node["gi"].rebuild()
+                self._update_nodes()
+                self.nodesEdited.emit(self._node["gi"].item.id)
+            return
+        if self.tool == "select":
+            super().mouseDoubleClickEvent(e)
 
     def _drag_update(self, x, y, mods):
         import math
@@ -614,6 +935,19 @@ class LaserCanvas(QGraphicsView):
         return None
 
     def keyPressEvent(self, e):
+        if self.tool == "line" and self._draw:
+            if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._finish_line(False)
+                return
+            if e.key() == Qt.Key.Key_Escape:
+                self._cancel_draw()
+                return
+        if self.tool != "select" and e.key() == Qt.Key.Key_Escape:
+            self.set_tool("select")
+            return
+        if self.tool == "node" and e.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self.delete_node()
+            return
         step = 10.0 if e.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1.0
         moves = {Qt.Key.Key_Left: (-step, 0), Qt.Key.Key_Right: (step, 0),
                  Qt.Key.Key_Up: (0, step), Qt.Key.Key_Down: (0, -step)}
