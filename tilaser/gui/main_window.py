@@ -25,7 +25,8 @@ from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
-from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, OffsetDialog,
+from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog,
+                      OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from ..core.eps_import import import_eps
 from ..core.pdf_import import PdfError, import_pdf
@@ -34,6 +35,7 @@ from ..core import boolean as bo
 from ..core import camera as cam
 from ..core import shapes
 from ..core.export import export_dxf, export_svg
+from ..core.nesting import NestSettings, nest
 from .machine_panel import MachinePanel
 from .panels import LayerPanel, ObjectPanel, color_icon
 
@@ -227,6 +229,9 @@ class MainWindow(QMainWindow):
         self.a_array = self._act("Array erstellen…", self.array_dialog, "Ctrl+Shift+A",
                                  "Auswahl als Raster oder im Kreis vervielfältigen")
         ar.addAction(self.a_array)
+        self.a_nest = self._act("Nesting (Teile anordnen)…", self.nest_dialog, "Ctrl+Shift+N",
+                                "Ausgewählte Teile platzsparend auf einer Grundfläche anordnen")
+        ar.addAction(self.a_nest)
         ar.addAction(self.a_center)
         ar.addAction(self.a_origin)
 
@@ -724,6 +729,7 @@ class MainWindow(QMainWindow):
             menu.addAction(self.a_origin)
             menu.addAction(self.a_dup)
             menu.addAction(self.a_array)
+            menu.addAction(self.a_nest)
             if len(items) == 1 and items[0].kind == "vector":
                 menu.addAction(self.a_textpath)
             if any(it.kind == "raster" for it in items):
@@ -1051,6 +1057,64 @@ class MainWindow(QMainWindow):
             self.canvas.add_item(it)
         self.canvas.select_only([it.id for it in items + new])
         self._invalidate()
+
+    def nest_dialog(self):
+        from PyQt6.QtWidgets import QProgressDialog
+        items = self._selected_items()
+        if not items:
+            QMessageBox.information(self, "Nesting", "Bitte die anzuordnenden Teile auswählen "
+                                                     "(Strg+A für alle).")
+            return
+        largest = max(items, key=lambda it: (it.world_bbox()[2] - it.world_bbox()[0]) *
+                                            (it.world_bbox()[3] - it.world_bbox()[1])) if len(items) > 1 else None
+        dlg = NestDialog(self.profile.bed_w, self.profile.bed_h, largest.world_bbox() if largest else None, self)
+        if dlg.exec() != NestDialog.DialogCode.Accepted:
+            return
+        parts = [it for it in items if not (dlg.source.currentData() == "object" and it is largest)]
+        if not parts:
+            return
+        st = NestSettings(x=dlg.x.value(), y=dlg.y.value(), width=dlg.w.value(), height=dlg.h.value(),
+                          spacing=dlg.spacing.value(), margin=dlg.margin.value(), rotations=dlg.rot.currentData(),
+                          copies=dlg.copies.value(), use_holes=dlg.holes.isChecked())
+        self._checkpoint("Nesting")
+        prog = QProgressDialog("Teile werden angeordnet …", "Abbrechen", 0, 1000, self)
+        prog.setWindowModality(Qt.WindowModality.WindowModal)
+        prog.setMinimumDuration(300)
+        cancelled = []
+
+        def cb(n, total):
+            prog.setValue(int(n / max(1, total) * 1000))
+            QApplication.processEvents()
+            if prog.wasCanceled():
+                cancelled.append(True)
+                raise KeyboardInterrupt
+
+        try:
+            res = nest(self.project, parts, st, cb, dlg.thorough.isChecked())
+        except KeyboardInterrupt:
+            prog.close()
+            p = self.undo.do_undo(self.project)              # unverändert zurück
+            if p is not None:
+                self._restore(p)
+            return
+        prog.close()
+        if dlg.frame.isChecked():
+            layer = self.project.add_layer("Nesting-Grundfläche", "#9e9e9e", "cut")
+            layer.output = False
+            fr = Item(id=new_id("I"), name="Grundfläche", kind="vector", x=st.x + st.width / 2,
+                      y=st.y + st.height / 2)
+            fr.paths = [VectorPath(shapes.rectangle(st.width, st.height), layer.id)]
+            self.project.items.append(fr)
+        self.canvas.rebuild_all()
+        self.layers.refresh()
+        self.canvas.select_only(res.unplaced or res.placed)
+        self._invalidate()
+        msg = (f"{len(res.placed)} Teile platziert"
+               + (f" (davon {len(res.new_items)} Kopien)" if res.new_items else "")
+               + f", Flächennutzung {res.utilization * 100:.0f} %, Raster {res.cell:.2f} mm.")
+        if res.unplaced:
+            msg += f"\n\n{len(res.unplaced)} Teil(e) passen nicht auf die Grundfläche – sie sind jetzt ausgewählt."
+        QMessageBox.information(self, "Nesting", msg)
 
     def _on_items_transformed(self, ids):
         if self.objects.item and self.objects.item.id in ids:

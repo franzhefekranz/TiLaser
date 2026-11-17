@@ -631,3 +631,76 @@ class TextPathDialog(TextDialog):
         f.addRow("", self.flip)
         self.layout().insertLayout(self.layout().count() - 1, f)
         self.spacing.setEnabled(False)
+
+
+class NestDialog(QDialog):
+    """Nesting: Grundfläche, Abstände, Drehungen, Kopien."""
+    ROTATIONS = (("Keine Drehung", (0,)), ("0° / 180°", (0, 180)), ("90°-Schritte", (0, 90, 180, 270)),
+                 ("45°-Schritte", tuple(range(0, 360, 45))), ("15°-Schritte (langsam)", tuple(range(0, 360, 15))))
+
+    def __init__(self, bed_w, bed_h, sel_bbox=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Nesting – Teile anordnen")
+        self.bed = (bed_w, bed_h)
+        self.sel_bbox = sel_bbox
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.source = QComboBox()
+        self.source.addItem("Arbeitsbereich", "bed")
+        self.source.addItem("Eigene Maße", "custom")
+        if sel_bbox is not None:
+            self.source.addItem("Größtes ausgewähltes Objekt (dessen Umriss)", "object")
+        self.x = dspin(-5000, 5000, 1, 1, " mm")
+        self.y = dspin(-5000, 5000, 1, 1, " mm")
+        self.w = dspin(1, 5000, 1, 1, " mm")
+        self.h = dspin(1, 5000, 1, 1, " mm")
+        self.spacing = dspin(0, 100, 2, 0.5, " mm")
+        self.spacing.setValue(2.0)
+        self.spacing.setToolTip("Kleinster Abstand zwischen zwei Teilen")
+        self.margin = dspin(0, 100, 2, 0.5, " mm")
+        self.margin.setValue(2.0)
+        self.margin.setToolTip("Abstand der Teile zum Rand der Grundfläche")
+        self.rot = QComboBox()
+        for label, rots in self.ROTATIONS:
+            self.rot.addItem(label, rots)
+        self.rot.setCurrentIndex(2)
+        self.rot.setToolTip("Erlaubte Drehungen. Bei Holz mit Maserung ggf. „0° / 180°“ wählen.")
+        self.copies = QSpinBox()
+        self.copies.setRange(1, 1000)
+        self.copies.setToolTip("Anzahl je ausgewähltem Objekt. Was nicht passt, wird nicht angelegt.")
+        self.holes = QCheckBox("Kleine Teile auch in Löcher größerer Teile setzen")
+        self.holes.setChecked(True)
+        self.thorough = QCheckBox("Gründlich (mehrere Strategien, langsamer, meist dichter)")
+        self.thorough.setChecked(True)
+        self.frame = QCheckBox("Grundfläche als Rahmen einzeichnen (Ebene ohne Ausgabe)")
+        f.addRow("Grundfläche", self.source)
+        f.addRow("X (links)", self.x)
+        f.addRow("Y (unten)", self.y)
+        f.addRow("Breite", self.w)
+        f.addRow("Höhe", self.h)
+        f.addRow("Mindestabstand", self.spacing)
+        f.addRow("Randabstand", self.margin)
+        f.addRow("Drehungen", self.rot)
+        f.addRow("Kopien je Objekt", self.copies)
+        f.addRow("", self.holes)
+        f.addRow("", self.thorough)
+        f.addRow("", self.frame)
+        lay.addLayout(f)
+        _ok_cancel(self, lay)
+        self.source.currentIndexChanged.connect(self._src)
+        self._src()
+
+    def _src(self):
+        src = self.source.currentData()
+        if src == "bed":
+            vals = (0, 0, self.bed[0], self.bed[1])
+        elif src == "object" and self.sel_bbox is not None:
+            b = self.sel_bbox
+            vals = (b[0], b[1], b[2] - b[0], b[3] - b[1])
+        else:
+            vals = None
+        for w in (self.x, self.y, self.w, self.h):
+            w.setEnabled(src == "custom")
+        if vals:
+            for w, v in zip((self.x, self.y, self.w, self.h), vals):
+                w.setValue(v)
