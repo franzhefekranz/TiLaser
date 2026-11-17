@@ -25,6 +25,7 @@ from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
+from . import icons
 from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog,
                       OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
@@ -409,6 +410,45 @@ class MainWindow(QMainWindow):
         ob.setMovable(False)
         ob.addWidget(self.objects)
         self.addToolBar(ob)
+        self._apply_icons(tb, tt)
+
+    def _apply_icons(self, tb, tt):
+        """Symbole für Werkzeugleisten und Menüs; Tooltips zeigen Text und Tastenkürzel."""
+        from PyQt6.QtCore import QSize
+        for a in self.findChildren(QAction):
+            ic = icons.icon_for_text(a.text())
+            if ic is not None and not ic.isNull():
+                a.setIcon(ic)
+        tool_icons = {"select": "select", "rect": "rect", "ellipse": "ellipse", "polygon": "polygon",
+                      "line": "line", "node": "node"}
+        for key, a in self.tool_actions.items():
+            ic = icons.icon(tool_icons[key])
+            if not ic.isNull():
+                a.setIcon(ic)
+        for bar in (tb, tt):
+            bar.setIconSize(QSize(22, 22))
+            bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+            for a in bar.actions():
+                if a.isSeparator() or not a.text():
+                    continue
+                tip = a.toolTip() if a.toolTip() and a.toolTip() != a.text().replace("&", "") \
+                    else a.text().replace("&", "").rstrip("…")
+                sc = a.shortcut().toString(QKeySequence.SequenceFormat.NativeText)
+                if sc and sc not in tip:
+                    tip = f"{tip} ({sc})"
+                a.setToolTip(tip)
+        self._play_icons = (icons.icon("play"), icons.icon("pause"))
+        self.btn_play.setIconSize(QSize(22, 22))
+        self._set_play_icon(False)
+
+    def _set_play_icon(self, playing: bool):
+        ics = self.__dict__.get("_play_icons")
+        ic = ics[1 if playing else 0] if ics else None
+        if ic is not None and not ic.isNull():
+            self.btn_play.setIcon(ic)
+            self.btn_play.setText("")
+        else:
+            self.btn_play.setText("⏸" if playing else "▶")
 
     # ------------------------------------------------------------ Projekt
     def _update_title(self):
@@ -1252,7 +1292,7 @@ class MainWindow(QMainWindow):
             w.setEnabled(on)
         if not on:
             self.sim_timer.stop()
-            self.btn_play.setText("▶")
+            self._set_play_icon(False)
             self.lbl_sim.setText("")
 
     def _sim_ensure(self):
@@ -1273,12 +1313,12 @@ class MainWindow(QMainWindow):
             return
         if self.sim_timer.isActive():
             self.sim_timer.stop()
-            self.btn_play.setText("▶")
+            self._set_play_icon(False)
             return
         self._sim_ensure()
         if self.sim_slider.value() >= 1000:
             self.sim_slider.setValue(0)
-        self.btn_play.setText("⏸")
+        self._set_play_icon(True)
         self.sim_timer.start()
 
     def _sim_tick(self):
@@ -1289,7 +1329,7 @@ class MainWindow(QMainWindow):
         if t >= self.result.time_s:
             t = self.result.time_s
             self.sim_timer.stop()
-            self.btn_play.setText("▶")
+            self._set_play_icon(False)
         self.sim_slider.blockSignals(True)
         self.sim_slider.setValue(int(t / self.result.time_s * 1000))
         self.sim_slider.blockSignals(False)

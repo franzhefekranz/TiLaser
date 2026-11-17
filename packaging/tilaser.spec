@@ -11,7 +11,7 @@ ICON = os.path.join(ROOT, "packaging", "icon", "tilaser.ico" if sys.platform.sta
 hidden = (
     collect_submodules("fontTools.ttLib.tables")      # Tabellenmodule werden dynamisch geladen
     + collect_submodules("serial.tools")
-    + ["fontTools.pens.basePen", "PyQt6.QtMultimedia", "pyclipper"]
+    + ["fontTools.pens.basePen", "PyQt6.QtMultimedia", "PyQt6.QtSvg", "pyclipper"]   # QtSvg: SVG-Symbole
 )
 
 a = Analysis(
