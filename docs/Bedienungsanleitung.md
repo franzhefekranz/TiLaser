@@ -5,7 +5,7 @@ TiLaser ist ein Programm zum Laserschneiden und -gravieren mit G-Code-gesteuerte
 vom ersten Start bis zum fertigen Werkstück.
 
 > Die Screenshots werden automatisch aus dem aktuellen Programmstand erzeugt
-> (`tools/make_screenshots.py`, GitHub-Workflow „Screenshots“).
+> (`tools/make_screenshots.py`, GitHub-Workflow „Dokumentation“).
 
 ---
 
