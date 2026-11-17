@@ -106,6 +106,7 @@ class MainWindow(QMainWindow):
         self.machine.frameRequested.connect(self.run_frame)
         self.machine.firmwareDetected.connect(self._on_firmware)
         self.machine.profileChanged.connect(lambda: storage.save_machine(self.profile))
+        self.layers.set_machine(self.profile.name)
         self._update_title()
         self.canvas.zoom_fit()
 
@@ -644,6 +645,8 @@ class MainWindow(QMainWindow):
         if dlg.exec() == MachineDialog.DialogCode.Accepted:
             dlg.apply()
             storage.save_machine(self.profile)
+            self.layers.set_machine(self.profile.name)
+            self.machine.baud.setCurrentText(str(self.profile.baud))
             self.canvas.set_bed(self.profile.bed_w, self.profile.bed_h)
             self._update_title()
             self._invalidate()

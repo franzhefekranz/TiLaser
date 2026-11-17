@@ -316,6 +316,23 @@ def test_group_ungroup():
     assert grp.layer_ids() == {new_layer.id}
 
 
+def test_presets_merge():
+    from tilaser.core import storage
+    storage.USER_PRESETS = os.path.join(TMP, "presets.json")
+    defaults = storage.load_presets()
+    assert any(p.get("machine") == "AlgoLaser DIY KIT MK2 (20 W)" for p in defaults)
+    assert all(p["mode"] in ("cut", "fill", "raster") and 0 < p["speed"] and 0 < p["power"] <= 100 for p in defaults)
+    first = defaults[0]["name"]
+    mine = dict(defaults[1], name="Mein Preset", speed=123)
+    storage.save_presets(defaults[1:] + [mine])         # erstes Standard-Preset gelöscht
+    again = storage.load_presets()
+    names = [p["name"] for p in again]
+    assert first not in names and "Mein Preset" in names and len(again) == len(defaults)
+    t = storage.load_machine_templates()
+    prof = MachineProfile.from_dict(t[0])
+    assert prof.dialect == "grbl" and prof.s_max == 1000 and prof.bed_w == 400
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")

@@ -67,7 +67,11 @@ class LayerPanel(QWidget):
         # Presets
         pg = QGroupBox("Material-Presets")
         pl = QVBoxLayout(pg)
+        self.machine_filter = QComboBox()
+        self.machine_filter.setToolTip("Presets nach Maschine filtern")
         self.preset_combo = QComboBox()
+        self.preset_combo.setMaxVisibleItems(25)
+        pl.addWidget(self.machine_filter)
         pl.addWidget(self.preset_combo)
         prow = QHBoxLayout()
         self.btn_apply = QPushButton("Anwenden")
@@ -80,6 +84,8 @@ class LayerPanel(QWidget):
         self.btn_apply.clicked.connect(self._apply_preset)
         self.btn_save_preset.clicked.connect(self._save_preset)
         self.btn_del_preset.clicked.connect(self._delete_preset)
+        self._fill_machine_filter()
+        self.machine_filter.currentIndexChanged.connect(lambda _: self._fill_presets())
         self._fill_presets()
 
         # Einstellungen
@@ -280,17 +286,41 @@ class LayerPanel(QWidget):
         self.layersChanged.emit(True)
 
     # ------------------------------------------------------------ Presets
+    def _fill_machine_filter(self, select: str | None = None):
+        cur = select or self.machine_filter.currentData()
+        self.machine_filter.blockSignals(True)
+        self.machine_filter.clear()
+        self.machine_filter.addItem("Alle Maschinen", "")
+        for m in sorted({p.get("machine", "") for p in self.presets if p.get("machine")}):
+            self.machine_filter.addItem(m, m)
+        i = self.machine_filter.findData(cur) if cur else 0
+        self.machine_filter.setCurrentIndex(max(0, i))
+        self.machine_filter.blockSignals(False)
+
+    def set_machine(self, name: str):
+        """Filter auf die Maschine des aktuellen Profils setzen (falls Presets dafür existieren)."""
+        if self.machine_filter.findData(name) >= 0:
+            self._fill_machine_filter(name)
+            self._fill_presets()
+
     def _fill_presets(self):
+        flt = self.machine_filter.currentData() or ""
         self.preset_combo.clear()
-        for p in self.presets:
-            self.preset_combo.addItem(f"{p['name']}  [{MODE_LABELS.get(p.get('mode', 'cut'), '')}]")
+        for i, p in enumerate(self.presets):
+            if flt and p.get("machine", "") not in (flt, ""):
+                continue
+            self.preset_combo.addItem(f"{p['name']}  [{MODE_LABELS.get(p.get('mode', 'cut'), '')}]", i)
             self.preset_combo.setItemData(self.preset_combo.count() - 1, p.get("material", ""),
                                           Qt.ItemDataRole.ToolTipRole)
 
+    def _preset_index(self):
+        d = self.preset_combo.currentData()
+        return d if isinstance(d, int) and 0 <= d < len(self.presets) else None
+
     def _apply_preset(self):
         l = self.current_layer()
-        i = self.preset_combo.currentIndex()
-        if not l or i < 0:
+        i = self._preset_index()
+        if not l or i is None:
             return
         storage.apply_preset(l, self.presets[i])
         self._load_form(l)
@@ -307,20 +337,22 @@ class LayerPanel(QWidget):
         material, ok = QInputDialog.getText(self, "Preset speichern", "Material / Bemerkung:")
         if not ok:
             return
-        new = storage.preset_from_layer(name.strip(), material.strip(), l)
+        new = storage.preset_from_layer(name.strip(), material.strip(), l, self.machine_filter.currentData() or "")
         self.presets = [p for p in self.presets if p["name"] != new["name"]] + [new]
         storage.save_presets(self.presets)
+        self._fill_machine_filter()
         self._fill_presets()
-        self.preset_combo.setCurrentIndex(len(self.presets) - 1)
+        self.preset_combo.setCurrentIndex(self.preset_combo.findData(len(self.presets) - 1))
 
     def _delete_preset(self):
-        i = self.preset_combo.currentIndex()
-        if i < 0:
+        i = self._preset_index()
+        if i is None:
             return
         if QMessageBox.question(self, "Preset löschen", f"Preset „{self.presets[i]['name']}“ löschen?") \
                 == QMessageBox.StandardButton.Yes:
             del self.presets[i]
             storage.save_presets(self.presets)
+            self._fill_machine_filter()
             self._fill_presets()
 
 

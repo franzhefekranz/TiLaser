@@ -109,6 +109,19 @@ unter **Maschine → Maschineneinstellungen** einstellen und *Standardwerte übe
 Bei GRBL setzt *Nullpunkt hier* den Werkstück-Nullpunkt (`G10 L20 P1 X0 Y0`) auf die aktuelle Kopfposition.
 Bei Marlin wird dafür `G92` verwendet.
 
+## AlgoLaser DIY KIT MK2 (20 W)
+
+1. **Maschine → Maschineneinstellungen → Maschinenvorlage** „AlgoLaser DIY KIT MK2 (20 W)“ → *Übernehmen* → OK.
+   Das setzt GRBL, M4, S 1000, 400 × 400 mm, Eilgang 6000 mm/min und Rahmen mit 1 % Leistung.
+2. Per USB-C verbinden (115200 Baud). In der **Konsole** `$$` senden und prüfen:
+   `$32=1` (Lasermodus, sonst `$32=1` senden), `$130`/`$131` = Verfahrweg X/Y → ggf. als Arbeitsbereich eintragen.
+3. In **Ebenen → Material-Presets** den Filter „AlgoLaser DIY KIT MK2 (20 W)“ wählen. Die Werte stammen aus
+   der [AlgoLaser-Parametertabelle für den DIY KIT 20W](https://algolaser.com/pages/material). Ausnahmen
+   (im Tooltip als Schätz-/Startwert markiert) sind Sperrholz 2 mm, Linie ritzen und die Foto-Presets.
+4. Air Assist ist in den Presets aus. Wird die Pumpe über `M8`/`M9` geschaltet, das Häkchen pro Ebene setzen.
+
+Während TiLaser verbunden ist, keinen Auftrag gleichzeitig über Touchscreen oder App starten.
+
 ## Sicherheit
 
 - Immer eine **Schutzbrille passend zur Wellenlänge** tragen, Absaugung einschalten, den Laser **nie
