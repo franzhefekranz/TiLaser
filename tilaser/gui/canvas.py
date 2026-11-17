@@ -327,8 +327,19 @@ class LaserCanvas(QGraphicsView):
         origin.setZValue(-8)
         self.scene_.addItem(origin)
         self.bed_items.append(origin)
-        m = 20
-        self.scene_.setSceneRect(QRectF(-m - 50, -h - m - 50, w + 2 * m + 100, h + 2 * m + 100))
+        self.update_scene_rect()
+
+    def update_scene_rect(self):
+        """Scrollbereich: Arbeitsfläche plus alle Objekte, mit großzügigem Rand, damit man auch
+        nach dem Zoomen in alle Richtungen über die Kanten hinaus scrollen kann."""
+        r = QRectF(0, -self.bed_h, self.bed_w, self.bed_h)
+        for gi in self.graphics.values():
+            try:
+                r = r.united(gi.sceneBoundingRect())
+            except RuntimeError:
+                pass
+        m = max(self.bed_w, self.bed_h) * 0.5 + 50
+        self.scene_.setSceneRect(r.adjusted(-m, -m, m, m))
 
     def zoom_fit(self):
         bb = self.project.bbox(only_output=False) if self.project and self.project.items else None
@@ -352,6 +363,7 @@ class LaserCanvas(QGraphicsView):
         for it in self.project.items:
             self.add_item(it, select=it.id in selected)
         self.update_overlay()
+        self.update_scene_rect()
 
     def add_item(self, item: Item, select=False):
         gi = ItemGraphic(item, self.project, self._on_graphic_moved, self._snap)
@@ -397,6 +409,7 @@ class LaserCanvas(QGraphicsView):
 
     def _on_graphic_moved(self, item):
         self.update_overlay()
+        self.update_scene_rect()
         self.itemMoved.emit(item.id)
 
     def update_overlay(self):
@@ -855,7 +868,26 @@ class LaserCanvas(QGraphicsView):
 
     # ------------------------------------------------------------ Maus / Tastatur
     def wheelEvent(self, e):
-        f = 1.15 ** (e.angleDelta().y() / 120)
+        """Mausrad: zoomen. Shift+Mausrad bzw. Touchpad seitwärts: seitlich scrollen.
+        Strg+Mausrad: hoch/runter scrollen."""
+        mods = e.modifiers()
+        dx, dy = e.angleDelta().x(), e.angleDelta().y()
+        pdx, pdy = e.pixelDelta().x(), e.pixelDelta().y()
+        hs, vs = self.horizontalScrollBar(), self.verticalScrollBar()
+        if mods & Qt.KeyboardModifier.ShiftModifier:
+            d = pdy or pdx or (dy or dx) / 2      # manche Systeme liefern Shift+Rad als x-Wert
+            hs.setValue(int(hs.value() - d))
+            return
+        if mods & Qt.KeyboardModifier.ControlModifier:
+            vs.setValue(int(vs.value() - (pdy or dy / 2)))
+            hs.setValue(int(hs.value() - (pdx or dx / 2)))
+            return
+        if dx and abs(dx) > abs(dy):              # Touchpad: seitlich wischen
+            hs.setValue(int(hs.value() - (pdx or dx / 2)))
+            return
+        if not dy:
+            return
+        f = 1.15 ** (dy / 120)
         cur = self.transform().m11()
         if 0.05 < cur * f < 200:
             self.scale(f, f)

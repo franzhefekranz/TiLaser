@@ -202,6 +202,35 @@ for idx, name, title in ((1, "12_verbindung", "Verbindung"), (2, "13_bewegen", "
                          (3, "14_konsole", "Konsole")):
     w.tabs.setCurrentIndex(idx)
     shot(side, name, title)
+
+# Tab „Kamera“ mit synthetischem Live-Bild (Holzplatte, halb gravierter Kreis, Laserkopf)
+from PyQt6.QtGui import QImage                                # noqa: E402
+lv = Image.new("RGB", (640, 480), (196, 160, 112))
+d = ImageDraw.Draw(lv)
+for yy in range(0, 480, 9):
+    d.line((0, yy, 640, yy + 14), fill=(184, 148, 100), width=2)
+d.rectangle((150, 110, 490, 380), outline=(120, 90, 60), width=3)
+d.arc((220, 140, 420, 340), 200, 470, fill=(60, 40, 25), width=7)
+d.rectangle((395, 60, 475, 150), fill=(40, 40, 44))
+d.ellipse((425, 160, 445, 180), fill=(255, 230, 255))
+d.line((435, 150, 435, 170), fill=(160, 80, 255), width=3)
+qlv = QImage(np.ascontiguousarray(np.asarray(lv)).data, 640, 480, 640 * 3, QImage.Format.Format_RGB888).copy()
+cp = w.camera_panel
+cp.dev.clear()
+cp.dev.addItem("USB-Kamera")
+cp.dev.setEnabled(True)
+cp.view.set_image(qlv)
+cp.view.overlay = "● REC 03:42"
+cp.btn_on.setChecked(True)
+cp.btn_on.setText("■ Ausschalten")
+cp.btn_rec.setChecked(True)
+cp.btn_rec.setText("■ Aufnahme beenden")
+cp.cb_auto.setChecked(True)
+cp.cb_rec.setChecked(True)
+cp.lbl_status.setText("Live: USB-Kamera")
+w.tabs.setCurrentWidget(cp)
+shot(side, "30_kamera_live", "Live-Kamera")
+cp.view.clear()
 w.tabs.setCurrentIndex(0)
 
 # ------------------------------------------------------------------ Dialoge

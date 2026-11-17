@@ -3,7 +3,8 @@
 Programm zum Schneiden und Gravieren mit G-Code-gesteuerten Lasern (GRBL/FluidNC, Marlin, Smoothieware).
 Python 3.10+ mit PyQt6-Oberfläche. Lizenz: GPL-3.0.
 
-📖 **[Bedienungsanleitung](docs/Bedienungsanleitung.md)** – ausführlich, mit Screenshots.
+🌐 **[Projektseite](https://franzhefekranz.github.io/TiLaser/)** · 📖 **[Bedienungsanleitung](docs/Bedienungsanleitung.md)**
+([PDF](docs/TiLaser-Bedienungsanleitung.pdf), [Wiki](https://github.com/franzhefekranz/TiLaser/wiki)) – ausführlich, mit Screenshots.
 
 ## Download
 
@@ -85,6 +86,8 @@ ein GitHub-Release an.
   - **Bewegen**: relativ in 8 Richtungen sowie **absolut** auf eingegebene X/Y-Koordinaten
     (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
   - **Konsole**: Maschinenmeldungen und eigene Befehle.
+  - **Kamera**: Live-Bild der Webcam zum Beobachten, Foto/Video, großes Fenster, automatischer Start und
+    Videoaufnahme bei jedem Auftrag.
 - Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause*, *Stopp*, außerdem
   **Ursprung** (*Absolut* oder *Aktuelle Position* mit 9-Punkt-Anker), **Nur Auswahl** und **Fortsetzen…**
   (abgebrochenen Auftrag ab einer Zeile weiterlaufen lassen).
@@ -208,7 +211,9 @@ tilaser/
   data/                 # Standard-Presets, Icon
 tests/test_core.py      # python tests/test_core.py
 packaging/              # PyInstaller-Spec, Inno Setup, Linux-Desktop-/MIME-Dateien, Build-Skripte, Icons
-.github/workflows/      # automatischer Build und Release
+site/                   # Projektseite (GitHub Pages), Kopfgrafik mit tools/make_hero.py erzeugt
+tools/                  # Screenshots, PDF, Wiki und Projektseite erzeugen
+.github/workflows/      # Build und Release, Dokumentation (Screenshots, PDF, Wiki, Projektseite)
 ```
 
 Ohne Oberfläche, z. B. im Skript:

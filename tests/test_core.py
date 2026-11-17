@@ -960,3 +960,17 @@ if __name__ == "__main__":
             fn()
             print("OK ", name)
     print("Ausgaben in", TMP)
+
+
+def test_profile_live_camera_fields():
+    from tilaser.core.gcode import MachineProfile
+    p = MachineProfile()
+    assert not p.camera_live_auto and not p.camera_live_record and not p.camera_live_bg
+    p.camera_live_auto, p.camera_live_rot, p.camera_media_dir = True, 90, "/tmp/x"
+    q = MachineProfile.from_dict(p.to_dict())
+    assert q.camera_live_auto and q.camera_live_rot == 90 and q.camera_media_dir == "/tmp/x"
+    # alte Profile ohne die neuen Felder laden weiterhin
+    d = p.to_dict()
+    for k in ("camera_live_auto", "camera_live_record", "camera_live_bg", "camera_live_rot", "camera_media_dir"):
+        d.pop(k)
+    assert MachineProfile.from_dict(d).camera_live_rot == 0
