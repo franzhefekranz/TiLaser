@@ -636,7 +636,6 @@ def test_pdf_import():
         p = os.path.join(TMP, f"t{comp}.pdf")
         open(p, "wb").write(_mini_pdf(content, comp))
         paths, warn = import_pdf(p)
-        assert any("Text" in w for w in warn)
         reds = [ip for ip in paths if ip.color == "#ff0000"]
         assert len(reds) == 1 and reds[0].poly.closed
         assert np.allclose(g.bbox([reds[0].poly]), (25.4, 25.4, 50.8, 50.8), atol=1e-6)
@@ -664,6 +663,120 @@ def test_pdf_import():
     paths, _ = import_pdf(pm)
     circ = [ip for ip in paths if ip.color == "#ff0000"]
     assert circ and abs((g.bbox([circ[0].poly])[2] - g.bbox([circ[0].poly])[0]) - 0.6 * 50.8) < 0.5
+
+
+def _pdf(objs: list[bytes]) -> bytes:
+    out = b"%PDF-1.5\n"
+    for i, o in enumerate(objs, 1):
+        out += f"{i} 0 obj\n".encode() + o + b"\nendobj\n"
+    return out + b"trailer << /Root 1 0 R >>\n%%EOF\n"
+
+
+def _stream(data: bytes, extra=b"") -> bytes:
+    import zlib
+    z = zlib.compress(data)
+    return b"<< /Filter /FlateDecode /Length " + str(len(z)).encode() + b" " + extra + b">>\nstream\n" + z + b"\nendstream"
+
+
+def _text_pdf(font_obj: bytes, extra_objs: list[bytes], content: bytes) -> bytes:
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 400 200] >>",
+            b"<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+            _stream(content), font_obj] + extra_objs
+    return _pdf(objs)
+
+
+def test_pdf_text():
+    from tilaser.core.pdf_import import import_pdf
+    font = default_font()
+    if not font:
+        return
+    from fontTools.ttLib import TTFont
+    ttf = open(font, "rb").read()
+    tt = TTFont(font)
+    cmap = tt.getBestCmap()
+    order = {n: i for i, n in enumerate(tt.getGlyphOrder())}
+    content = b"BT 0 0 1 rg /F1 20 Tf 10 20 Td (Hallo) Tj 0 3 Tr 0 40 Td (Unsichtbar) Tj ET"
+    # 1) eingebettete TrueType-Schrift (einfach, WinAnsi)
+    pdf = _text_pdf(b"<< /Type /Font /Subtype /TrueType /BaseFont /Test /Encoding /WinAnsiEncoding "
+                    b"/FontDescriptor 6 0 R >>",
+                    [b"<< /Type /FontDescriptor /FontName /Test /FontFile2 7 0 R >>", _stream(ttf)], content)
+    p = os.path.join(TMP, "text1.pdf")
+    open(p, "wb").write(pdf)
+    paths, warn = import_pdf(p)
+    assert len(paths) == 7 and all(ip.filled and ip.color == "#0000ff" for ip in paths), (len(paths), warn)
+    assert all(ip.poly.bez is not None for ip in paths)
+    bb = g.bbox([ip.poly for ip in paths])
+    assert abs(bb[0] - 10 * 25.4 / 72) < 1.0 and 4 < bb[3] - bb[1] < 7.5, bb     # 20 pt ≈ 7 mm Schriftgröße
+    # 2) nicht eingebettete Standardschrift -> Ersatz
+    p2 = os.path.join(TMP, "text2.pdf")
+    open(p2, "wb").write(_text_pdf(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>", [], content))
+    paths2, warn2 = import_pdf(p2)
+    assert len(paths2) == 7 and any("Ersatzschrift" in w for w in warn2)
+    # 3) Type0 / Identity-H mit Glyphen-IDs
+    gids = [order[cmap[ord(c)]] for c in "Hi"]
+    hexs = "".join(f"{x:04X}" for x in gids).encode()
+    c3 = b"BT /F1 20 Tf 10 20 Td <" + hexs + b"> Tj ET"
+    p3 = os.path.join(TMP, "text3.pdf")
+    open(p3, "wb").write(_text_pdf(
+        b"<< /Type /Font /Subtype /Type0 /BaseFont /Test /Encoding /Identity-H /DescendantFonts [6 0 R] >>",
+        [b"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /Test /CIDToGIDMap /Identity /DW 600 "
+         b"/W [0 [600]] /FontDescriptor 7 0 R >>",
+         b"<< /Type /FontDescriptor /FontName /Test /FontFile2 8 0 R >>", _stream(ttf)], c3))
+    paths3, _ = import_pdf(p3)
+    assert len(paths3) == 3                                   # H (1) + i (2)
+    # 4) CFF-Schrift (Type1C), mit fontTools erzeugt
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.t2CharStringPen import T2CharStringPen
+    pen = T2CharStringPen(600, None)
+    pen.moveTo((100, 0)); pen.lineTo((500, 0)); pen.lineTo((300, 700)); pen.closePath()
+    fb = FontBuilder(1000, isTTF=False)
+    fb.setupGlyphOrder([".notdef", "A"])
+    fb.setupCharacterMap({65: "A"})
+    nd = T2CharStringPen(500, None).getCharString()
+    fb.setupCFF("TestCFF", {"FullName": "TestCFF"}, {".notdef": nd, "A": pen.getCharString()}, {})
+    fb.setupHorizontalMetrics({".notdef": (500, 0), "A": (600, 100)})
+    fb.setupHorizontalHeader(ascent=800, descent=-200)
+    fb.setupNameTable({"familyName": "TestCFF", "styleName": "Regular"})
+    fb.setupOS2()
+    fb.setupPost()
+    cff_bytes = fb.font["CFF "].compile(fb.font)
+    p4 = os.path.join(TMP, "text4.pdf")
+    open(p4, "wb").write(_text_pdf(
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /TestCFF /FirstChar 65 /LastChar 65 /Widths [600] "
+        b"/FontDescriptor 6 0 R >>",
+        [b"<< /Type /FontDescriptor /FontName /TestCFF /FontFile3 7 0 R >>",
+         _stream(cff_bytes, b"/Subtype /Type1C ")],
+        b"BT /F1 72 Tf 0 0 Td (AA) Tj ET"))
+    paths4, w4 = import_pdf(p4)
+    assert len(paths4) == 2, w4
+    b4 = sorted((g.bbox([ip.poly]) for ip in paths4), key=lambda b: b[0])
+    assert np.allclose(b4[0], (100 / 1000 * 25.4, 0, 500 / 1000 * 25.4, 700 / 1000 * 25.4), atol=0.01)
+    assert abs(b4[1][0] - b4[0][0] - 600 / 1000 * 25.4) < 0.01         # Vorschub aus /Widths
+
+
+def test_eps_via_converter():
+    if os.name == "nt":
+        return
+    from tilaser.core import eps_import
+    d = tempfile.mkdtemp()
+    pdf = os.path.join(d, "vorlage.pdf")
+    open(pdf, "wb").write(_mini_pdf(b"1 0 0 RG 0 0 72 72 re S\n"))
+    fake = os.path.join(d, "gs")
+    open(fake, "w").write("#!" + sys.executable + "\nimport sys, shutil\n"
+                          "out = [a for a in sys.argv if a.startswith('-sOutputFile=')][0].split('=', 1)[1]\n"
+                          f"shutil.copy({pdf!r}, out)\n")
+    os.chmod(fake, 0o755)
+    old = os.environ["PATH"]
+    os.environ["PATH"] = d + os.pathsep + old
+    try:
+        eps = os.path.join(d, "x.eps")
+        open(eps, "w").write("%!PS-Adobe-3.0 EPSF-3.0\n")
+        paths, warn = eps_import.import_eps(eps)
+    finally:
+        os.environ["PATH"] = old
+    assert any("Ghostscript" in w for w in warn)
+    assert any(ip.color == "#ff0000" for ip in paths)
 
 
 def test_text_on_path_and_lens():
@@ -695,6 +808,22 @@ def test_text_on_path_and_lens():
     assert abs(k1 - k_true) < 0.01 and err < 0.05, (k1, err)
     out = rectify(np.full((1000, 1000, 3), 128, np.uint8), H, 400, 400, 1.0, k1)
     assert out.shape == (400, 400, 3) and out[200, 200, 0] == 128
+
+
+def test_dxf_curves():
+    p = os.path.join(TMP, "t.dxf")
+    open(p, "w").write(DXF)
+    paths, _ = import_dxf(p)
+    circ = [ip.poly for ip in paths if ip.poly.closed and ip.key == "DXF:Schnitt"][0]
+    assert circ.bez is not None and len(circ.bez.anchors) == 4
+    r = np.hypot(*(circ.pts - [25, 25]).T)
+    assert np.allclose(r, 10, atol=0.005)
+    lw = [ip.poly for ip in paths if ip.key == "DXF:Gravur"][0]
+    assert lw.bez is not None and len(lw.bez.anchors) == 5 and not lw.bez.is_line(1)   # Halbkreis = 2 Kubiken
+    assert np.allclose(g.bbox([lw]), (0, 0, 50, 20), atol=0.01)
+    arc = [ip.poly for ip in paths if not ip.poly.closed and ip.poly.bez is not None
+           and len(ip.poly.bez.anchors) == 2 and not ip.poly.bez.is_line(0)][0]
+    assert np.allclose(arc.pts[0], [5, 0]) and np.allclose(arc.pts[-1], [0, 5], atol=1e-9)
 
 
 class FakeGrbl:

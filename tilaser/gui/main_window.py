@@ -27,7 +27,8 @@ from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
-from ..core.pdf_import import import_pdf
+from ..core.eps_import import import_eps
+from ..core.pdf_import import PdfError, import_pdf
 from ..core.text_import import text_on_path
 from ..core import boolean as bo
 from ..core import camera as cam
@@ -443,8 +444,8 @@ class MainWindow(QMainWindow):
     def import_dialog(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "Importieren", self.last_dir,
-            "Alle unterstützten (*.svg *.dxf *.pdf *.ai *.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;"
-            "SVG (*.svg);;DXF (*.dxf);;PDF / Illustrator (*.pdf *.ai);;"
+            "Alle unterstützten (*.svg *.dxf *.pdf *.ai *.eps *.ps *.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;"
+            "SVG (*.svg);;DXF (*.dxf);;PDF / Illustrator (*.pdf *.ai);;EPS / PostScript (*.eps *.ps);;"
             "Bilder (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)")
         if files:
             self.import_files(files)
@@ -465,9 +466,15 @@ class MainWindow(QMainWindow):
                         self._set_project(storage.load_project(f))
                         self._update_title()
                         continue
-                    if ext in (".svg", ".dxf", ".pdf", ".ai"):
-                        reader = {".svg": import_svg, ".dxf": import_dxf}.get(ext, import_pdf)
-                        paths, warn = reader(f)
+                    if ext in (".svg", ".dxf", ".pdf", ".ai", ".eps", ".ps"):
+                        reader = {".svg": import_svg, ".dxf": import_dxf, ".eps": import_eps,
+                                  ".ps": import_eps}.get(ext, import_pdf)
+                        try:
+                            paths, warn = reader(f)
+                        except PdfError:
+                            if ext != ".ai":
+                                raise
+                            paths, warn = import_eps(f)         # altes Illustrator-Format (PostScript)
                         msgs += [f"{name}: {w}" for w in warn]
                         if not paths:
                             msgs.append(f"{name}: keine verwertbaren Konturen gefunden.")

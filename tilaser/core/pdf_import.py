@@ -3,7 +3,8 @@
 Unterstützt: unkomprimierte und Flate-komprimierte Inhaltsströme, Objektströme (PDF 1.5+),
 Formular-XObjects (verschachtelt), Transformationen (cm), Pfade (m l c v y h re), Füll- und
 Konturfarben (RGB, Grau, CMYK). Adobe Illustrator ab Version 9 speichert PDF-kompatibel.
-Nicht unterstützt: Text (vorher in Pfade umwandeln), eingebettete Bilder, verschlüsselte PDFs.
+Text wird mit der eingebetteten Schrift (TrueType, CFF, OpenType) in Konturen umgewandelt, sonst mit einer
+Systemschrift ersetzt. Nicht unterstützt: Type3-Schriften, eingebettete Bilder, verschlüsselte PDFs.
 """
 from __future__ import annotations
 
@@ -33,6 +34,31 @@ _TOKEN = re.compile(rb"""
 
 class PdfError(ValueError):
     pass
+
+
+class PdfStr(bytes):
+    """Zeichenkette aus dem Inhaltsstrom (zur Unterscheidung von Namen)."""
+
+
+def _value(objs, body: bytes, key: bytes) -> bytes | None:
+    """Rohwert eines Schlüssels: Array-/Dictionary-Text oder Inhalt des referenzierten Objekts."""
+    m = re.search(rb"/" + key + rb"\s*(\[|<<|(\d+)\s+\d+\s+R)", body)
+    if not m:
+        return None
+    if m.group(1) == b"<<":
+        return _balanced(body, m.start(1))
+    if m.group(1) == b"[":
+        depth, i = 0, m.start(1)
+        while i < len(body):
+            if body[i:i + 1] == b"[":
+                depth += 1
+            elif body[i:i + 1] == b"]":
+                depth -= 1
+                if depth == 0:
+                    return body[m.start(1):i + 1]
+            i += 1
+        return body[m.start(1):]
+    return objs.get(int(m.group(2)), b"")
 
 
 # --------------------------------------------------------------------------- Objekte
@@ -188,19 +214,38 @@ def _tokens(data: bytes):
             i += 1
             continue
         kind = m.lastgroup
-        if kind == "str":                         # (Text) mit Klammer-Verschachtelung überspringen
+        if kind == "str":                         # (Text) mit Escapes und Klammer-Verschachtelung
             depth, j = 1, m.end()
+            buf = bytearray()
             while j < n and depth:
-                c = data[j:j + 1]
-                if c == b"\\":
-                    j += 2
+                c = data[j]
+                if c == 0x5C:                     # Backslash
+                    nx = data[j + 1:j + 2]
+                    esc = {b"n": 10, b"r": 13, b"t": 9, b"b": 8, b"f": 12, b"(": 40, b")": 41, b"\\": 92}
+                    if nx in esc:
+                        buf.append(esc[nx])
+                        j += 2
+                    elif nx.isdigit():
+                        oct_ = re.match(rb"[0-7]{1,3}", data[j + 1:j + 4]).group(0)
+                        buf.append(int(oct_, 8) & 0xFF)
+                        j += 1 + len(oct_)
+                    elif nx in (b"\r", b"\n"):  # Zeilenfortsetzung
+                        j += 2
+                        if nx == b"\r" and data[j:j + 1] == b"\n":
+                            j += 1
+                    else:
+                        j += 1
                     continue
-                if c == b"(":
+                if c == 40:
                     depth += 1
-                elif c == b")":
+                elif c == 41:
                     depth -= 1
+                    if depth == 0:
+                        j += 1
+                        break
+                buf.append(c)
                 j += 1
-            yield "str", None
+            yield "str", PdfStr(bytes(buf))
             i = j
             continue
         i = m.end()
@@ -209,6 +254,11 @@ def _tokens(data: bytes):
         val = m.group(kind)
         if kind == "num":
             yield "num", float(val)
+        elif kind == "hex":
+            h = re.sub(rb"[^0-9A-Fa-f]", b"", val[1:-1])
+            if len(h) % 2:
+                h += b"0"
+            yield "str", PdfStr(bytes.fromhex(h.decode()))
         elif kind == "op" and val == b"BI":       # Inline-Bild bis EI überspringen
             k = data.find(b"EI", i)
             i = k + 2 if k >= 0 else n
@@ -237,6 +287,37 @@ class _Interp:
         self.out: list[ImportedPath] = []
         self.warn: set[str] = set()
         self.base = base_m
+        self.fonts: dict[int, object] = {}
+
+    def _stream(self, num: int):
+        head, data = _split_stream(self.objs.get(num, b""))
+        return _decode(head, data or b"")
+
+    def _font(self, resources, name: bytes):
+        from .pdf_fonts import PdfFont
+        if resources is None:
+            return None
+        fd = _dict_entry(self.objs, resources, b"Font")
+        if not fd:
+            return None
+        m = re.search(rb"/" + re.escape(name) + rb"\s+(\d+)\s+\d+\s+R", fd)
+        if not m:
+            return None
+        num = int(m.group(1))
+        if num not in self.fonts:
+            body = self.objs.get(num, b"")
+            if re.search(rb"/Subtype\s*/Type3", body):
+                self.warn.add("Type3-Schriften in der PDF werden nicht unterstützt.")
+                self.fonts[num] = None
+            else:
+                try:
+                    f = PdfFont(self.objs, body, lambda b, k, raw=False: _value(self.objs, b, k), self._stream)
+                    self.warn.update(f.warnings)
+                    self.fonts[num] = f
+                except Exception as e:
+                    self.warn.add(f"Schrift konnte nicht gelesen werden: {e}")
+                    self.fonts[num] = None
+        return self.fonts[num]
 
     def run(self, data: bytes, resources: bytes | None, ctm: np.ndarray, depth=0):
         if depth > 12:
@@ -263,22 +344,94 @@ class _Interp:
                     self.out.append(ImportedPath(q, state["stroke"], state["stroke"], False))
             bb.out = []
 
-        in_text = False
+        ts = {"font": None, "size": 12.0, "Tc": 0.0, "Tw": 0.0, "Th": 1.0, "TL": 0.0, "Ts": 0.0, "Tr": 0,
+              "Tm": np.eye(3), "Tlm": np.eye(3)}
+        arr_stack: list[list] = []
+
+        def show(items):
+            f = ts["font"]
+            if f is None:
+                return
+            for it in items:
+                if isinstance(it, float):
+                    ts["Tm"] = ts["Tm"] @ g.translate(-it / 1000.0 * ts["size"] * ts["Th"], 0)
+                    continue
+                for code in f.codes(it):
+                    polys, _adv = f.glyph(code)
+                    if polys and ts["Tr"] not in (3, 7):
+                        trm = (state["ctm"] @ ts["Tm"] @
+                               np.array([[ts["size"] * ts["Th"], 0, 0], [0, ts["size"], ts["Ts"]], [0, 0, 1.0]]) @
+                               g.scale(1.0 / f.upm))
+                        M = self.base @ trm
+                        stroke_only = ts["Tr"] in (1, 5)
+                        col = state["stroke"] if stroke_only else state["fill"]
+                        for q in polys:
+                            self.out.append(ImportedPath(q.transformed(M), col, col, not stroke_only))
+                    w0 = f.width(code) / 1000.0
+                    tx = (w0 * ts["size"] + ts["Tc"] + (ts["Tw"] if (code == 32 and not f.two_byte) else 0.0)) * ts["Th"]
+                    ts["Tm"] = ts["Tm"] @ g.translate(tx, 0)
+
         for kind, val in _tokens(data):
+            if kind == "arr":
+                if val == b"[":
+                    arr_stack.append([])
+                elif arr_stack:
+                    lst = arr_stack.pop()
+                    (arr_stack[-1] if arr_stack else operands).append(lst)
+                continue
             if kind != "op":
-                if kind == "num":
-                    operands.append(val)
-                elif kind == "name":
-                    operands.append(val)
+                target = arr_stack[-1] if arr_stack else operands
+                if kind in ("num", "name", "str"):
+                    target.append(val)
                 continue
             op = val.decode("latin-1")
             nums = [v for v in operands if isinstance(v, float)]
+            strs = [v for v in operands if isinstance(v, PdfStr)]
             if op == "BT":
-                in_text = True
+                ts["Tm"], ts["Tlm"] = np.eye(3), np.eye(3)
             elif op == "ET":
-                in_text = False
-            elif in_text and op in ("Tj", "TJ", "'", '"'):
-                self.warn.add("Text in der PDF wurde ignoriert – im Grafikprogramm in Pfade umwandeln.")
+                pass
+            elif op == "Tf" and operands:
+                name = next((v for v in operands if isinstance(v, bytes) and not isinstance(v, PdfStr)), None)
+                if name:
+                    ts["font"] = self._font(resources, name[1:])
+                if nums:
+                    ts["size"] = nums[-1]
+            elif op == "Tc" and nums:
+                ts["Tc"] = nums[-1]
+            elif op == "Tw" and nums:
+                ts["Tw"] = nums[-1]
+            elif op == "Tz" and nums:
+                ts["Th"] = nums[-1] / 100.0
+            elif op == "TL" and nums:
+                ts["TL"] = nums[-1]
+            elif op == "Ts" and nums:
+                ts["Ts"] = nums[-1]
+            elif op == "Tr" and nums:
+                ts["Tr"] = int(nums[-1])
+            elif op in ("Td", "TD") and len(nums) >= 2:
+                tx, ty = nums[-2:]
+                if op == "TD":
+                    ts["TL"] = -ty
+                ts["Tlm"] = ts["Tlm"] @ g.translate(tx, ty)
+                ts["Tm"] = ts["Tlm"].copy()
+            elif op == "Tm" and len(nums) >= 6:
+                a, b, c, d, e, f_ = nums[-6:]
+                ts["Tlm"] = np.array([[a, c, e], [b, d, f_], [0, 0, 1.0]])
+                ts["Tm"] = ts["Tlm"].copy()
+            elif op == "T*":
+                ts["Tlm"] = ts["Tlm"] @ g.translate(0, -ts["TL"])
+                ts["Tm"] = ts["Tlm"].copy()
+            elif op == "Tj" and strs:
+                show([strs[-1]])
+            elif op == "TJ" and operands and isinstance(operands[-1], list):
+                show([v for v in operands[-1] if isinstance(v, (float, PdfStr))])
+            elif op in ("'", '"') and strs:
+                if op == '"' and len(nums) >= 2:
+                    ts["Tw"], ts["Tc"] = nums[-2], nums[-1]
+                ts["Tlm"] = ts["Tlm"] @ g.translate(0, -ts["TL"])
+                ts["Tm"] = ts["Tlm"].copy()
+                show([strs[-1]])
             elif op == "q":
                 stack.append(dict(state))
             elif op == "Q":
@@ -351,7 +504,7 @@ class _Interp:
                 state["stroke"] = _color(nums[-4:] if len(nums) >= 4 else nums)
             elif op in ("sc", "scn") and nums:
                 state["fill"] = _color(nums[-4:] if len(nums) >= 4 else nums)
-            elif op == "Do" and operands and isinstance(operands[-1], bytes):
+            elif op == "Do" and operands and isinstance(operands[-1], bytes) and not isinstance(operands[-1], PdfStr):
                 self._do(operands[-1][1:], resources, state["ctm"], depth)
             operands = []
 
