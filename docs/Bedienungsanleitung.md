@@ -136,7 +136,9 @@ python main.py
 | Aktion | Bedienung |
 |---|---|
 | Zoomen | Mausrad (zur Mausposition hin) |
-| Ansicht verschieben | Mittlere Maustaste oder rechte Maustaste **ziehen** |
+| Ansicht verschieben | Mittlere Maustaste oder rechte Maustaste **ziehen**, Bildlaufleisten |
+| Seitlich scrollen | Shift+Mausrad oder Touchpad seitwärts wischen |
+| Hoch/runter scrollen | Strg+Mausrad |
 | Kontextmenü | Rechte Maustaste **klicken** |
 | Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen |
 | Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm) |
