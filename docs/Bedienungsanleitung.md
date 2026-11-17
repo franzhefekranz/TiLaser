@@ -347,7 +347,7 @@ Sperrholzplatte.
 | **Randabstand** | Abstand zum Rand der Grundfläche |
 | **Drehungen** | Keine, 0°/180°, 90°-Schritte, 45°-Schritte, 15°-Schritte. Bei sichtbarer Holzmaserung „Keine“ oder „0°/180°“ wählen |
 | **Kopien je Objekt** | Legt Kopien an, so viele auf die Fläche passen (bis zur angegebenen Anzahl) |
-| **In Löcher setzen** | Kleine Teile dürfen in Ausschnitte größerer Teile gelegt werden |
+| **In Löcher setzen** | Kleine Teile dürfen in Aussparungen größerer Teile gelegt werden. Als Aussparung zählt nur eine geschlossene Innenkontur auf einer ausgegebenen *Schneiden*-Ebene – also ein Stück, das wirklich herausfällt. Gravuren, Linien auf ausgeblendeten Ebenen und alles andere innerhalb eines Teils gelten als Material |
 | **Gründlich** | Probiert 9 Kombinationen aus Sortierung und Platzierungsregel und nimmt die beste – langsamer, meist dichter |
 | **Rahmen einzeichnen** | Zeichnet die Grundfläche als graues Rechteck auf einer Ebene ohne Ausgabe ein |
 
@@ -360,6 +360,8 @@ Nesting vollständig rückgängig gemacht.
 **Genauigkeit:** Die Teile werden für die Berechnung in ein feines Raster (etwa 0,25–1 mm, abhängig von der
 Größe der Grundfläche) umgerechnet. Das Raster ist bewusst großzügig: Der Mindestabstand wird immer
 eingehalten, die Teile liegen dafür eventuell einen Bruchteil eines Millimeters weiter auseinander als nötig.
+Umrisse aus einzelnen Linien (z. B. DXF-Zeichnungen) werden als geschlossene Teile erkannt, wenn sich die
+Linienenden berühren.
 
 ---
 

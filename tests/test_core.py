@@ -960,3 +960,65 @@ if __name__ == "__main__":
             fn()
             print("OK ", name)
     print("Ausgaben in", TMP)
+
+
+def _overlap_area(a, b, cell=0.25):
+    """Grobe Überlappung zweier Teile (gefüllte Außenkonturen) über ein Punktraster."""
+    from tilaser.core.geometry import points_in_polygon
+    ba, bb = a.world_bbox(), b.world_bbox()
+    x0, y0, x1, y1 = max(ba[0], bb[0]), max(ba[1], bb[1]), min(ba[2], bb[2]), min(ba[3], bb[3])
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    xs, ys = np.meshgrid(np.arange(x0, x1, cell), np.arange(y0, y1, cell))
+    P = np.c_[xs.ravel(), ys.ravel()]
+    def inside(it):
+        r = np.zeros(len(P), bool)
+        for p in it.world_paths():
+            if p.closed:
+                r ^= points_in_polygon(P, p.pts)
+        return r
+    return float((inside(a) & inside(b)).sum()) * cell * cell
+
+
+def test_nesting_no_parts_inside_material():
+    from tilaser.core import shapes
+    from tilaser.core.geometry import Polyline
+    from tilaser.core.model import ImportedPath, VectorPath
+    from tilaser.core.nesting import NestSettings, nest, rasterize
+    # Quadrat aus vier offenen Linien (wie DXF-LINEs): Inneres ist Material
+    sq = [np.array(v, float) for v in ([[0, 0], [60, 0]], [[60, 0], [60, 60]], [[60, 60], [0, 60]], [[0, 60], [0, 0]])]
+    m, _, _ = rasterize([Polyline(v, False) for v in sq], 1.0)
+    assert m[30, 30] and m.mean() > 0.95
+    # doppelte Kontur: kein Loch durch Even-Odd
+    r = shapes.rectangle(40, 40)
+    m, _, _ = rasterize([r, Polyline(r.pts.copy(), True)], 1.0)
+    assert m[20, 20]
+    # echte Aussparung bleibt frei, Gravur (nicht geschnitten) im Teil nicht
+    m, _, _ = rasterize([(shapes.rectangle(60, 60), True), (shapes.rectangle(40, 40), True)], 1.0)
+    assert not m[30, 30]
+    m, _, _ = rasterize([(shapes.rectangle(60, 60), True), (shapes.rectangle(40, 40), False)], 1.0)
+    assert m[30, 30]
+
+    pr = Project()
+    big = pr.add_vector_import("platte", [ImportedPath(Polyline(v, False), "#000000", "#000000") for v in sq],
+                               center_at=(200, 200))
+    plate = pr.add_vector_import("gravur", [ImportedPath(shapes.rectangle(60, 60), "#000000", "#000000")],
+                                 center_at=(300, 200))
+    eng = pr.add_layer("Gravur", "#0000ff", "fill")
+    plate.paths.append(VectorPath(shapes.rectangle(40, 40), eng.id))
+    small = [pr.add_vector_import(f"k{i}", [ImportedPath(shapes.rectangle(12, 12), "#000000", "#000000")],
+                                  center_at=(250, 300)) for i in range(6)]
+    res = nest(pr, [big, plate] + small, NestSettings(0, 0, 200, 70, spacing=2, margin=1, rotations=(0,)), thorough=False)
+    placed = [pr.item(i) for i in res.placed]
+    for a in (big, plate):
+        for b in small:
+            if b in placed and a in placed:
+                assert _overlap_area(a, b) == 0.0, (a.name, b.name)
+
+    # Rahmen mit echter Aussparung: kleines Teil darf hinein
+    pr2 = Project()
+    ring = pr2.add_vector_import("ring", [ImportedPath(shapes.rectangle(60, 60), "#000000", "#000000"),
+                                          ImportedPath(shapes.rectangle(44, 44), "#000000", "#000000")])
+    k = pr2.add_vector_import("k", [ImportedPath(shapes.rectangle(20, 20), "#000000", "#000000")])
+    res2 = nest(pr2, [ring, k], NestSettings(0, 0, 66, 66, spacing=2, margin=1, rotations=(0,)), thorough=False)
+    assert len(res2.placed) == 2
