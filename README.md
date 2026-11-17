@@ -106,7 +106,9 @@ ein GitHub-Release an.
 | Werkzeugleiste links | ⬚ Auswählen (V), ▭ Rechteck (R), ◯ Ellipse (E), ⬡ Polygon/Stern (P), ╱ Linie/Polylinie (L), ◆ Knoten (N). Esc = zurück zu Auswählen |
 | Rechteck, Ellipse, Polygon | Aufziehen; Shift = Quadrat/Kreis, Strg = vom Mittelpunkt aus. Ecken, Stern und Eckenradius in der Leiste darunter |
 | Linie/Polylinie | Punkte klicken, Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form |
-| Knoten bearbeiten | Objekt anklicken, Knoten ziehen; Doppelklick auf eine Linie fügt einen Knoten ein; Entf löscht den markierten Knoten |
+| Knoten bearbeiten | Objekt anklicken, Knoten ziehen; am markierten Knoten erscheinen die Kurven-Anfasser (glatte Knoten bleiben glatt, mit Alt einzeln). Doppelklick auf die Kontur fügt einen Knoten ein. Tasten: Entf = löschen, C = Segment in Kurve, L = in Linie, S = Knoten glätten, B = Pfad auftrennen |
+| Kurven | SVG-Kurven und -Bögen, Schriften, Kreise und abgerundete Rechtecke bleiben echte Bézierkurven (auch beim Speichern, Gruppieren und Skalieren) |
+| Text auf Pfad | Kontur auswählen → *Werkzeuge → Text auf Pfad*. Bei geschlossenen Konturen steht der Text außen oben, mit „Umdrehen“ innen unten |
 | Boolesche Operationen | Menü *Formen*: Vereinigen, Abziehen (größte Form minus die anderen), Schnittmenge, Ausschluss |
 | Offset | *Formen → Offset*: Konturen nach außen (+) oder innen (−) versetzen, eckig oder rund |
 | Pfade verbinden/schließen | *Formen → Pfade verbinden*: offene Linien mit gemeinsamen Endpunkten zusammenfügen (z. B. nach DXF-Import) |
@@ -131,12 +133,13 @@ ein GitHub-Release an.
 ### Kamera
 
 1. *Maschine → Kamera → Kamera wählen* – USB-Kamera oder „Bild aus Datei“ (z. B. ein Handyfoto von oben).
-2. *Passmarken lasern*: vier Kreuze mit 10 % Leistung, je 30 mm vom Bettrand (auf Pappe).
-3. *Kamera ausrichten*: Bild aufnehmen und die Kreuze der Reihe nach anklicken (links unten, rechts unten, rechts oben, links oben).
+2. *Passmarken lasern*: 9 Kreuze (3 × 3, mit Linsenkorrektur) oder 4 Kreuze, je 30 mm vom Bettrand, mit 10 % Leistung (auf Pappe).
+3. *Kamera ausrichten*: Bild aufnehmen und die Kreuze in der angezeigten Reihenfolge anklicken. Bei 9 Marken wird
+   die Tonnen-/Kissenverzeichnung des Objektivs mit berechnet; der Restfehler wird angezeigt.
 4. Danach legt *Kamerabild aktualisieren* (F5) das entzerrte Bild unter die Arbeitsfläche – Objekte direkt auf dem Werkstück platzieren.
 
-Die Kamera muss fest montiert sein. Objektivverzeichnung wird nicht korrigiert; bei starken Weitwinkelobjektiven
-weichen die Ränder um einige Millimeter ab.
+Die Kamera muss fest montiert sein. Korrigiert wird die radiale Verzeichnung (ein Parameter); sehr starke
+Fischaugenobjektive lassen sich damit nur teilweise ausgleichen.
 - **Ansicht → Werkzeugweg-Vorschau** (Strg+P) zeigt, was der Laser tatsächlich fährt.
 - Erkennt das Programm beim Verbinden eine andere Firmware als im Profil eingestellt,
   fragt es, ob es umstellen soll.
@@ -220,7 +223,7 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 
 ## Bekannte Grenzen / Ideen für später
 
-- Noch nicht umgesetzt: Bézierkurven bei der Knotenbearbeitung (Kurven bestehen aus vielen Punkten),
-  Text auf Pfad, Linsenkorrektur der Kamera, Import von PDF/AI/EPS.
+- Noch nicht umgesetzt: EPS-Import (PostScript; als PDF oder SVG speichern), Text in PDFs (in Pfade umwandeln),
+  DXF-Import mit Kurvenerhalt (Bögen werden als Punktfolgen importiert).
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.

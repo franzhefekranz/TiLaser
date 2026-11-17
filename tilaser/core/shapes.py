@@ -13,17 +13,24 @@ def rectangle(w: float, h: float, radius: float = 0.0) -> g.Polyline:
     r = max(0.0, min(radius, w / 2, h / 2))
     x0, y0, x1, y1 = -w / 2, -h / 2, w / 2, h / 2
     if r < 1e-9:
-        return g.Polyline(np.array([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]), True)
-    pts = []
-    for cx, cy, a0 in ((x1 - r, y0 + r, -90), (x1 - r, y1 - r, 0), (x0 + r, y1 - r, 90), (x0 + r, y0 + r, 180)):
-        arc = g.ellipse_arc_points(cx, cy, r, r, 0, math.radians(a0), math.radians(a0 + 90))
-        pts.append(arc)
-    return g.Polyline(np.vstack(pts), True)
+        return g.Polyline.from_bez(g.BezPath.from_points([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], True))
+    bb = g.BezBuilder()
+    k = 4 / 3 * (math.sqrt(2) - 1) * r
+    bb.move((x0 + r, y0))
+    bb.line((x1 - r, y0))
+    bb.cubic((x1 - r + k, y0), (x1, y0 + r - k), (x1, y0 + r))
+    bb.line((x1, y1 - r))
+    bb.cubic((x1, y1 - r + k), (x1 - r + k, y1), (x1 - r, y1))
+    bb.line((x0 + r, y1))
+    bb.cubic((x0 + r - k, y1), (x0, y1 - r + k), (x0, y1 - r))
+    bb.line((x0, y0 + r))
+    bb.cubic((x0, y0 + r - k), (x0 + r - k, y0), (x0 + r, y0))
+    bb.finish(True)
+    return bb.out[0]
 
 
 def ellipse(w: float, h: float) -> g.Polyline:
-    pts = g.ellipse_arc_points(0, 0, abs(w) / 2, abs(h) / 2, 0, 0, 2 * math.pi)[:-1]
-    return g.Polyline(pts, True)
+    return g.Polyline.from_bez(g.ellipse_bez(0, 0, abs(w) / 2, abs(h) / 2))
 
 
 def polygon(n: int, w: float, h: float, star: float = 0.0, rotation: float = 0.0) -> g.Polyline:
@@ -38,8 +45,8 @@ def polygon(n: int, w: float, h: float, star: float = 0.0, rotation: float = 0.0
     bb = pts.min(axis=0), pts.max(axis=0)
     span = np.maximum(bb[1] - bb[0], 1e-9)
     pts = (pts - (bb[0] + bb[1]) / 2) / span * [abs(w), abs(h)]
-    return g.Polyline(pts, True)
+    return g.Polyline.from_bez(g.BezPath.from_points(pts, True))
 
 
 def polyline(points, closed=False) -> g.Polyline:
-    return g.Polyline(np.asarray(points, float), closed)
+    return g.Polyline.from_bez(g.BezPath.from_points(points, closed))

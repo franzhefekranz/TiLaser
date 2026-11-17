@@ -134,8 +134,16 @@ def save_project(project: Project, path: str):
         if it.kind == "raster":
             d["image"] = _img_to_b64(it.image)
         else:
-            d["paths"] = [{"layer": vp.layer_id, "closed": vp.poly.closed,
-                           "pts": np.round(vp.poly.pts, 4).tolist()} for vp in it.paths]
+            d["paths"] = []
+            for vp in it.paths:
+                pd = {"layer": vp.layer_id, "closed": vp.poly.closed}
+                if vp.poly.bez is not None:
+                    b = vp.poly.bez
+                    pd["bez"] = [np.round(b.anchors, 5).tolist(), np.round(b.hin, 5).tolist(),
+                                 np.round(b.hout, 5).tolist()]
+                else:
+                    pd["pts"] = np.round(vp.poly.pts, 4).tolist()
+                d["paths"].append(pd)
         data["items"].append(d)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
@@ -154,7 +162,12 @@ def load_project(path: str) -> Project:
         if it.kind == "raster":
             it.image = _b64_to_img(d["image"])
         else:
-            it.paths = [VectorPath(g.Polyline(np.array(pd["pts"], float), pd["closed"]), pd["layer"])
-                        for pd in d.get("paths", [])]
+            it.paths = []
+            for pd in d.get("paths", []):
+                if "bez" in pd:
+                    poly = g.Polyline.from_bez(g.BezPath(*pd["bez"], closed=pd["closed"]))
+                else:
+                    poly = g.Polyline(np.array(pd["pts"], float), pd["closed"])
+                it.paths.append(VectorPath(poly, pd["layer"]))
         p.items.append(it)
     return p

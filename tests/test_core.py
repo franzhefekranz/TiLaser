@@ -178,7 +178,7 @@ def test_svg():
     assert np.allclose(bb, (5, 5, 95, 45), atol=1e-6), bb       # 0.5 mm pro Einheit, Y gespiegelt
     circ = paths[1].poly
     r = np.hypot(*(circ.pts - [25, 25]).T)
-    assert np.allclose(r, 10, atol=1e-6)
+    assert np.allclose(r, 10, atol=0.005)          # Bézier-Näherung des Kreises (< 0,03 %)
     assert any(ip.filled for ip in paths)
 
 
@@ -566,6 +566,135 @@ def test_camera():
     cam = np.zeros((500, 500), np.uint8)
     out = rectify(cam, H, 400, 400, 1.0)
     assert out.shape == (400, 400)
+
+
+def test_bezier():
+    from tilaser.core import shapes
+    polys = parse_path_d("M0,0 C10,20 30,20 40,0 L40,-10 Q20,-30 0,-10 Z", g.identity())
+    p = polys[0]
+    assert p.bez is not None and len(p.bez.anchors) == 4 and p.closed
+    assert np.allclose(p.pts, p.bez.flatten())
+    assert not p.bez.is_line(0) and p.bez.is_line(1) and not p.bez.is_line(2)
+    # Bogen -> Kubiken, Endpunkt exakt
+    arc = parse_path_d("M0,0 A10,10 0 0 1 20,0", g.identity())[0]
+    assert np.allclose(arc.bez.anchors[-1], [20, 0]) and len(arc.bez.anchors) == 3
+    mid = arc.pts[len(arc.pts) // 2]
+    assert abs(np.hypot(mid[0] - 10, mid[1]) - 10) < 0.01
+    # Teilen erhält die Form
+    b = p.bez.copy()
+    before = b.flatten(0.001)
+    b.split(0, 0.5)
+    after = b.flatten(0.001)
+    assert len(b.anchors) == 5 and abs(g.Polyline(before, True).length() - g.Polyline(after, True).length()) < 0.01
+    i, t, d = b.nearest((20, 15))
+    assert i in (0, 1) and d < 0.5
+    # Transformation, Gruppieren, Speichern erhalten die Kurven
+    from tilaser.core.model import ImportedPath
+    pr = Project()
+    it = pr.add_vector_import("k", [ImportedPath(p, "#000000", "#000000")])
+    it.rotation, it.scale = 30, 2
+    assert it.world_paths()[0].bez is not None
+    parts = pr.ungroup(pr.group([it, pr.add_vector_import("r", [ImportedPath(shapes.rectangle(10, 5, 1), "#ff0000", "#ff0000")])]))
+    assert all(vp.poly.bez is not None for q in parts for vp in q.paths)
+    fpath = os.path.join(TMP, "bez.tlp")
+    save_project(pr, fpath)
+    back = load_project(fpath)
+    for a_it, b_it in zip(pr.items, back.items):
+        for va, vb in zip(a_it.paths, b_it.paths):
+            assert vb.poly.bez is not None and np.allclose(va.poly.bez.anchors, vb.poly.bez.anchors, atol=1e-3)
+            assert abs(va.poly.length() - vb.poly.length()) < 0.01, (va.poly.length(), vb.poly.length())
+    # Text: Buchstabe O mit wenigen Ankern
+    f = default_font()
+    if f:
+        o = text_to_polylines("O", f, 20)
+        assert all(q.bez is not None for q in o) and max(len(q.bez.anchors) for q in o) < 20
+
+
+def _mini_pdf(content: bytes, compress=False) -> bytes:
+    import zlib
+    stream = zlib.compress(content) if compress else content
+    filt = b"/Filter /FlateDecode " if compress else b""
+    form = b"0 0 1 RG 0 0 72 72 re S"
+    objs = [b"<< /Type /Catalog /Pages 2 0 R >>",
+            b"<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 288 288] >>",
+            b"<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Fm1 5 0 R >> >> /Contents 4 0 R >>",
+            b"<< " + filt + b"/Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
+            b"<< /Type /XObject /Subtype /Form /BBox [0 0 100 100] /Matrix [1 0 0 1 144 0] /Length "
+            + str(len(form)).encode() + b" >>\nstream\n" + form + b"\nendstream"]
+    out = b"%PDF-1.4\n"
+    for i, o in enumerate(objs, 1):
+        out += f"{i} 0 obj\n".encode() + o + b"\nendobj\n"
+    return out + b"trailer << /Root 1 0 R >>\n%%EOF\n"
+
+
+def test_pdf_import():
+    from tilaser.core.pdf_import import import_pdf
+    content = (b"q 1 0 0 RG 2 w 72 72 m 144 72 l 144 144 l h S Q\n"
+               b"0 g 0 0 m 72 0 72 72 0 72 c f\n"
+               b"BT /F1 12 Tf (Hallo) Tj ET\n/Fm1 Do\n")
+    for comp in (False, True):
+        p = os.path.join(TMP, f"t{comp}.pdf")
+        open(p, "wb").write(_mini_pdf(content, comp))
+        paths, warn = import_pdf(p)
+        assert any("Text" in w for w in warn)
+        reds = [ip for ip in paths if ip.color == "#ff0000"]
+        assert len(reds) == 1 and reds[0].poly.closed
+        assert np.allclose(g.bbox([reds[0].poly]), (25.4, 25.4, 50.8, 50.8), atol=1e-6)
+        fills = [ip for ip in paths if ip.filled]
+        assert len(fills) == 1 and not fills[0].poly.bez.is_line(0)
+        blue = [ip for ip in paths if ip.color == "#0000ff"]            # aus dem Formular-XObject
+        assert len(blue) == 1 and np.allclose(g.bbox([blue[0].poly]), (50.8, 0, 76.2, 25.4), atol=1e-6)
+    # PDF von matplotlib (Objektströme, Komprimierung) – nur wenn matplotlib installiert ist
+    try:
+        import matplotlib
+    except ImportError:
+        print("   (PDF-Test mit matplotlib übersprungen: matplotlib fehlt)")
+        return
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(2, 2))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.axis("off")
+    ax.add_patch(plt.Circle((0.5, 0.5), 0.3, fill=False, color="red"))
+    ax.plot([0.1, 0.9], [0.1, 0.1], color="blue")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    pm = os.path.join(TMP, "mpl.pdf")
+    fig.savefig(pm)
+    paths, _ = import_pdf(pm)
+    circ = [ip for ip in paths if ip.color == "#ff0000"]
+    assert circ and abs((g.bbox([circ[0].poly])[2] - g.bbox([circ[0].poly])[0]) - 0.6 * 50.8) < 0.5
+
+
+def test_text_on_path_and_lens():
+    from tilaser.core.camera import _distort, fit_lens, marker_positions, rectify
+    from tilaser.core.text_import import text_on_path
+    f = default_font()
+    if f:
+        circle = g.ellipse_arc_points(0, 0, 50, 50, 0, 0, 2 * np.pi)
+        polys = text_on_path("RUNDHERUM", f, 8, circle, closed=True, align="center", distance=2)
+        assert len(polys) >= 9
+        r = [np.hypot(*p.pts.mean(axis=0)) for p in polys]
+        assert all(50 < v < 60 for v in r), r
+        c = np.vstack([p.pts for p in polys]).mean(axis=0)
+        assert abs(c[0]) < 5 and c[1] > 35, c                    # oben mittig
+        line = np.array([[0, 0], [100, 0]], float)
+        flat = text_on_path("AB", f, 10, line)
+        bb = g.bbox(flat)
+        assert bb[1] > -1 and bb[0] >= -0.5 and bb[2] < 20
+    # Linsenkorrektur: simulierte Tonnenverzeichnung wird erkannt
+    mm = np.array(marker_positions(400, 400, 30, 9), float)
+    size = (1000, 1000)
+    H_true = np.array([[2.0, 0.1, 100], [0.05, -2.0, 900], [0.0001, 0.0, 1.0]])
+    from tilaser.core.camera import apply_h
+    pu = apply_h(np.linalg.inv(np.linalg.inv(H_true)), mm)       # mm -> unverzerrte Pixel
+    pu = apply_h(H_true, mm)
+    k_true = -0.12
+    pd = _distort(pu, k_true, size)
+    k1, H, err = fit_lens(pd, mm, size)
+    assert abs(k1 - k_true) < 0.01 and err < 0.05, (k1, err)
+    out = rectify(np.full((1000, 1000, 3), 128, np.uint8), H, 400, 400, 1.0, k1)
+    assert out.shape == (400, 400, 3) and out[200, 200, 0] == 128
 
 
 class FakeGrbl:

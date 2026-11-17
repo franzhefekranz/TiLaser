@@ -26,7 +26,9 @@ from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, OffsetDialog,
-                      PointPickDialog, TextDialog, TraceDialog, camera_devices)
+                      PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
+from ..core.pdf_import import import_pdf
+from ..core.text_import import text_on_path
 from ..core import boolean as bo
 from ..core import camera as cam
 from ..core import shapes
@@ -249,6 +251,9 @@ class MainWindow(QMainWindow):
         self.a_mattest = self._act("Materialtest…", self.material_test, None,
                                    "Testraster mit verschiedenen Leistungen und Geschwindigkeiten")
         wz.addAction(self.a_trace)
+        self.a_textpath = self._act("Text auf Pfad…", self.text_on_path_dialog, None,
+                                    "Text entlang der ausgewählten Kontur setzen")
+        wz.addAction(self.a_textpath)
         wz.addAction(self.a_mattest)
 
         v = mb.addMenu("&Ansicht")
@@ -438,8 +443,9 @@ class MainWindow(QMainWindow):
     def import_dialog(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "Importieren", self.last_dir,
-            "Alle unterstützten (*.svg *.dxf *.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;"
-            "SVG (*.svg);;DXF (*.dxf);;Bilder (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)")
+            "Alle unterstützten (*.svg *.dxf *.pdf *.ai *.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;"
+            "SVG (*.svg);;DXF (*.dxf);;PDF / Illustrator (*.pdf *.ai);;"
+            "Bilder (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)")
         if files:
             self.import_files(files)
 
@@ -459,8 +465,9 @@ class MainWindow(QMainWindow):
                         self._set_project(storage.load_project(f))
                         self._update_title()
                         continue
-                    if ext in (".svg", ".dxf"):
-                        paths, warn = (import_svg if ext == ".svg" else import_dxf)(f)
+                    if ext in (".svg", ".dxf", ".pdf", ".ai"):
+                        reader = {".svg": import_svg, ".dxf": import_dxf}.get(ext, import_pdf)
+                        paths, warn = reader(f)
                         msgs += [f"{name}: {w}" for w in warn]
                         if not paths:
                             msgs.append(f"{name}: keine verwertbaren Konturen gefunden.")
@@ -530,7 +537,7 @@ class MainWindow(QMainWindow):
         cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
         it = Item(id=new_id("I"), name=f"Text: {text.splitlines()[0][:20]}", kind="vector",
                   x=self.profile.bed_w / 2, y=self.profile.bed_h / 2)
-        it.paths = [VectorPath(g.Polyline(p.pts - [cx, cy], True), layer.id) for p in polys]
+        it.paths = [VectorPath(p.transformed(g.translate(-cx, -cy)), layer.id) for p in polys]
         self.project.items.append(it)
         self.canvas.add_item(it)
         self.layers.refresh(layer.id)
@@ -710,6 +717,8 @@ class MainWindow(QMainWindow):
             menu.addAction(self.a_origin)
             menu.addAction(self.a_dup)
             menu.addAction(self.a_array)
+            if len(items) == 1 and items[0].kind == "vector":
+                menu.addAction(self.a_textpath)
             if any(it.kind == "raster" for it in items):
                 menu.addAction(self.a_trace)
             menu.addSeparator()
@@ -1205,7 +1214,9 @@ class MainWindow(QMainWindow):
             a.setChecked(True)
         names = {"select": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
                  "polygon": "Polygon: ziehen", "line": "Linie: klicken, Doppelklick/Enter = fertig, Esc = abbrechen",
-                 "node": "Knoten: Objekt anklicken, Knoten ziehen, Doppelklick fügt ein, Entf löscht"}
+                 "node": "Knoten: ziehen = verschieben, Anfasser ziehen = Kurve formen (Alt: einzeln), "
+                         "Doppelklick = einfügen, Entf = löschen, C = Kurve, L = Linie, S = glätten, "
+                         "B = auftrennen"}
         if names.get(tool):
             self.statusBar().showMessage(names[tool])
         else:
@@ -1339,6 +1350,46 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"{before} Pfade → {after} Pfade", 4000)
         self._invalidate()
 
+    def text_on_path_dialog(self):
+        items = self._vector_selection()
+        if len(items) != 1:
+            QMessageBox.information(self, "Text auf Pfad", "Bitte genau ein Vektorobjekt (den Pfad) auswählen.")
+            return
+        it = items[0]
+        paths = it.world_paths()
+        path = max(paths, key=lambda p: p.length())
+        dlg = TextPathDialog(self.project, self)
+        if dlg.exec() != TextPathDialog.DialogCode.Accepted:
+            return
+        text = dlg.text.toPlainText().replace("\n", " ").strip()
+        font = dlg.font_path()
+        if not text or not font:
+            return
+        try:
+            polys = text_on_path(text, font, dlg.size.value(), path.pts, path.closed, dlg.offset.value(),
+                                 dlg.distance.value(), dlg.align.currentData(), dlg.letter.value(),
+                                 dlg.flip.isChecked())
+        except Exception as e:
+            QMessageBox.critical(self, "Text auf Pfad", str(e))
+            return
+        if not polys:
+            QMessageBox.information(self, "Text auf Pfad", "Der Text passt nicht auf den Pfad.")
+            return
+        self._checkpoint("Text auf Pfad")
+        target = dlg.layer.currentData()
+        if target == TextDialog.NEW_FILL:
+            layer = self.project.add_layer("Text Gravur", mode="fill")
+        elif target == TextDialog.NEW_CUT:
+            layer = self.project.add_layer("Text Kontur", mode="cut")
+        else:
+            layer = self.project.layer(target)
+        n = self.project._item_from_world(f"Text: {text[:20]}", [(p, layer.id) for p in polys])
+        self.project.items.append(n)
+        self.canvas.add_item(n)
+        self.layers.refresh(layer.id)
+        self.canvas.select_only([n.id])
+        self._invalidate()
+
     # ------------------------------------------------------------ Export
     def export_vector(self, fmt):
         if not self.project.items:
@@ -1393,9 +1444,17 @@ class MainWindow(QMainWindow):
         if not self.machine.is_ready():
             QMessageBox.information(self, "Kamera", "Laser verbinden, dann Passmarken lasern.")
             return
-        pts = cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset)
+        choices = ["9 Marken (mit Linsenkorrektur, empfohlen)", "4 Marken (ohne Linsenkorrektur)"]
+        item, ok = QInputDialog.getItem(self, "Passmarken", "Anzahl Passmarken:", choices,
+                                        0 if self.profile.camera_count == 9 else 1, False)
+        if not ok:
+            return
+        self.profile.camera_count = 9 if item.startswith("9") else 4
+        storage.save_machine(self.profile)
+        pts = cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset,
+                                   self.profile.camera_count)
         txt = ", ".join(f"({x:g}/{y:g})" for x, y in pts)
-        if QMessageBox.question(self, "Passmarken", f"4 Kreuze mit 10 % Leistung lasern bei {txt} mm?\n"
+        if QMessageBox.question(self, "Passmarken", f"{len(pts)} Kreuze mit 10 % Leistung lasern bei {txt} mm?\n"
                                 "Ein Stück Pappe o. Ä. unterlegen. Schutzbrille tragen!") \
                 != QMessageBox.StandardButton.Yes:
             return
@@ -1404,15 +1463,23 @@ class MainWindow(QMainWindow):
 
     def camera_align(self):
         def got(img):
-            dlg = PointPickDialog(img, self)
-            if dlg.exec() != PointPickDialog.DialogCode.Accepted or len(dlg.points) != 4:
+            n = self.profile.camera_count
+            dlg = PointPickDialog(img, self, cam.marker_labels(n))
+            if dlg.exec() != PointPickDialog.DialogCode.Accepted or len(dlg.points) != n:
                 return
-            mm = cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset)
-            H = cam.homography(np.array(dlg.points), np.array(mm))
+            mm = np.array(cam.marker_positions(self.profile.bed_w, self.profile.bed_h, self.profile.camera_inset, n))
+            px = np.array(dlg.points)
+            if n >= 6:
+                k1, H, err = cam.fit_lens(px, mm, (img.shape[1], img.shape[0]))
+                msg = f"Kamera ausgerichtet: Verzeichnung k1 = {k1:+.3f}, Restfehler {err:.2f} mm."
+            else:
+                k1, H = 0.0, cam.homography(px, mm)
+                msg = "Kamera ausgerichtet (ohne Linsenkorrektur)."
             self.profile.camera_h = [float(v) for v in H.ravel()]
+            self.profile.camera_k1 = float(k1)
             storage.save_machine(self.profile)
             self._show_camera(img)
-            self.statusBar().showMessage("Kamera ausgerichtet.", 5000)
+            self.statusBar().showMessage(msg, 8000)
         self._grab(got)
 
     def camera_update(self):
@@ -1424,7 +1491,7 @@ class MainWindow(QMainWindow):
     def _show_camera(self, img):
         H = np.array(self.profile.camera_h, float).reshape(3, 3)
         try:
-            rect = cam.rectify(img, H, self.profile.bed_w, self.profile.bed_h, 2.0)
+            rect = cam.rectify(img, H, self.profile.bed_w, self.profile.bed_h, 2.0, self.profile.camera_k1)
         except Exception as e:
             QMessageBox.warning(self, "Kamera", f"Entzerrung fehlgeschlagen: {e}")
             return

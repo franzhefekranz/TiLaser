@@ -540,10 +540,10 @@ def camera_devices() -> list[str]:
 
 
 class PointPickDialog(QDialog):
-    """Kamerabild anzeigen und die 4 Passmarken der Reihe nach anklicken."""
+    """Kamerabild anzeigen und die Passmarken der Reihe nach anklicken."""
     LABELS = ("links unten", "rechts unten", "rechts oben", "links oben")
 
-    def __init__(self, image: np.ndarray, parent=None):
+    def __init__(self, image: np.ndarray, parent=None, labels=None):
         super().__init__(parent)
         from PyQt6.QtCore import Qt
         from PyQt6.QtGui import QImage, QPainter, QPen, QColor, QPixmap
@@ -551,6 +551,7 @@ class PointPickDialog(QDialog):
         self.setWindowTitle("Passmarken anklicken")
         self.resize(1000, 760)
         self.points: list[tuple[float, float]] = []
+        self.labels = list(labels or self.LABELS)
         lay = QVBoxLayout(self)
         self.info = QLabel()
         lay.addWidget(self.info)
@@ -564,7 +565,7 @@ class PointPickDialog(QDialog):
 
         class View(QGraphicsView):
             def mousePressEvent(self, e):
-                if e.button() == Qt.MouseButton.LeftButton and len(dlg.points) < 4:
+                if e.button() == Qt.MouseButton.LeftButton and len(dlg.points) < len(dlg.labels):
                     p = self.mapToScene(e.position().toPoint())
                     dlg._add(p.x(), p.y())
 
@@ -603,7 +604,30 @@ class PointPickDialog(QDialog):
         self._update()
 
     def _update(self):
-        n = len(self.points)
-        self.info.setText(f"Klicke die Mitte der Marke {n + 1}: {self.LABELS[n]}  (Mausrad = Zoom)" if n < 4
-                          else "Alle 4 Marken gesetzt. OK zum Übernehmen.")
-        self.bb.button(QDialogButtonBox.StandardButton.Ok).setEnabled(n == 4)
+        n, total = len(self.points), len(self.labels)
+        self.info.setText(f"Klicke die Mitte der Marke {n + 1} von {total}: {self.labels[n]}  (Mausrad = Zoom)"
+                          if n < total else f"Alle {total} Marken gesetzt. OK zum Übernehmen.")
+        self.bb.button(QDialogButtonBox.StandardButton.Ok).setEnabled(n == total)
+
+
+class TextPathDialog(TextDialog):
+    """Text-Dialog mit zusätzlichen Einstellungen für Text auf Pfad."""
+
+    def __init__(self, project, parent=None):
+        super().__init__(project, parent)
+        self.setWindowTitle("Text auf Pfad")
+        self.align.setItemText(0, "Am Anfang (bei Konturen: ab oben)")
+        self.align.setItemText(1, "Mittig (bei Konturen: oben mittig)")
+        self.align.setCurrentIndex(1)
+        f = QFormLayout()
+        self.distance = dspin(-100, 100, 2, 0.5, " mm")
+        self.distance.setValue(1.0)
+        self.distance.setToolTip("Abstand der Grundlinie von der Kontur")
+        self.offset = dspin(-2000, 2000, 1, 1, " mm")
+        self.offset.setToolTip("Text entlang des Pfades verschieben")
+        self.flip = QCheckBox("Umdrehen (bei Konturen: innen, unten lesbar)")
+        f.addRow("Abstand", self.distance)
+        f.addRow("Versatz", self.offset)
+        f.addRow("", self.flip)
+        self.layout().insertLayout(self.layout().count() - 1, f)
+        self.spacing.setEnabled(False)

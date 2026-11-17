@@ -14,15 +14,107 @@ CURVE_TOL = 0.02
 
 
 @dataclass
+class BezPath:
+    """Pfad aus Ankerpunkten mit Kurven-Anfassern (kubische Bézier-Segmente).
+
+    Segment i führt von anchors[i] (Anfasser hout[i]) nach anchors[i+1] (Anfasser hin[i+1]).
+    Liegen beide Anfasser auf ihren Ankern, ist das Segment eine Gerade.
+    """
+    anchors: np.ndarray
+    hin: np.ndarray
+    hout: np.ndarray
+    closed: bool = False
+
+    def __post_init__(self):
+        self.anchors = np.asarray(self.anchors, float).reshape(-1, 2)
+        self.hin = np.asarray(self.hin, float).reshape(-1, 2)
+        self.hout = np.asarray(self.hout, float).reshape(-1, 2)
+
+    @classmethod
+    def from_points(cls, pts, closed=False) -> "BezPath":
+        pts = np.asarray(pts, float).reshape(-1, 2)
+        return cls(pts.copy(), pts.copy(), pts.copy(), closed)
+
+    def copy(self) -> "BezPath":
+        return BezPath(self.anchors.copy(), self.hin.copy(), self.hout.copy(), self.closed)
+
+    def transformed(self, m) -> "BezPath":
+        return BezPath(apply_matrix(m, self.anchors), apply_matrix(m, self.hin), apply_matrix(m, self.hout),
+                       self.closed)
+
+    def n_segments(self) -> int:
+        n = len(self.anchors)
+        return n if self.closed else max(0, n - 1)
+
+    def segment(self, i):
+        n = len(self.anchors)
+        j = (i + 1) % n
+        return self.anchors[i], self.hout[i], self.hin[j], self.anchors[j]
+
+    def is_line(self, i) -> bool:
+        p0, c1, c2, p1 = self.segment(i)
+        return bool(np.allclose(c1, p0) and np.allclose(c2, p1))
+
+    def flatten(self, tol=CURVE_TOL) -> np.ndarray:
+        if len(self.anchors) == 0:
+            return np.zeros((0, 2))
+        out = [self.anchors[:1]]
+        for i in range(self.n_segments()):
+            p0, c1, c2, p1 = self.segment(i)
+            if self.is_line(i):
+                out.append(p1[None, :])
+            else:
+                out.append(flatten_cubic(p0, c1, c2, p1, tol))
+        pts = np.vstack(out)
+        if self.closed and len(pts) > 1:
+            pts = pts[:-1]                          # Rückkehr zum Start nicht doppelt speichern
+        return pts
+
+    def split(self, i, t) -> None:
+        """Segment i bei Parameter t teilen (de Casteljau), fügt einen Anker ein."""
+        p0, c1, c2, p1 = self.segment(i)
+        a, b, c = p0 + (c1 - p0) * t, c1 + (c2 - c1) * t, c2 + (p1 - c2) * t
+        d, e = a + (b - a) * t, b + (c - b) * t
+        f = d + (e - d) * t
+        j = (i + 1) % len(self.anchors)
+        line = self.is_line(i)
+        self.hout[i] = p0 if line else a
+        self.hin[j] = p1 if line else c
+        k = i + 1
+        self.anchors = np.insert(self.anchors, k, f, axis=0)
+        self.hin = np.insert(self.hin, k, f if line else d, axis=0)
+        self.hout = np.insert(self.hout, k, f if line else e, axis=0)
+
+    def nearest(self, pt, samples=24):
+        """(Segment, t, Abstand) des nächstgelegenen Kurvenpunkts."""
+        best = (None, 0.0, float("inf"))
+        t = np.linspace(0, 1, samples + 1)[:, None]
+        for i in range(self.n_segments()):
+            p0, c1, c2, p1 = self.segment(i)
+            mt = 1 - t
+            q = mt ** 3 * p0 + 3 * mt ** 2 * t * c1 + 3 * mt * t ** 2 * c2 + t ** 3 * p1
+            d = np.hypot(q[:, 0] - pt[0], q[:, 1] - pt[1])
+            k = int(np.argmin(d))
+            if d[k] < best[2]:
+                best = (i, float(t[k, 0]), float(d[k]))
+        return best
+
+
+@dataclass
 class Polyline:
     pts: np.ndarray            # (N, 2) float
     closed: bool = False
+    bez: BezPath | None = None # Kurvendarstellung (pts = bez.flatten()), falls vorhanden
 
     def __post_init__(self):
         self.pts = np.asarray(self.pts, dtype=float).reshape(-1, 2)
 
+    @classmethod
+    def from_bez(cls, bez: BezPath, tol=CURVE_TOL) -> "Polyline":
+        return cls(bez.flatten(tol), bez.closed, bez)
+
     def copy(self) -> "Polyline":
-        return Polyline(self.pts.copy(), self.closed)
+        return Polyline(self.pts.copy(), self.closed, self.bez.copy() if self.bez is not None else None)
 
     def length(self) -> float:
         p = self.loop_pts()
@@ -37,7 +129,96 @@ class Polyline:
         return self.pts
 
     def transformed(self, m: np.ndarray) -> "Polyline":
+        if self.bez is not None:          # Kurven nach dem Transformieren neu abtasten (genau auch bei Vergrößerung)
+            return Polyline.from_bez(self.bez.transformed(m))
         return Polyline(apply_matrix(m, self.pts), self.closed)
+
+
+def ellipse_bez(cx, cy, rx, ry, rot=0.0) -> BezPath:
+    """Ellipse aus 4 kubischen Segmenten (Abweichung < 0,03 % des Radius)."""
+    k = 4 / 3 * (math.sqrt(2) - 1)
+    a = np.array([[rx, 0], [0, ry], [-rx, 0], [0, -ry]], float)
+    t = np.array([[0, ry], [-rx, 0], [0, -ry], [rx, 0]], float) * k
+    c, s_ = math.cos(rot), math.sin(rot)
+    R = np.array([[c, -s_], [s_, c]])
+    anchors = a @ R.T + [cx, cy]
+    tang = t @ R.T
+    return BezPath(anchors, anchors - tang, anchors + tang, True)
+
+
+def arc_to_cubics(cx, cy, rx, ry, phi, th1, dth):
+    """Elliptischer Bogen -> Liste kubischer Segmente [(c1, c2, p1), ...]."""
+    n = max(1, int(math.ceil(abs(dth) / (math.pi / 2) - 1e-9)))
+    step = dth / n
+    k = 4 / 3 * math.tan(step / 4)
+    c, s_ = math.cos(phi), math.sin(phi)
+
+    def E(t):
+        return np.array([cx + rx * math.cos(t) * c - ry * math.sin(t) * s_,
+                         cy + rx * math.cos(t) * s_ + ry * math.sin(t) * c])
+
+    def dE(t):
+        return np.array([-rx * math.sin(t) * c - ry * math.cos(t) * s_,
+                         -rx * math.sin(t) * s_ + ry * math.cos(t) * c])
+
+    segs = []
+    for i in range(n):
+        t0, t1 = th1 + i * step, th1 + (i + 1) * step
+        segs.append((E(t0) + k * dE(t0), E(t1) - k * dE(t1), E(t1)))
+    return segs
+
+
+class BezBuilder:
+    """Hilfsklasse für Importer: Pfade Stück für Stück als Bézier aufbauen."""
+
+    def __init__(self, tol=CURVE_TOL):
+        self.tol = tol
+        self.out: list[Polyline] = []
+        self.a, self.i, self.o = [], [], []
+
+    def move(self, p):
+        self.finish(False)
+        p = np.asarray(p, float)
+        self.a, self.i, self.o = [p], [p], [p]
+
+    def line(self, p):
+        if not self.a:
+            self.move(p)
+            return
+        p = np.asarray(p, float)
+        self.a.append(p)
+        self.i.append(p)
+        self.o.append(p)
+
+    def cubic(self, c1, c2, p):
+        if not self.a:
+            return
+        self.o[-1] = np.asarray(c1, float)
+        p = np.asarray(p, float)
+        self.a.append(p)
+        self.i.append(np.asarray(c2, float))
+        self.o.append(p)
+
+    def quad(self, q, p):
+        if not self.a:
+            return
+        p0, q, p = self.a[-1], np.asarray(q, float), np.asarray(p, float)
+        self.cubic(p0 + (q - p0) * 2 / 3, p + (q - p) * 2 / 3, p)
+
+    @property
+    def current(self):
+        return self.a[-1] if self.a else None
+
+    def finish(self, closed=False):
+        if len(self.a) >= 2:
+            a, hi, ho = list(self.a), list(self.i), list(self.o)
+            if closed and np.allclose(a[0], a[-1]):
+                hi[0] = hi[-1]
+                a, hi, ho = a[:-1], hi[:-1], ho[:-1]
+            if len(a) >= 2:
+                bez = BezPath(np.array(a), np.array(hi), np.array(ho), closed)
+                self.out.append(Polyline.from_bez(bez, self.tol))
+        self.a, self.i, self.o = [], [], []
 
 
 # --------------------------------------------------------------------------- Matrizen

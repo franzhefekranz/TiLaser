@@ -153,12 +153,12 @@ class _Scanner:
         return None
 
 
-def _arc_to_points(p0, rx, ry, phi_deg, large, sweep, p1, m, tol):
-    """SVG-Endpunkt-Bogen -> Punkte (in Weltkoordinaten), ohne Startpunkt."""
+def _arc_center(p0, rx, ry, phi_deg, large, sweep, p1):
+    """SVG-Endpunktbogen -> Mittelpunktdarstellung (cx, cy, rx, ry, phi, th1, dth) oder None (Gerade)."""
     x1, y1 = p0
     x2, y2 = p1
     if rx == 0 or ry == 0 or (x1 == x2 and y1 == y2):
-        return g.apply_matrix(m, np.array([p1]))
+        return None
     rx, ry = abs(rx), abs(ry)
     phi = math.radians(phi_deg)
     c, s = math.cos(phi), math.sin(phi)
@@ -178,8 +178,7 @@ def _arc_to_points(p0, rx, ry, phi_deg, large, sweep, p1, m, tol):
     cy = s * cxp + c * cyp + (y1 + y2) / 2
 
     def ang(ux, uy, vx, vy):
-        a = math.atan2(ux * vy - uy * vx, ux * vx + uy * vy)
-        return a
+        return math.atan2(ux * vy - uy * vx, ux * vx + uy * vy)
 
     th1 = ang(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry)
     dth = ang((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry)
@@ -187,17 +186,13 @@ def _arc_to_points(p0, rx, ry, phi_deg, large, sweep, p1, m, tol):
         dth -= 2 * math.pi
     elif sweep and dth < 0:
         dth += 2 * math.pi
-    sf = g.matrix_scale_factor(m)
-    pts = g.ellipse_arc_points(cx, cy, rx, ry, phi, th1, th1 + dth, tol / sf, include_start=False)
-    pts[-1] = p1
-    return g.apply_matrix(m, pts)
+    return cx, cy, rx, ry, phi, th1, dth
 
 
 def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
-    """Pfaddaten -> Polylinien in Weltkoordinaten (Matrix m bereits angewendet)."""
+    """Pfaddaten -> Polylinien mit Bézier-Darstellung in Weltkoordinaten (Matrix m angewendet)."""
     sc = _Scanner(d)
-    polys: list[g.Polyline] = []
-    cur_pts: list[np.ndarray] = []
+    bb = g.BezBuilder(tol)
     pos = np.zeros(2)
     start = np.zeros(2)
     last_ctrl = None
@@ -205,17 +200,11 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
     cmd = None
 
     def T(p):
-        return g.apply_matrix(m, np.asarray(p, float)[None, :])
+        return g.apply_matrix(m, np.asarray(p, float)[None, :])[0]
 
-    def finish(closed=False):
-        nonlocal cur_pts
-        if cur_pts:
-            pts = np.vstack(cur_pts)
-            if len(pts) >= 2:
-                if closed and np.allclose(pts[0], pts[-1]):
-                    pts = pts[:-1]
-                polys.append(g.Polyline(pts, closed))
-        cur_pts = []
+    def ensure():
+        if bb.current is None:
+            bb.move(T(start))
 
     while True:
         c = sc.command()
@@ -231,16 +220,16 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
         base = pos.copy() if rel else np.zeros(2)
 
         if C == "M":
-            finish()
             pos = base + [sc.number(), sc.number()]
             start = pos.copy()
-            cur_pts = [T(pos)]
+            bb.move(T(pos))
             last_ctrl = None
         elif C == "Z":
-            if cur_pts:
-                finish(closed=True)
+            if bb.current is not None:
+                if not np.allclose(bb.current, T(start)):
+                    bb.line(T(start))
+                bb.finish(closed=True)
             pos = start.copy()
-            cur_pts = []
             last_ctrl = None
         elif C in "LHV":
             if C == "L":
@@ -251,9 +240,8 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
             else:
                 v = sc.number()
                 pos = np.array([pos[0], pos[1] + v if rel else v])
-            if not cur_pts:
-                cur_pts = [T(start)]
-            cur_pts.append(T(pos))
+            ensure()
+            bb.line(T(pos))
             last_ctrl = None
         elif C in "CS":
             if C == "C":
@@ -262,36 +250,38 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
                 c1 = 2 * pos - last_ctrl if (last_ctrl is not None and last_cmd in "CS") else pos.copy()
             c2 = base + [sc.number(), sc.number()]
             p = base + [sc.number(), sc.number()]
-            wp = g.apply_matrix(m, np.array([pos, c1, c2, p]))
-            if not cur_pts:
-                cur_pts = [T(pos)]
-            cur_pts.append(g.flatten_cubic(*wp, tol=tol))
+            ensure()
+            bb.cubic(T(c1), T(c2), T(p))
             last_ctrl, pos = c2, p
         elif C in "QT":
             if C == "Q":
-                c1 = base + [sc.number(), sc.number()]
+                q = base + [sc.number(), sc.number()]
             else:
-                c1 = 2 * pos - last_ctrl if (last_ctrl is not None and last_cmd in "QT") else pos.copy()
+                q = 2 * pos - last_ctrl if (last_ctrl is not None and last_cmd in "QT") else pos.copy()
             p = base + [sc.number(), sc.number()]
-            wp = g.apply_matrix(m, np.array([pos, c1, p]))
-            if not cur_pts:
-                cur_pts = [T(pos)]
-            cur_pts.append(g.flatten_quad(*wp, tol=tol))
-            last_ctrl, pos = c1, p
+            ensure()
+            bb.quad(T(q), T(p))
+            last_ctrl, pos = q, p
         elif C == "A":
             rx, ry, phi = sc.number(), sc.number(), sc.number()
             large, sweep = sc.flag(), sc.flag()
             p = base + [sc.number(), sc.number()]
-            if not cur_pts:
-                cur_pts = [T(pos)]
-            cur_pts.append(_arc_to_points(pos, rx, ry, phi, large, sweep, p, m, tol))
+            ensure()
+            arc = _arc_center(pos, rx, ry, phi, large, sweep, p)
+            if arc is None:
+                bb.line(T(p))
+            else:
+                for c1, c2, q in g.arc_to_cubics(*arc):
+                    bb.cubic(T(c1), T(c2), T(q))
+                bb.a[-1] = T(p)                  # exakter Endpunkt
+                bb.o[-1] = T(p)
             pos = p
             last_ctrl = None
         else:
             raise ValueError(f"Unbekannter Pfadbefehl '{c}'")
         last_cmd = C
-    finish()
-    return polys
+    bb.finish()
+    return bb.out
 
 
 # --------------------------------------------------------------------------- Elemente
@@ -335,9 +325,8 @@ def _element_polys(el, tag, m, tol) -> list[g.Polyline]:
             rx, ry = _num(el.get("rx")), _num(el.get("ry"))
         if rx <= 0 or ry <= 0:
             return []
-        sf = g.matrix_scale_factor(m)
-        pts = g.ellipse_arc_points(cx, cy, rx, ry, 0, 0, 2 * math.pi, tol / sf)[:-1]
-        return [g.Polyline(g.apply_matrix(m, pts), True)]
+        bez = g.ellipse_bez(cx, cy, rx, ry).transformed(m)
+        return [g.Polyline.from_bez(bez, tol)]
     if tag == "line":
         pts = np.array([[_num(el.get("x1")), _num(el.get("y1"))], [_num(el.get("x2")), _num(el.get("y2"))]])
         return [g.Polyline(g.apply_matrix(m, pts), False)]

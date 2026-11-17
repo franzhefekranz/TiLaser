@@ -60,6 +60,8 @@ class MachineProfile:
     camera_h: list = field(default_factory=list)   # 3×3-Homographie Kamerapixel -> Bett-mm (9 Werte)
     camera_inset: float = 30.0        # Abstand der Passmarken vom Bettrand
     camera_opacity: float = 0.75
+    camera_k1: float = 0.0            # radiale Verzeichnung (0 = keine Korrektur)
+    camera_count: int = 4             # Anzahl Passmarken (4 oder 9)
 
     @property
     def y_scale(self) -> float:

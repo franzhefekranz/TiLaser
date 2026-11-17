@@ -205,7 +205,7 @@ class Project:
         for ip in imported:
             mode = "fill" if ip.filled else "cut"
             layer = self.layer_for_key(ip.key + ("#fill" if ip.filled else ""), ip.color, mode)
-            local = g.Polyline(ip.poly.pts - [cx, cy], ip.poly.closed)
+            local = ip.poly.transformed(g.translate(-cx, -cy))
             item.paths.append(VectorPath(local, layer.id))
         if center_at is None:
             item.x, item.y = cx, cy
@@ -227,7 +227,8 @@ class Project:
         bb = g.bbox([p for p, _ in world])
         cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
         it = Item(id=new_id("I"), name=name, kind="vector", x=cx, y=cy)
-        it.paths = [VectorPath(g.Polyline(p.pts - [cx, cy], p.closed), lid) for p, lid in world]
+        t = g.translate(-cx, -cy)
+        it.paths = [VectorPath(p.transformed(t), lid) for p, lid in world]
         return it
 
     def ungroup(self, item: Item) -> list[Item]:
