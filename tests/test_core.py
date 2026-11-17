@@ -1046,6 +1046,102 @@ def test_profile_live_camera_fields():
     assert MachineProfile.from_dict(d).camera_live_rot == 0
 
 
+LBRN = """<?xml version="1.0" encoding="UTF-8"?>
+<LightBurnProject AppVersion="1.4.03" FormatVersion="1" MaterialHeight="0" MirrorX="False" MirrorY="False">
+    <CutSetting type="Cut">
+        <index Value="0"/>
+        <name Value="C00"/>
+        <maxPower Value="80"/>
+        <speed Value="10"/>
+        <numPasses Value="2"/>
+        <priority Value="1"/>
+    </CutSetting>
+    <CutSetting type="Scan">
+        <index Value="2"/>
+        <name Value="Gravur"/>
+        <maxPower Value="30"/>
+        <speed Value="200"/>
+        <interval Value="0.08"/>
+        <priority Value="0"/>
+    </CutSetting>
+    <Shape Type="Path" CutIndex="0" VertID="0" PrimID="0">
+        <XForm>1 0 0 1 0 0</XForm>
+        <VertList>V2 3c0x2c0y2.4477153c1x1V3 2c0x1c1x2.4477153c1y2V22.504 2c0x1c1x1V22.504 0c0x1c1x1</VertList>
+        <PrimList>B0 1L1 2L2 3</PrimList>
+    </Shape>
+    <Shape Type="Path" CutIndex="2" VertID="1" PrimID="1">
+        <XForm>1 0 0 1 0 0</XForm>
+        <VertList>V10 730c0x1c1x1V64 730c0x1c1x1V64 750c0x1c1x1V10 750c0x1c1x1</VertList>
+        <PrimList>LineClosed</PrimList>
+    </Shape>
+    <Shape Type="Path" CutIndex="2" VertID="1" PrimID="1">
+        <XForm>1 0 0 1 100 0</XForm>
+    </Shape>
+    <Shape Type="Rect" CutIndex="0" W="10" H="20" Cr="0">
+        <XForm>1 0 0 1 353.926 134.554</XForm>
+    </Shape>
+    <Shape Type="Group" CutIndex="0">
+        <XForm>-1 0 0 -1 320 0</XForm>
+        <Children>
+            <Shape Type="Ellipse" CutIndex="0" Rx="6" Ry="6">
+                <XForm>1 0 0 1 20 -50</XForm>
+            </Shape>
+            <Shape Type="Rect" CutIndex="2" W="4" H="4" Cr="1">
+                <XForm>1 0 0 1 20 -50</XForm>
+            </Shape>
+        </Children>
+    </Shape>
+    <Shape Type="Text" CutIndex="0" Str="Hi" HasBackupPath="1">
+        <XForm>1 0 0 1 50 50</XForm>
+        <BackupPath Type="Path" CutIndex="0">
+            <XForm>1 0 0 1 0 0</XForm>
+            <VertList>V0 0c0x1c1x1V5 0c0x1c1x1V5 5c0x1c1x1</VertList>
+            <PrimList>L0 1L1 2L2 0</PrimList>
+        </BackupPath>
+    </Shape>
+    <Shape Type="Spiral" CutIndex="0"/>
+</LightBurnProject>"""
+
+
+def test_lightburn_import_export():
+    from tilaser.core.lbrn_export import export_lbrn
+    from tilaser.core.lbrn_import import load_lbrn, parse_vertlist
+    v = parse_vertlist("V2 3c0x2c0y2.4477153c1x1V3 2c0x1c1x2.4477153c1y2")
+    assert v[0].c0 is not None and v[0].c1 is None and v[1].c0 is None and np.allclose(v[1].c1, [2.4477153, 2])
+    p = os.path.join(TMP, "t.lbrn2")
+    open(p, "w").write(LBRN)
+    pr, warn = load_lbrn(p)
+    assert any("Spiral" in w for w in warn)
+    names = [l.name for l in pr.layers]
+    assert names == ["Gravur", "Schneiden Schwarz"]                         # nach priority
+    grav, cut = pr.layers
+    assert grav.mode == "fill" and grav.speed == 12000 and grav.interval == 0.08 and grav.color == "#e53935"
+    assert cut.mode == "cut" and cut.speed == 600 and cut.power == 80 and cut.passes == 2
+    boxes = {it.name: np.round(it.world_bbox(), 3).tolist() for it in pr.items}
+    assert boxes["Rechteck"] == [348.926, 124.554, 358.926, 144.554]
+    assert np.allclose(boxes["Gruppe"], [294, 44, 306, 56])                 # verschachtelte XForms
+    assert boxes["Text Hi"] == [50, 50, 55, 55]                             # Umrisse aus BackupPath
+    shared = [it for it in pr.items if it.name == "Pfad"]
+    assert len(shared) == 3 and np.allclose(shared[2].world_bbox(), [110, 730, 164, 750])   # VertID/PrimID geteilt
+    assert shared[0].world_paths()[0].bez is not None and not shared[0].world_paths()[0].bez.is_line(0)
+    # Bild dazu, speichern und wieder laden
+    img = np.full((20, 30), 255, np.uint8)
+    img[:5] = 0                                                             # oberer Rand schwarz
+    it = pr.add_raster("bild.png", img, 30, 20, center_at=(200, 100))
+    it.rotation = 30
+    out = os.path.join(TMP, "rt.lbrn2")
+    assert export_lbrn(pr, out) == []
+    pr2, warn2 = load_lbrn(out)
+    assert warn2 == [] and len(pr2.items) == len(pr.items)
+    for a, b in zip(pr.items, pr2.items):
+        assert np.allclose(a.world_bbox(), b.world_bbox(), atol=1e-4), (a.name, b.name)
+    b = pr2.items[-1]
+    assert abs(b.rotation - 30) < 1e-6 and (b.image[:5] == 0).all() and (b.image[5:] == 255).all()
+    assert [(l.name, l.mode, l.speed, l.power) for l in pr2.layers if l.mode != "raster"] == \
+           [(l.name, l.mode, l.speed, l.power) for l in pr.layers if l.mode != "raster"]
+    assert 'index Value="2"' in open(out).read()                            # Rot bleibt LightBurn-Ebene 02
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
