@@ -176,6 +176,9 @@ class LayerPanel(QWidget):
         self.f_overscan = dspin(0, 50, 1, 0.5, " mm")
         self.f_bidir = QCheckBox("Bidirektional")
         self.f_inner = QCheckBox("Innen vor außen")
+        self.f_perpath = QCheckBox("Durchgänge je Kontur beenden")
+        self.f_perpath.setToolTip("An: jede Kontur bekommt erst alle Durchgänge, dann geht es zur nächsten.\n"
+                                  "Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw. (Material kühlt zwischendurch ab)")
         self.f_air = QCheckBox("Air Assist (M8/M9)")
         self.f_kerf = dspin(-2, 2, 3, 0.01, " mm")
         self.f_kerf.setToolTip("Schnittbreite. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt,\n"
@@ -196,6 +199,7 @@ class LayerPanel(QWidget):
         for key, label, w in (("name", "Name", self.f_name), ("mode", "Modus", self.f_mode),
                               ("power", "Leistung max", self.f_power), ("min", "Leistung min", self.f_min),
                               ("speed", "Geschwindigkeit", self.f_speed), ("passes", "Durchgänge", self.f_passes),
+                              ("perpath", "", self.f_perpath),
                               ("interval", "Zeilenabstand", self.f_interval), ("angle", "Winkel", self.f_angle),
                               ("cross", "", self.f_cross), ("dither", "Bildmodus", self.f_dither),
                               ("thresh", "Schwellwert", self.f_thresh), ("invert", "", self.f_invert),
@@ -222,7 +226,7 @@ class LayerPanel(QWidget):
         self.f_thresh.valueChanged.connect(self._commit)
         for w in (self.f_mode, self.f_dither):
             w.currentIndexChanged.connect(self._commit)
-        for w in (self.f_cross, self.f_invert, self.f_bidir, self.f_inner, self.f_air, self.f_output):
+        for w in (self.f_cross, self.f_invert, self.f_bidir, self.f_inner, self.f_perpath, self.f_air, self.f_output):
             w.toggled.connect(self._commit)
         self.f_name.editingFinished.connect(self._commit)
         self.op_combo.currentIndexChanged.connect(self._on_op)
@@ -355,6 +359,7 @@ class LayerPanel(QWidget):
         self.f_overscan.setValue(l.overscan)
         self.f_bidir.setChecked(l.bidirectional)
         self.f_inner.setChecked(l.inner_first)
+        self.f_perpath.setChecked(getattr(l, "passes_per_path", True))
         self.f_air.setChecked(l.air)
         self.f_output.setChecked(l.output)
         self.f_kerf.setValue(l.kerf)
@@ -375,7 +380,7 @@ class LayerPanel(QWidget):
             "angle": mode == "fill", "cross": mode == "fill",
             "dither": mode == "raster", "thresh": mode == "raster" and dither == "threshold",
             "invert": mode == "raster", "overscan": mode == "raster",
-            "bidir": mode in ("fill", "raster"), "inner": mode == "cut",
+            "bidir": mode in ("fill", "raster"), "inner": mode == "cut", "perpath": mode == "cut",
             "kerf": mode == "cut", "tabs": mode == "cut", "tab_w": mode == "cut", "tabs_outer": mode == "cut",
             "bright": mode == "raster", "contrast": mode == "raster", "gamma": mode == "raster",
         }
@@ -406,6 +411,7 @@ class LayerPanel(QWidget):
         l.overscan = self.f_overscan.value()
         l.bidirectional = self.f_bidir.isChecked()
         l.inner_first = self.f_inner.isChecked()
+        l.passes_per_path = self.f_perpath.isChecked()
         l.air = self.f_air.isChecked()
         l.output = self.f_output.isChecked()
         l.kerf = self.f_kerf.value()

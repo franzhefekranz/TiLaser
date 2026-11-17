@@ -1046,6 +1046,40 @@ def test_profile_live_camera_fields():
     assert MachineProfile.from_dict(d).camera_live_rot == 0
 
 
+def test_passes_per_path():
+    from tilaser.core.model import ImportedPath
+    pr = Project()
+    pr.add_vector_import("p", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000"),
+                               ImportedPath(_sq(50, 0, 10), "#000000", "#000000"),
+                               ImportedPath(g.Polyline(np.array([[100.0, 0], [120, 0]]), False), "#000000", "#000000")])
+    layer = pr.layers[0]
+    layer.passes, layer.z_step = 3, 0.5
+
+    def order(lines):
+        """X-Bereich (0, 50, 100) jeder Brennfahrt, zusammengefasst je Kontur."""
+        seq = []
+        for l in lines:
+            if l.startswith("G1") and " X" in l:
+                x = float(next(t[1:] for t in l.split() if t.startswith("X")))
+                k = 0 if x < 30 else 50 if x < 80 else 100
+                if not seq or seq[-1][0] != k:
+                    seq.append([k, 0])
+            elif l.startswith("G0") and " X" in l and seq:
+                seq[-1][1] += 1                       # Leerfahrt innerhalb derselben Kontur zählt mit
+        return [k for k, _ in seq]
+
+    res = generate(pr, MachineProfile())
+    assert order(res.lines) == [0, 50, 100] and res.text.count("G0 Z-0.5") == 3 * 2   # je Kontur fertig
+    assert res.text.count("G0 Z1") == 3                                              # Z je Kontur zurück
+    open_burns = [l for l in res.lines if l.startswith("G1") and " X1" in l and ("X100" in l or "X120" in l)]
+    assert [("X120" in l) for l in open_burns] == [True, False, True]                # offen: hin, zurück, hin
+    layer.passes_per_path = False
+    seq = order(generate(pr, MachineProfile()).lines)                                # Durchgang für Durchgang
+    assert len(seq) > 3                                 # Konturen wechseln zwischen den Durchgängen
+    from tilaser.core.model import Layer
+    assert Layer.from_dict({"id": "x", "name": "alt"}).passes_per_path                # alte Projekte: an
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

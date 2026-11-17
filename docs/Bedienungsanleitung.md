@@ -402,6 +402,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Leistung min | Raster (Graustufen) | Leistung für helle Bildbereiche |
 | Geschwindigkeit | alle | mm/min |
 | Durchgänge | alle | Wie oft der Arbeitsgang wiederholt wird |
+| Durchgänge je Kontur beenden | Schneiden | An (Standard): jede Kontur wird mit allen Durchgängen fertig geschnitten, erst dann geht es zur nächsten – offene Linien abwechselnd hin und zurück. Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw.; das Material kühlt dazwischen ab, dafür fährt der Laser öfter hin und her |
 | Zeilenabstand | Füllen, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
 | Winkel, Kreuzschraffur | Füllen | Richtung der Schraffur; zweite Schraffur um 90° gedreht |
 | Bildmodus | Raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (Dithering), Schwellwert, Graustufen |
