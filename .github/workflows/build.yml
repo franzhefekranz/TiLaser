@@ -36,9 +36,18 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux (AppImage, deb)
-    # ältere Basis = ältere glibc -> läuft auf mehr Distributionen
-    runs-on: ubuntu-22.04
+    name: Linux ${{ matrix.arch }} (AppImage, deb)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Ältere Basis = ältere glibc = läuft auf mehr Distributionen.
+          # PyQt6-Wheels: x86_64 braucht glibc >= 2.35, aarch64 glibc >= 2.39 (daher 24.04).
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -61,7 +70,7 @@ jobs:
         run: PYTHON=python bash packaging/build_linux.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: TiLaser-linux
+          name: TiLaser-linux-${{ matrix.arch }}
           path: dist/release/*
           if-no-files-found: error
 

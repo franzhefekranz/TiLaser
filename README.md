@@ -11,8 +11,19 @@ Fertige Pakete gibt es unter **Releases** (werden von GitHub Actions bei jedem T
 |---|---|
 | `TiLaser-<version>-Setup.exe` | Windows-Installer (Startmenü, optional Desktop-Symbol und Verknüpfung mit `.tlp`-Projekten) |
 | `TiLaser-<version>-portable-win64.zip` | Windows portabel: entpacken, `TiLaser.exe` starten. Einstellungen landen im Unterordner `daten`, nichts in Registry oder Benutzerprofil |
-| `TiLaser-<version>-x86_64.AppImage` | Linux, alle Distributionen: `chmod +x` und starten |
-| `tilaser_<version>_amd64.deb` | Debian, Ubuntu, Mint, Raspberry Pi OS (64-bit x86): `sudo apt install ./tilaser_<version>_amd64.deb` |
+| `TiLaser-<version>-x86_64.AppImage` | Linux PC (x86_64): `chmod +x` und starten |
+| `tilaser_<version>_amd64.deb` | Debian, Ubuntu, Mint auf PC (x86_64): `sudo apt install ./tilaser_<version>_amd64.deb` |
+| `TiLaser-<version>-aarch64.AppImage` | Linux ARM64, z. B. Raspberry Pi 4/5 mit 64-Bit-System |
+| `tilaser_<version>_arm64.deb` | Raspberry Pi OS 64-Bit, Debian, Ubuntu auf ARM64: `sudo apt install ./tilaser_<version>_arm64.deb` |
+
+**Systemvoraussetzungen Linux** (vorgegeben durch die PyQt6-Pakete):
+
+| Architektur | glibc | z. B. |
+|---|---|---|
+| x86_64 | ≥ 2.35 | Ubuntu 22.04+, Debian 12+, Mint 21+ |
+| ARM64 | ≥ 2.39 | **Raspberry Pi OS Trixie (Debian 13)**, Ubuntu 24.04+. Raspberry Pi OS *Bookworm* ist zu alt. Dort aus dem Quellcode starten (`sudo apt install python3-pyqt6 python3-numpy python3-pil python3-fonttools python3-serial`, dann `python3 main.py`) |
+
+32-Bit-Systeme (armhf) werden nicht unterstützt.
 
 Unter Linux braucht der Benutzer Zugriff auf den USB-Seriell-Port: `sudo usermod -aG dialout $USER`, danach
 ab- und wieder anmelden.
@@ -32,7 +43,7 @@ es braucht also keine zusätzlichen Bibliotheken dafür.
 | Ziel | Befehl | Ergebnis in `dist/release/` |
 |---|---|---|
 | Windows: EXE, Installer, portabel | `powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1` (benötigt [Inno Setup 6](https://jrsoftware.org/isdl.php)) | `TiLaser-…-Setup.exe`, `TiLaser-…-portable-win64.zip` |
-| Linux: AppImage und deb | `bash packaging/build_linux.sh` | `TiLaser-…-x86_64.AppImage`, `tilaser_…_amd64.deb` |
+| Linux: AppImage und deb | `bash packaging/build_linux.sh` (baut für die Architektur des Rechners, x86_64 oder ARM64, z. B. direkt auf dem Pi) | `TiLaser-…-<arch>.AppImage`, `tilaser_…_<arch>.deb` |
 
 PyInstaller baut einen Ordner (`dist/TiLaser`), keine Einzeldatei-EXE. Das startet schneller und wird seltener
 von Virenscannern beanstandet. Die Konfiguration steht in `packaging/tilaser.spec`, das Installer-Skript in

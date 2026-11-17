@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Baut unter Linux (x86_64): PyInstaller-Ordner, AppImage und .deb-Paket.
+# Baut unter Linux (x86_64 oder aarch64/arm64): PyInstaller-Ordner, AppImage und .deb-Paket.
+# Die Zielarchitektur ist die des Build-Rechners (kein Cross-Build).
 # Aufruf aus dem Repository-Wurzelordner:  bash packaging/build_linux.sh
 #
 # Umgebungsvariablen:
@@ -18,12 +19,17 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 PY="${PYTHON:-python3}"
 VERSION="$($PY -c 'import tilaser; print(tilaser.__version__)')"
-ARCH="x86_64"
-DEB_ARCH="amd64"
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64)        DEB_ARCH="amd64"; LDARCH="x86-64";  MIN_GLIBC="2.35" ;;
+    aarch64|arm64) ARCH="aarch64"; DEB_ARCH="arm64"; LDARCH="AArch64"; MIN_GLIBC="2.39" ;;
+    *) echo "Nicht unterstützte Architektur: $ARCH"; exit 1 ;;
+esac
+# MIN_GLIBC: Mindestversion, die die PyQt6-Wheels voraussetzen (x86_64: 2.35, aarch64: 2.39)
 RELEASE="$ROOT/dist/release"
 LINUX="$ROOT/packaging/linux"
 mkdir -p "$RELEASE"
-echo "== TiLaser $VERSION =="
+echo "== TiLaser $VERSION ($ARCH) =="
 
 if [[ "${SKIP_PIP:-0}" != 1 ]]; then
     $PY -m pip install --upgrade pip
@@ -42,7 +48,7 @@ fi
 XCB_LIBS=(libxcb-cursor.so.0 libxcb-icccm.so.4 libxcb-image.so.0 libxcb-keysyms.so.1 libxcb-render-util.so.0
           libxcb-shape.so.0 libxcb-xkb.so.1 libxkbcommon-x11.so.0 libxcb-util.so.1)
 
-find_lib() { ldconfig -p 2>/dev/null | awk -v l="$1" '$1 == l && /x86-64/ {print $NF; exit}'; }
+find_lib() { ldconfig -p 2>/dev/null | awk -v l="$1" -v a="$LDARCH" '$1 == l && index($0, a) {print $NF; exit}'; }
 
 # ------------------------------------------------------------------ AppImage
 if [[ "${SKIP_APPIMAGE:-0}" != 1 ]]; then
@@ -119,7 +125,7 @@ Priority: optional
 Architecture: $DEB_ARCH
 Maintainer: franzhefekranz <franzhefekranz@users.noreply.github.com>
 Installed-Size: $SIZE
-Depends: libc6 (>= 2.31), libgl1, libegl1, libfontconfig1, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xkb1
+Depends: libc6 (>= $MIN_GLIBC), libgl1, libegl1, libfontconfig1, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-render-util0, libxcb-shape0, libxcb-xkb1
 Homepage: https://github.com/franzhefekranz/TiLaser
 Description: Laser cutting and engraving for G-code based lasers
  TiLaser imports SVG, DXF, images and text, assigns cut, fill and raster
