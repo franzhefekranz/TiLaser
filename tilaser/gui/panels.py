@@ -30,6 +30,7 @@ def dspin(lo, hi, dec=1, step=1.0, suffix="") -> QDoubleSpinBox:
 
 class LayerPanel(QWidget):
     layersChanged = pyqtSignal(bool)       # True = Darstellung neu aufbauen
+    aboutToChange = pyqtSignal(str, str)   # Beschreibung, Zusammenfassungs-Schlüssel (Rückgängig)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -113,6 +114,17 @@ class LayerPanel(QWidget):
         self.f_bidir = QCheckBox("Bidirektional")
         self.f_inner = QCheckBox("Innen vor außen")
         self.f_air = QCheckBox("Air Assist (M8/M9)")
+        self.f_kerf = dspin(-2, 2, 3, 0.01, " mm")
+        self.f_kerf.setToolTip("Schnittbreite. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt,\n"
+                               "damit Teile maßhaltig werden (z. B. Presspassungen). 0 = aus")
+        self.f_tabs = QSpinBox()
+        self.f_tabs.setRange(0, 50)
+        self.f_tabs.setToolTip("Haltestege je Kontur: kleine Stege bleiben stehen, damit Teile nicht herausfallen. 0 = aus")
+        self.f_tab_w = dspin(0.05, 10, 2, 0.1, " mm")
+        self.f_tabs_outer = QCheckBox("Stege nur an Außenkonturen")
+        self.f_bright = dspin(-100, 100, 0, 5, "")
+        self.f_contrast = dspin(-100, 100, 0, 5, "")
+        self.f_gamma = dspin(0.1, 5, 2, 0.1, "")
         self.f_output = QCheckBox("Ausgeben")
 
         self.rows = {}
@@ -123,7 +135,11 @@ class LayerPanel(QWidget):
                               ("cross", "", self.f_cross), ("dither", "Bildmodus", self.f_dither),
                               ("thresh", "Schwellwert", self.f_thresh), ("invert", "", self.f_invert),
                               ("overscan", "Overscan", self.f_overscan), ("bidir", "", self.f_bidir),
-                              ("inner", "", self.f_inner), ("air", "", self.f_air), ("output", "", self.f_output)):
+                              ("inner", "", self.f_inner), ("kerf", "Kerf-Ausgleich", self.f_kerf),
+                              ("tabs", "Haltestege", self.f_tabs), ("tab_w", "Stegbreite", self.f_tab_w),
+                              ("tabs_outer", "", self.f_tabs_outer), ("bright", "Helligkeit", self.f_bright),
+                              ("contrast", "Kontrast", self.f_contrast), ("gamma", "Gamma", self.f_gamma),
+                              ("air", "", self.f_air), ("output", "", self.f_output)):
             self.form.addRow(label, w)
             self.rows[key] = w
         self.f_interval.setToolTip("Abstand der Schraffur-/Bildzeilen. 0,1 mm ≈ 254 DPI")
@@ -131,9 +147,12 @@ class LayerPanel(QWidget):
         lay.addWidget(self.box)
         lay.addStretch(1)
 
-        for w in (self.f_power, self.f_min, self.f_speed, self.f_interval, self.f_angle, self.f_overscan):
+        for w in (self.f_power, self.f_min, self.f_speed, self.f_interval, self.f_angle, self.f_overscan,
+                  self.f_kerf, self.f_tab_w, self.f_bright, self.f_contrast, self.f_gamma):
             w.valueChanged.connect(self._commit)
         self.f_passes.valueChanged.connect(self._commit)
+        self.f_tabs.valueChanged.connect(self._commit)
+        self.f_tabs_outer.toggled.connect(self._commit)
         self.f_thresh.valueChanged.connect(self._commit)
         for w in (self.f_mode, self.f_dither):
             w.currentIndexChanged.connect(self._commit)
@@ -185,6 +204,7 @@ class LayerPanel(QWidget):
             return
         l = self.project.layer(li.data(Qt.ItemDataRole.UserRole))
         if l:
+            self.aboutToChange.emit("Ebene ein/aus", "")
             l.output = li.checkState() == Qt.CheckState.Checked
             self._load_form(l)
             self.layersChanged.emit(True)
@@ -214,6 +234,13 @@ class LayerPanel(QWidget):
         self.f_inner.setChecked(l.inner_first)
         self.f_air.setChecked(l.air)
         self.f_output.setChecked(l.output)
+        self.f_kerf.setValue(l.kerf)
+        self.f_tabs.setValue(l.tabs)
+        self.f_tab_w.setValue(l.tab_width)
+        self.f_tabs_outer.setChecked(l.tabs_outer_only)
+        self.f_bright.setValue(l.brightness)
+        self.f_contrast.setValue(l.contrast)
+        self.f_gamma.setValue(l.gamma)
         self._loading = False
         self._update_visibility(l.mode, l.dither)
 
@@ -225,6 +252,8 @@ class LayerPanel(QWidget):
             "dither": mode == "raster", "thresh": mode == "raster" and dither == "threshold",
             "invert": mode == "raster", "overscan": mode == "raster",
             "bidir": mode in ("fill", "raster"), "inner": mode == "cut",
+            "kerf": mode == "cut", "tabs": mode == "cut", "tab_w": mode == "cut", "tabs_outer": mode == "cut",
+            "bright": mode == "raster", "contrast": mode == "raster", "gamma": mode == "raster",
         }
         for key, v in vis.items():
             self.form.setRowVisible(self.rows[key], v)
@@ -235,6 +264,7 @@ class LayerPanel(QWidget):
         l = self.current_layer()
         if not l:
             return
+        self.aboutToChange.emit("Ebene ändern", f"layer:{l.id}")
         old_mode, old_dither, old_iv, old_th, old_inv = l.mode, l.dither, l.interval, l.threshold, l.invert
         l.name = self.f_name.text().strip() or l.name
         l.mode = self.f_mode.currentData()
@@ -253,6 +283,13 @@ class LayerPanel(QWidget):
         l.inner_first = self.f_inner.isChecked()
         l.air = self.f_air.isChecked()
         l.output = self.f_output.isChecked()
+        l.kerf = self.f_kerf.value()
+        l.tabs = self.f_tabs.value()
+        l.tab_width = self.f_tab_w.value()
+        l.tabs_outer_only = self.f_tabs_outer.isChecked()
+        l.brightness = self.f_bright.value()
+        l.contrast = self.f_contrast.value()
+        l.gamma = self.f_gamma.value()
         self._update_visibility(l.mode, l.dither)
         visual = (old_mode, old_dither, old_iv, old_th, old_inv) != (l.mode, l.dither, l.interval, l.threshold, l.invert)
         self.refresh(l.id)
@@ -261,6 +298,7 @@ class LayerPanel(QWidget):
     def _move(self, d):
         l = self.current_layer()
         if l:
+            self.aboutToChange.emit("Ebenenreihenfolge", "")
             self.project.move_layer(l.id, d)
             self.refresh(l.id)
             self.layersChanged.emit(False)
@@ -271,16 +309,19 @@ class LayerPanel(QWidget):
             return
         c = QColorDialog.getColor(QColor(l.color), self, "Ebenenfarbe")
         if c.isValid():
+            self.aboutToChange.emit("Ebenenfarbe", "")
             l.color = c.name()
             self.refresh(l.id)
             self.layersChanged.emit(True)
 
     def _new_layer(self):
+        self.aboutToChange.emit("Neue Ebene", "")
         l = self.project.add_layer(f"Ebene {len(self.project.layers) + 1}")
         self.refresh(l.id)
         self.layersChanged.emit(False)
 
     def _clean(self):
+        self.aboutToChange.emit("Leere Ebenen entfernen", "")
         self.project.remove_unused_layers()
         self.refresh()
         self.layersChanged.emit(True)
@@ -322,6 +363,7 @@ class LayerPanel(QWidget):
         i = self._preset_index()
         if not l or i is None:
             return
+        self.aboutToChange.emit("Preset anwenden", "")
         storage.apply_preset(l, self.presets[i])
         self._load_form(l)
         self.refresh(l.id)
@@ -358,6 +400,7 @@ class LayerPanel(QWidget):
 
 class ObjectPanel(QWidget):
     changed = pyqtSignal(str, bool)          # Item-ID, Geometrie/Ebene geändert
+    aboutToChange = pyqtSignal(str, str)
     action = pyqtSignal(str)                 # 'center', 'origin', 'duplicate', 'delete'
 
     def __init__(self, parent=None):
@@ -447,18 +490,23 @@ class ObjectPanel(QWidget):
                 self.f_layer.setCurrentIndex(0)
         self._loading = False
 
+    def _before(self, what):
+        self.aboutToChange.emit(what, f"obj:{self.item.id}:{what}")
+
     def _emit(self, geom=False):
         self.changed.emit(self.item.id, geom)
 
     def _pos(self, *_):
         if self._loading or not self.item:
             return
+        self._before("Position")
         self.item.x, self.item.y = self.f_x.value(), self.f_y.value()
         self._emit()
 
     def _size(self, w, h):
         if self._loading or not self.item:
             return
+        self._before("Größe")
         lw, lh = self.item.local_size()
         if w is not None and lw > 0:
             self.item.scale = w / lw
@@ -470,6 +518,7 @@ class ObjectPanel(QWidget):
     def _scale(self, v):
         if self._loading or not self.item:
             return
+        self._before("Skalierung")
         self.item.scale = v / 100.0
         self.refresh()
         self._emit()
@@ -477,18 +526,21 @@ class ObjectPanel(QWidget):
     def _rot(self, v):
         if self._loading or not self.item:
             return
+        self._before("Drehung")
         self.item.rotation = v
         self._emit()
 
     def _mirror(self, on):
         if self._loading or not self.item:
             return
+        self._before("Spiegeln")
         self.item.mirror_x = on
         self._emit()
 
     def _layer(self, idx):
         if self._loading or not self.item:
             return
+        self._before("Ebene")
         lid = self.f_layer.itemData(idx)
         if lid is None:
             return

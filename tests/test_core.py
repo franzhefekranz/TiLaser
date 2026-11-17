@@ -333,6 +333,160 @@ def test_presets_merge():
     assert prof.dialect == "grbl" and prof.s_max == 1000 and prof.bed_w == 400
 
 
+def _sq(x0, y0, w):
+    return g.Polyline(np.array([[x0, y0], [x0 + w, y0], [x0 + w, y0 + w], [x0, y0 + w]], float), True)
+
+
+def test_editing():
+    from tilaser.core import editing as ed
+    from tilaser.core.model import ImportedPath
+    pr = Project()
+    a = pr.add_vector_import("a", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000")])
+    b = pr.add_vector_import("b", [ImportedPath(_sq(30, 5, 20), "#000000", "#000000")])
+    c = pr.add_vector_import("c", [ImportedPath(_sq(80, 50, 10), "#000000", "#000000")])
+    undo = ed.UndoStack()
+    undo.push(pr, "Ausrichten")
+    ed.align([a, b, c], "left")
+    assert all(abs(it.world_bbox()[0]) < 1e-9 for it in (a, b, c))
+    ed.align([a, b, c], "top")
+    assert all(abs(it.world_bbox()[3] - 60) < 1e-9 for it in (a, b, c))
+    restored = undo.do_undo(pr)
+    assert np.allclose(restored.items[1].world_bbox(), (30, 5, 50, 25))
+    assert undo.can_redo()
+    pr = restored
+    a, b, c = pr.items
+    # Verteilen: gleiche Abstände
+    ed.distribute([a, b, c], "x")
+    xs = sorted(it.world_bbox() for it in (a, b, c))
+    assert abs((xs[1][0] - xs[0][2]) - (xs[2][0] - xs[1][2])) < 1e-9
+    # Arrays
+    n0 = len(pr.items)
+    new = ed.grid_array(pr, [a], 3, 2, 5, 5)
+    assert len(new) == 5 and len(pr.items) == n0 + 5
+    assert abs(max(it.world_bbox()[2] for it in [a] + new) - (a.world_bbox()[0] + 3 * 10 + 2 * 5)) < 1e-9
+    circ = ed.circular_array(pr, [a], 4, (a.x + 20, a.y))
+    assert len(circ) == 3 and abs(circ[1].x - (a.x + 40)) < 1e-9 and circ[0].rotation == 90
+    # Anfasser-Transformation: um 2 skalieren, um 90° drehen
+    orig = [(a.x, a.y, a.scale, a.rotation)]
+    ed.transform_items([a], orig, 2.0, 90, (a.x - 5, a.y - 5))
+    assert abs(a.scale - 2) < 1e-9 and abs(a.rotation - 90) < 1e-9
+    # Kopie teilt Geometrie, hat aber eigene ID
+    k = ed.clone_item(a)
+    assert k.id != a.id and k.paths[0].poly is a.paths[0].poly
+
+
+def test_kerf_and_tabs():
+    from tilaser.core.offset import add_tabs, apply_kerf
+    plate, hole = _sq(0, 0, 40), _sq(10, 10, 10)
+    out = apply_kerf([plate, hole], 0.2)
+    bbs = sorted((g.bbox([p]) for p in out), key=lambda b: b[2] - b[0])
+    assert np.allclose(bbs[1], (-0.1, -0.1, 40.1, 40.1), atol=1e-3)   # außen größer
+    assert np.allclose(bbs[0], (10.1, 10.1, 19.9, 19.9), atol=1e-3)   # Loch kleiner
+    tabbed = add_tabs([plate, hole], 4, 1.0)
+    pieces = [p for p in tabbed if not p.closed]
+    assert len(pieces) == 4 and any(p.closed for p in tabbed)           # Loch ohne Stege
+    assert abs(sum(p.length() for p in pieces) - (160 - 4)) < 1e-6
+    pr = Project()
+    from tilaser.core.model import ImportedPath
+    pr.add_vector_import("p", [ImportedPath(plate, "#ff0000", "#ff0000"), ImportedPath(hole, "#ff0000", "#ff0000")])
+    pr.layers[0].kerf, pr.layers[0].tabs = 0.15, 3
+    res = generate(pr, MachineProfile())
+    assert sum(1 for l in res.lines if l.startswith("G0")) >= 4
+
+
+def test_image_and_trace():
+    from tilaser.core.raster import dither
+    from tilaser.core.trace import trace_image
+    grad = np.tile(np.linspace(0, 255, 64, dtype=np.uint8), (32, 1))
+    for m in ("floyd", "jarvis", "stucki", "atkinson", "threshold", "grayscale"):
+        d = dither(grad, m)
+        assert d.shape == grad.shape and 0.35 < d.mean() < 0.65, (m, d.mean())
+    assert dither(grad, "threshold", brightness=50).mean() < dither(grad, "threshold").mean()
+    img = np.full((100, 100), 255, np.uint8)
+    img[20:80, 20:80] = 0
+    img[40:60, 40:60] = 255                       # Ring
+    img[5:8, 90:93] = 0                           # Fleck < min_area
+    polys = trace_image(img, 50, 50, min_area_px=20)
+    assert len(polys) == 2 and all(p.closed for p in polys)
+    bbs = sorted((g.bbox([p]) for p in polys), key=lambda b: b[2] - b[0])
+    assert np.allclose(bbs[1], (-15, -15, 15, 15), atol=0.01) and np.allclose(bbs[0], (-5, -5, 5, 5), atol=0.01)
+    assert all(len(p.pts) == 4 for p in polys)    # Quadrate auf 4 Ecken vereinfacht
+
+
+def test_material_test_and_origin():
+    from tilaser.core.gcode import origin_offset
+    from tilaser.core.materialtest import MaterialTest, build_project
+    t = MaterialTest(cols=4, rows=3)
+    pr = build_project(t)
+    cells = [l for l in pr.layers if l.name.startswith("P")]
+    assert len(cells) == 12
+    assert {round(l.power) for l in cells} == {10, 40, 70, 100}
+    res = generate(pr, MachineProfile())
+    assert res.time_s > 0 and res.moves is not None and len(res.moves) > 0
+    assert np.all(np.diff(res.moves[:, 5]) >= -1e-9)          # Zeitachse monoton
+    bb = pr.bbox()
+    dx, dy = origin_offset(bb, "bl", (100, 100))
+    res2 = generate(pr, MachineProfile(), offset=(dx, dy))
+    burn = np.vstack([b for _, b in res2.burn])
+    assert abs(burn[:, :, 0].min() - 100) < 0.5 and abs(burn[:, :, 1].min() - 100) < 0.5
+    only = generate(pr, MachineProfile(), only_ids=[pr.items[0].id])
+    assert len(only.lines) < len(res.lines)
+
+
+def test_rotary_and_resume():
+    from tilaser.core.gcode import resume_lines
+    pr = Project()
+    from tilaser.core.model import ImportedPath
+    pr.add_vector_import("p", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000")])
+    prof = MachineProfile(rotary=True, rotary_mm_per_rev=40, rotary_roller_d=40 / np.pi)
+    assert abs(prof.y_scale - 1.0) < 1e-9
+    prof.rotary_roller_d = 20 / np.pi
+    lines = generate(pr, prof).lines
+    ys = [float(t[1:]) for l in lines if l.startswith("G1") for t in l.split() if t.startswith("Y")]
+    assert abs(max(ys) - 20) < 1e-6                           # 10 mm Höhe -> 20 mm Y-Weg
+    full = generate(pr, MachineProfile()).lines
+    res = resume_lines(full, 8, MachineProfile())
+    assert res[0].startswith("; Fortsetzen") and "M4 S1000" in res and res[-1] == full[-1]
+
+
+def test_tcp_transport():
+    import socket, threading
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(1)
+    port = srv.getsockname()[1]
+
+    def server():
+        conn, _ = srv.accept()
+        conn.sendall(b"\xff\xfb\x01Grbl 1.1h ['$' for help]\r\n")
+        buf = b""
+        while True:
+            d = conn.recv(1024)
+            if not d:
+                break
+            buf += d.replace(b"?", b"")
+            if b"?" in d:
+                conn.sendall(b"<Idle|WPos:0.000,0.000,0.000>\r\n")
+            while b"\n" in buf:
+                _, buf = buf.split(b"\n", 1)
+                conn.sendall(b"ok\r\n")
+        conn.close()
+
+    threading.Thread(target=server, daemon=True).start()
+    states, fws = [], []
+    c = snd.LaserConnection(on_state=states.append, on_firmware=lambda fw, t: fws.append(fw))
+    c.connect_tcp("127.0.0.1", port)
+    t0 = time.time()
+    while "idle" not in states and time.time() - t0 < 5:
+        time.sleep(0.01)
+    c.start_job([f"G1 X{i}" for i in range(50)])
+    t0 = time.time()
+    while "done" not in states and time.time() - t0 < 5:
+        time.sleep(0.01)
+    c.disconnect()
+    assert fws == ["grbl"] and "done" in states
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")

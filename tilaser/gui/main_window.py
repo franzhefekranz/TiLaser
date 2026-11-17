@@ -5,23 +5,27 @@ import copy
 import os
 
 import numpy as np
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QColor, QKeySequence
 from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QDockWidget, QFileDialog, QFrame, QInputDialog,
-                             QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QTabWidget, QToolBar,
+                             QComboBox, QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QSlider, QTabWidget,
+                             QToolBar, QToolButton,
                              QVBoxLayout, QWidget)
 
 from .. import __version__
 from ..core import geometry as g
 from ..core import storage
 from ..core.dxf_import import import_dxf
-from ..core.gcode import DIALECTS, frame_gcode, generate
+from ..core import editing as ed
+from ..core.gcode import DIALECTS, frame_gcode, generate, job_project, origin_offset, resume_lines
+from ..core.materialtest import build_project
+from ..core.trace import trace_image
 from ..core.model import MODE_LABELS, Item, Project, VectorPath, new_id
 from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
-from .dialogs import GcodeDialog, MachineDialog, TextDialog
+from .dialogs import ArrayDialog, GcodeDialog, MachineDialog, MaterialTestDialog, TextDialog, TraceDialog
 from .machine_panel import MachinePanel
 from .panels import LayerPanel, ObjectPanel, color_icon
 
@@ -45,6 +49,9 @@ class MainWindow(QMainWindow):
         self.profile = storage.load_machine()
         self.project_path: str | None = None
         self.result = None
+        self._result_key = None
+        self.undo = ed.UndoStack()
+        self._clipboard: list[Item] = []
         self.last_dir = os.path.expanduser("~")
 
         self.canvas = LaserCanvas()
@@ -99,6 +106,11 @@ class MainWindow(QMainWindow):
         self.canvas.filesDropped.connect(self.import_files)
         self.canvas.deleteRequested.connect(self.delete_selected)
         self.canvas.contextMenuRequested.connect(self._context_menu)
+        self.canvas.aboutToModify.connect(lambda label: self._checkpoint(label))
+        self.canvas.itemsTransformed.connect(self._on_items_transformed)
+        self.layers.aboutToChange.connect(lambda label, key: self._checkpoint(label, key or None))
+        self.objects.aboutToChange.connect(lambda label, key: self._checkpoint(label, key or None))
+        self.machine.resumeRequested.connect(self.resume_job)
         self.layers.layersChanged.connect(self._on_layers_changed)
         self.objects.changed.connect(self._on_object_changed)
         self.objects.action.connect(self._on_object_action)
@@ -141,6 +153,19 @@ class MainWindow(QMainWindow):
         m.addAction(self._act("Beenden", self.close, "Ctrl+Q"))
 
         e = mb.addMenu("&Bearbeiten")
+        self.a_undo = self._act("Rückgängig", self.do_undo, "Ctrl+Z")
+        self.a_redo = self._act("Wiederholen", self.do_redo, "Ctrl+Y")
+        self.a_redo.setShortcuts([QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")])
+        self.a_cut = self._act("Ausschneiden", self.cut_selected, "Ctrl+X")
+        self.a_copy = self._act("Kopieren", self.copy_selected, "Ctrl+C")
+        self.a_paste = self._act("Einfügen", lambda: self.paste(False), "Ctrl+V")
+        self.a_paste_inplace = self._act("An Originalposition einfügen", lambda: self.paste(True), "Ctrl+Shift+V")
+        for a in (self.a_undo, self.a_redo):
+            e.addAction(a)
+        e.addSeparator()
+        for a in (self.a_cut, self.a_copy, self.a_paste, self.a_paste_inplace):
+            e.addAction(a)
+        e.addSeparator()
         self.a_dup = self._act("Duplizieren", lambda: self._on_object_action("duplicate"), "Ctrl+D")
         self.a_del = self._act("Löschen", self.delete_selected, None, "Ausgewählte Objekte löschen (Entf)")
         self.a_all = self._act("Alles auswählen", lambda: self.canvas.select_only([i.id for i in self.project.items]),
@@ -164,6 +189,40 @@ class MainWindow(QMainWindow):
         for a in (self.a_center, self.a_origin):
             e.addAction(a)
 
+        ar = mb.addMenu("&Anordnen")
+        self.align_actions = []
+        for key, text, sc in (("left", "Links ausrichten", "Ctrl+Shift+Left"),
+                              ("hcenter", "Horizontal mittig ausrichten", None),
+                              ("right", "Rechts ausrichten", "Ctrl+Shift+Right"),
+                              ("top", "Oben ausrichten", "Ctrl+Shift+Up"),
+                              ("vcenter", "Vertikal mittig ausrichten", None),
+                              ("bottom", "Unten ausrichten", "Ctrl+Shift+Down")):
+            a = self._act(text, lambda _=False, k=key: self.align_selected(k), sc)
+            ar.addAction(a)
+            self.align_actions.append(a)
+        ar.addSeparator()
+        ar.addAction(self._act("Horizontal verteilen (gleiche Abstände)", lambda: self.distribute_selected("x")))
+        ar.addAction(self._act("Vertikal verteilen (gleiche Abstände)", lambda: self.distribute_selected("y")))
+        ar.addSeparator()
+        ar.addAction(self._act("Horizontal spiegeln", lambda: self.mirror_selected("h")))
+        ar.addAction(self._act("Vertikal spiegeln", lambda: self.mirror_selected("v")))
+        ar.addAction(self._act("90° nach links drehen", lambda: self.rotate_selected(90), "Ctrl+L"))
+        ar.addAction(self._act("90° nach rechts drehen", lambda: self.rotate_selected(-90), "Ctrl+R"))
+        ar.addSeparator()
+        self.a_array = self._act("Array erstellen…", self.array_dialog, "Ctrl+Shift+A",
+                                 "Auswahl als Raster oder im Kreis vervielfältigen")
+        ar.addAction(self.a_array)
+        ar.addAction(self.a_center)
+        ar.addAction(self.a_origin)
+
+        wz = mb.addMenu("&Werkzeuge")
+        self.a_trace = self._act("Bild nachzeichnen…", self.trace_selected, "Alt+T",
+                                 "Ausgewähltes Bild in Vektorkonturen umwandeln")
+        self.a_mattest = self._act("Materialtest…", self.material_test, None,
+                                   "Testraster mit verschiedenen Leistungen und Geschwindigkeiten")
+        wz.addAction(self.a_trace)
+        wz.addAction(self.a_mattest)
+
         v = mb.addMenu("&Ansicht")
         self.a_fit = self._act("Alles zeigen", self.canvas.zoom_fit, "Ctrl+0")
         self.a_preview = self._act("Werkzeugweg-Vorschau", self.toggle_preview, "Ctrl+P",
@@ -172,9 +231,24 @@ class MainWindow(QMainWindow):
         self.a_show_gcode = self._act("G-Code anzeigen…", self.show_gcode)
         for a in (self.a_fit, self.a_preview, self.a_show_gcode):
             v.addAction(a)
+        v.addSeparator()
+        self.a_snap = self._act("Am Raster fangen", self._toggle_snap, "Ctrl+Shift+F",
+                                "Linke untere Objektecke beim Ziehen auf das Raster legen")
+        self.a_snap.setCheckable(True)
+        v.addAction(self.a_snap)
+        sm = v.addMenu("Rastermaß")
+        for st in (0.5, 1.0, 5.0, 10.0):
+            a = sm.addAction(f"{st:g} mm")
+            a.setCheckable(True)
+            a.setChecked(st == 1.0)
+            a.triggered.connect(lambda _=False, x=st, m=sm: self._set_snap_step(x, m))
 
         mm = mb.addMenu("&Maschine")
         mm.addAction(self._act("Maschineneinstellungen…", self.machine_settings))
+        self.a_rotary = self._act("Rotationsachse aktiv", self._toggle_rotary)
+        self.a_rotary.setCheckable(True)
+        self.a_rotary.setChecked(self.profile.rotary)
+        mm.addAction(self.a_rotary)
 
         h = mb.addMenu("&Hilfe")
         h.addAction(self._act("Über TiLaser", self.about))
@@ -194,6 +268,28 @@ class MainWindow(QMainWindow):
         self.chk_travel.setChecked(True)
         self.chk_travel.toggled.connect(lambda _: self._refresh_preview())
         tb.addWidget(self.chk_travel)
+        self.btn_play = QToolButton()
+        self.btn_play.setText("▶")
+        self.btn_play.setToolTip("Simulation abspielen")
+        self.btn_play.clicked.connect(self._sim_play)
+        self.sim_slider = QSlider(Qt.Orientation.Horizontal)
+        self.sim_slider.setRange(0, 1000)
+        self.sim_slider.setValue(1000)
+        self.sim_slider.setFixedWidth(160)
+        self.sim_slider.setToolTip("Simulation: Zeitpunkt im Auftrag")
+        self.sim_slider.valueChanged.connect(self._sim_slider)
+        self.sim_speed = QComboBox()
+        for f in (1, 5, 20, 100, 500):
+            self.sim_speed.addItem(f"{f}×", f)
+        self.sim_speed.setCurrentIndex(2)
+        self.lbl_sim = QLabel("")
+        for w in (self.btn_play, self.sim_slider, self.sim_speed, self.lbl_sim):
+            tb.addWidget(w)
+        self.sim_timer = QTimer(self)
+        self.sim_timer.setInterval(40)
+        self.sim_timer.timeout.connect(self._sim_tick)
+        self._sim_t = None
+        self._set_sim_enabled(False)
         tb.addSeparator()
         tb.addAction(self.a_export)
         tb.addSeparator()
@@ -269,6 +365,8 @@ class MainWindow(QMainWindow):
 
     def import_files(self, files):
         new_ids, msgs = [], []
+        if any(not f.lower().endswith(".tlp") for f in files):
+            self._checkpoint("Importieren")
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             for f in files:
@@ -340,6 +438,7 @@ class MainWindow(QMainWindow):
         if not polys:
             QMessageBox.information(self, "Text", "Die Schrift enthält keine Konturen für diesen Text.")
             return
+        self._checkpoint("Text einfügen")
         target = dlg.layer.currentData()
         if target == TextDialog.NEW_FILL:
             layer = self.project.add_layer("Text Gravur", mode="fill")
@@ -397,6 +496,7 @@ class MainWindow(QMainWindow):
         if key == "delete":
             self.delete_selected()
             return
+        self._checkpoint({"duplicate": "Duplizieren", "center": "Zentrieren", "origin": "An 0/0"}.get(key, key))
         if key == "duplicate":
             new_ids = []
             for it in items:
@@ -426,6 +526,7 @@ class MainWindow(QMainWindow):
         if sum(1 for it in items if it.kind == "vector") < 2:
             self.statusBar().showMessage("Zum Gruppieren mindestens zwei Vektorobjekte auswählen.", 4000)
             return
+        self._checkpoint("Gruppieren")
         for it in items:
             if it.kind == "vector":
                 self.canvas.remove_item(it.id)
@@ -438,6 +539,7 @@ class MainWindow(QMainWindow):
         items = [it for it in self._selected_items() if it.kind == "vector"]
         if not items:
             return
+        self._checkpoint("Gruppierung aufheben")
         new_ids = []
         for it in items:
             n = len(g.group_parts([vp.poly for vp in it.paths]))
@@ -487,6 +589,7 @@ class MainWindow(QMainWindow):
         items = self._selected_items()
         if not items:
             return
+        self._checkpoint("Ebene zuweisen")
         layer = self.project.layer(layer_id)
         skipped = [it for it in items if it.kind == "raster" and layer.mode != "raster"]
         self.project.assign_layer(items, layer_id)
@@ -516,15 +619,23 @@ class MainWindow(QMainWindow):
         if items:
             menu.addAction(self.a_group)
             menu.addAction(self.a_ungroup)
+            menu.addSeparator()
+            menu.addAction(self.a_cut)
+            menu.addAction(self.a_copy)
+            menu.addAction(self.a_paste)
             lm = menu.addMenu("Ebene zuweisen")
             self._fill_layer_menu(lm)
             menu.addSeparator()
             menu.addAction(self.a_center)
             menu.addAction(self.a_origin)
             menu.addAction(self.a_dup)
+            menu.addAction(self.a_array)
+            if any(it.kind == "raster" for it in items):
+                menu.addAction(self.a_trace)
             menu.addSeparator()
             menu.addAction(self.a_del)
         else:
+            menu.addAction(self.a_paste)
             menu.addAction(self.a_import)
             menu.addAction(self.a_text)
             menu.addAction(self.a_all)
@@ -533,6 +644,8 @@ class MainWindow(QMainWindow):
 
     def delete_selected(self):
         ids = self.canvas.selected_ids()
+        if ids:
+            self._checkpoint("Löschen")
         for i in ids:
             self.project.remove_item(i)
             self.canvas.remove_item(i)
@@ -548,33 +661,67 @@ class MainWindow(QMainWindow):
         if self.a_preview.isChecked():
             self._refresh_preview()
         else:
+            self.canvas.clear_simulation()
             self.canvas.clear_toolpath()
 
-    def ensure_result(self):
-        if self.result is None:
+    def ensure_result(self, only_ids=None, offset=(0.0, 0.0)):
+        key = (tuple(only_ids) if only_ids else None, round(offset[0], 4), round(offset[1], 4))
+        if self.result is None or self._result_key != key:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
-                self.result = generate(self.project, self.profile)
+                self.result = generate(self.project, self.profile, only_ids, offset)
+                self._result_key = key
             finally:
                 QApplication.restoreOverrideCursor()
             self.lbl_info.setText(getattr(self, "_info", "") +
                                   f"  |  geschätzt {fmt_time(self.result.time_s)}  |  {len(self.result.lines)} Zeilen")
         return self.result
 
+    def _job_params(self, need_position=True):
+        """(only_ids, offset) laut Auftragsleiste. Löst ValueError mit Meldung aus."""
+        only = None
+        if self.machine.only_sel.isChecked():
+            only = self.canvas.selected_ids()
+            if not only:
+                raise ValueError("„Nur Auswahl“ ist aktiv, aber nichts ausgewählt.")
+        offset = (0.0, 0.0)
+        if self.machine.origin.currentData() == "current" and need_position:
+            pos = self.machine.last_pos
+            if pos is None:
+                raise ValueError("Ursprung „Aktuelle Position“: Die Kopfposition ist unbekannt – Laser verbinden.")
+            bb = job_project(self.project, only).bbox()
+            if bb is None:
+                raise ValueError("Keine aktiven Objekte.")
+            offset = origin_offset(bb, self.machine.anchor.currentData(), pos[:2])
+        return only, offset
+
     def toggle_preview(self):
         self._refresh_preview()
 
     def _refresh_preview(self):
         if not self.a_preview.isChecked():
+            self.sim_timer.stop()
+            self.canvas.clear_simulation()
             self.canvas.clear_toolpath()
+            self._set_sim_enabled(False)
             return
         try:
-            res = self.ensure_result()
+            only = self.canvas.selected_ids() if self.machine.only_sel.isChecked() else None
+            res = self.ensure_result(only or None)
         except Exception as e:
             QMessageBox.critical(self, "Vorschau", f"Fehler bei der G-Code-Erzeugung:\n{e}")
             self.a_preview.setChecked(False)
+            self._set_sim_enabled(False)
             return
+        self.sim_timer.stop()
+        self._sim_t = None
+        self.canvas.clear_simulation()
         self.canvas.show_toolpath(res, self.chk_travel.isChecked())
+        self._set_sim_enabled(True)
+        self.sim_slider.blockSignals(True)
+        self.sim_slider.setValue(1000)
+        self.sim_slider.blockSignals(False)
+        self.lbl_sim.setText(fmt_time(res.time_s))
 
     def show_gcode(self):
         res = self.ensure_result()
@@ -584,7 +731,12 @@ class MainWindow(QMainWindow):
         if not self.project.items:
             QMessageBox.information(self, "Export", "Das Projekt ist leer.")
             return
-        res = self.ensure_result()
+        try:
+            only, offset = self._job_params(need_position=self.machine.conn.connected)
+        except ValueError as e:
+            QMessageBox.information(self, "Export", str(e))
+            return
+        res = self.ensure_result(only, offset)
         base = os.path.splitext(os.path.basename(self.project_path))[0] if self.project_path else "auftrag"
         p, _ = QFileDialog.getSaveFileName(self, "G-Code exportieren", os.path.join(self.last_dir, base + ".gcode"),
                                            "G-Code (*.gcode *.nc *.gc *.ngc)")
@@ -605,7 +757,12 @@ class MainWindow(QMainWindow):
         if not self.machine.is_ready():
             QMessageBox.information(self, "Start", "Laser nicht verbunden oder beschäftigt.")
             return
-        res = self.ensure_result()
+        try:
+            only, offset = self._job_params()
+        except ValueError as e:
+            QMessageBox.information(self, "Start", str(e))
+            return
+        res = self.ensure_result(only, offset)
         text = (f"Auftrag starten?\n\nGeschätzte Dauer: {fmt_time(res.time_s)}\n"
                 f"Zeilen: {len(res.lines)}\nDialekt: {DIALECTS.get(self.profile.dialect)}\n\n"
                 "⚠ Schutzbrille tragen, Absaugung an, Laser nie unbeaufsichtigt lassen!")
@@ -616,7 +773,12 @@ class MainWindow(QMainWindow):
         self.machine.run_job(res.lines)
 
     def run_frame(self):
-        bb = self.project.bbox()
+        try:
+            only, offset = self._job_params()
+        except ValueError as e:
+            QMessageBox.information(self, "Rahmen", str(e))
+            return
+        bb = job_project(self.project, only, offset).bbox()
         if not bb:
             QMessageBox.information(self, "Rahmen", "Keine aktiven Objekte.")
             return
@@ -657,6 +819,304 @@ class MainWindow(QMainWindow):
                           "(GRBL, Marlin, Smoothieware).<br><br>Import: SVG, DXF, Bilder, Text<br>"
                           "Bedienung: Mausrad = Zoom, rechte/mittlere Maustaste = Verschieben, "
                           "Pfeiltasten = Objekt um 1 mm (Shift: 10 mm) bewegen.")
+
+    # ------------------------------------------------------------ Rückgängig / Zwischenablage
+    def _checkpoint(self, label: str, key: str | None = None):
+        self.undo.push(self.project, label, key)
+        self._update_undo_actions()
+
+    def _update_undo_actions(self):
+        self.a_undo.setEnabled(self.undo.can_undo())
+        self.a_redo.setEnabled(self.undo.can_redo())
+        self.a_undo.setText(f"Rückgängig: {self.undo.undo_label()}" if self.undo.can_undo() else "Rückgängig")
+        self.a_redo.setText(f"Wiederholen: {self.undo.redo_label()}" if self.undo.can_redo() else "Wiederholen")
+
+    def _restore(self, project: Project):
+        sel = self.canvas.selected_ids()
+        self.project = project
+        self.canvas.set_project(project)
+        self.layers.set_project(project)
+        self.objects.set_project(project)
+        self.canvas.select_only([i for i in sel if project.item(i)])
+        self._update_undo_actions()
+        self._invalidate()
+
+    def do_undo(self):
+        p = self.undo.do_undo(self.project)
+        if p is not None:
+            self._restore(p)
+
+    def do_redo(self):
+        p = self.undo.do_redo(self.project)
+        if p is not None:
+            self._restore(p)
+
+    def copy_selected(self):
+        self._clipboard = [ed.clone_item(it) for it in self._selected_items()]
+        self.statusBar().showMessage(f"{len(self._clipboard)} Objekt(e) kopiert", 2000)
+
+    def cut_selected(self):
+        self.copy_selected()
+        self.delete_selected()
+
+    def paste(self, in_place=False):
+        if not self._clipboard:
+            return
+        self._checkpoint("Einfügen")
+        new_ids = []
+        for it in self._clipboard:
+            c = ed.clone_item(it)
+            if not in_place:
+                c.x += 10
+                c.y -= 10
+            for lid in c.layer_ids():                  # Ebene existiert nicht mehr -> erste passende
+                if self.project.layer(lid) is None:
+                    fallback = next((l for l in self.project.layers if (l.mode == "raster") == (c.kind == "raster")),
+                                    None) or self.project.add_layer("Eingefügt", mode="raster" if c.kind == "raster"
+                                                                    else "cut")
+                    self.project.assign_layer([c], fallback.id)
+            self.project.items.append(c)
+            self.canvas.add_item(c)
+            new_ids.append(c.id)
+        if not in_place:                               # nächstes Einfügen wieder versetzt
+            self._clipboard = [ed.clone_item(self.project.item(i)) for i in new_ids]
+        self.layers.refresh()
+        self.canvas.select_only(new_ids)
+        self._invalidate()
+
+    # ------------------------------------------------------------ Anordnen
+    def _refresh_items(self, items):
+        for it in items:
+            self.canvas.refresh_item(it.id)
+        self.objects.refresh()
+        self._invalidate()
+
+    def align_selected(self, mode):
+        items = self._selected_items()
+        if len(items) < 2:
+            self.statusBar().showMessage("Zum Ausrichten mindestens zwei Objekte auswählen.", 3000)
+            return
+        self._checkpoint("Ausrichten")
+        ed.align(items, mode)
+        self._refresh_items(items)
+
+    def distribute_selected(self, axis):
+        items = self._selected_items()
+        if len(items) < 3:
+            self.statusBar().showMessage("Zum Verteilen mindestens drei Objekte auswählen.", 3000)
+            return
+        self._checkpoint("Verteilen")
+        ed.distribute(items, axis)
+        self._refresh_items(items)
+
+    def mirror_selected(self, direction):
+        items = self._selected_items()
+        if not items:
+            return
+        self._checkpoint("Spiegeln")
+        bb = ed.selection_bbox(items)
+        cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+        for it in items:
+            it.mirror_x = not it.mirror_x
+            it.rotation = -it.rotation
+            if direction == "h":
+                it.x = 2 * cx - it.x
+            else:                                       # vertikal = horizontal + 180°
+                it.rotation += 180
+                it.y = 2 * cy - it.y
+        self._refresh_items(items)
+
+    def rotate_selected(self, angle):
+        items = self._selected_items()
+        if not items:
+            return
+        self._checkpoint("Drehen")
+        bb = ed.selection_bbox(items)
+        ed.transform_items(items, [(it.x, it.y, it.scale, it.rotation) for it in items], 1.0, angle,
+                           ((bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2))
+        self._refresh_items(items)
+
+    def array_dialog(self):
+        items = self._selected_items()
+        if not items:
+            self.statusBar().showMessage("Zuerst Objekte auswählen.", 3000)
+            return
+        dlg = ArrayDialog(ed.selection_bbox(items), self)
+        if dlg.exec() != ArrayDialog.DialogCode.Accepted:
+            return
+        self._checkpoint("Array")
+        if dlg.kind.currentData() == "grid":
+            new = ed.grid_array(self.project, items, dlg.cols.value(), dlg.rows.value(), dlg.dx.value(),
+                                dlg.dy.value(), dlg.gap.currentData())
+        else:
+            new = ed.circular_array(self.project, items, dlg.count.value(), (dlg.cx.value(), dlg.cy.value()),
+                                    dlg.angle.value(), dlg.rotate.isChecked())
+        for it in new:
+            self.canvas.add_item(it)
+        self.canvas.select_only([it.id for it in items + new])
+        self._invalidate()
+
+    def _on_items_transformed(self, ids):
+        if self.objects.item and self.objects.item.id in ids:
+            self.objects.refresh()
+        self._invalidate()
+
+    def _toggle_snap(self):
+        self.canvas.snap_enabled = self.a_snap.isChecked()
+
+    def _set_snap_step(self, step, menu):
+        self.canvas.snap_step = step
+        for a in menu.actions():
+            a.setChecked(a.text() == f"{step:g} mm")
+        self.a_snap.setChecked(True)
+        self.canvas.snap_enabled = True
+
+    # ------------------------------------------------------------ Werkzeuge
+    def trace_selected(self):
+        rasters = [it for it in self._selected_items() if it.kind == "raster"]
+        if len(rasters) != 1:
+            QMessageBox.information(self, "Nachzeichnen", "Bitte genau ein Bild auswählen.")
+            return
+        it = rasters[0]
+        dlg = TraceDialog(self.project, self)
+        if dlg.exec() != TraceDialog.DialogCode.Accepted:
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            polys = trace_image(it.image, it.img_w, it.img_h, dlg.threshold.value(), dlg.invert.isChecked(),
+                                dlg.smooth.value(), dlg.min_area.value(), brightness=dlg.bright.value(),
+                                contrast=dlg.contrast.value())
+        finally:
+            QApplication.restoreOverrideCursor()
+        if not polys:
+            QMessageBox.information(self, "Nachzeichnen", "Keine Konturen gefunden – Schwellwert anpassen.")
+            return
+        self._checkpoint("Bild nachzeichnen")
+        target = dlg.layer.currentData()
+        if target in ("__cut__", "__fill__"):
+            layer = self.project.add_layer("Nachgezeichnet", mode="cut" if target == "__cut__" else "fill")
+        else:
+            layer = self.project.layer(target)
+        v = Item(id=new_id("I"), name=f"Kontur: {it.name}", kind="vector", x=it.x, y=it.y, scale=it.scale,
+                 rotation=it.rotation, mirror_x=it.mirror_x)
+        v.paths = [VectorPath(p, layer.id) for p in polys]
+        self.project.items.append(v)
+        if not dlg.keep.isChecked():
+            self.project.remove_item(it.id)
+            self.canvas.remove_item(it.id)
+        self.canvas.add_item(v)
+        self.layers.refresh(layer.id)
+        self.canvas.select_only([v.id])
+        self._invalidate()
+        self.statusBar().showMessage(f"{len(polys)} Konturen, {sum(len(p.pts) for p in polys)} Punkte", 5000)
+
+    def material_test(self):
+        dlg = MaterialTestDialog(self.profile, self)
+        if dlg.exec() != MaterialTestDialog.DialogCode.Accepted or not dlg.action:
+            return
+        try:
+            res = generate(build_project(dlg.test()), self.profile)
+        except Exception as e:
+            QMessageBox.critical(self, "Materialtest", str(e))
+            return
+        if dlg.action == "preview":
+            self.a_preview.setChecked(False)
+            self._set_sim_enabled(False)
+            self.canvas.clear_simulation()
+            self.canvas.show_toolpath(res, True)
+            self.statusBar().showMessage(f"Vorschau Materialtest – {fmt_time(res.time_s)}. "
+                                         "Mit Strg+P (Vorschau) wieder zur normalen Ansicht.", 10000)
+        elif dlg.action == "export":
+            p, _ = QFileDialog.getSaveFileName(self, "Materialtest exportieren",
+                                               os.path.join(self.last_dir, "materialtest.gcode"), "G-Code (*.gcode *.nc)")
+            if p:
+                with open(p, "w", encoding="ascii", errors="replace", newline="\n") as f:
+                    f.write(res.text)
+        elif dlg.action == "send":
+            if not self.machine.is_ready():
+                QMessageBox.information(self, "Materialtest", "Laser nicht verbunden oder beschäftigt.")
+                return
+            if QMessageBox.question(self, "Materialtest", f"Materialtest starten? Dauer ca. {fmt_time(res.time_s)}\n\n"
+                                    "⚠ Schutzbrille tragen, Laser nie unbeaufsichtigt lassen!") \
+                    == QMessageBox.StandardButton.Yes:
+                self.machine.run_job(res.lines)
+
+    def resume_job(self):
+        conn = self.machine.conn
+        if not conn.last_job or not self.machine.is_ready():
+            return
+        total = len(conn.last_job)
+        default = max(0, conn.last_acked - 15)
+        n, ok = QInputDialog.getInt(
+            self, "Auftrag fortsetzen",
+            f"Abgebrochen nach Zeile {conn.last_acked} von {total}.\n"
+            "Die Steuerung puffert einige Befehle; deshalb wird standardmäßig etwas früher\n"
+            "neu begonnen (kurze Stücke werden doppelt gelasert).\n\nAb Zeile fortsetzen:",
+            default + 1, 1, total, 1)
+        if not ok:
+            return
+        lines = resume_lines(conn.last_job, n - 1, self.profile)
+        if QMessageBox.question(self, "Fortsetzen", f"Ab Zeile {n} fortsetzen ({total - n + 1} Zeilen)?\n"
+                                "Werkstück darf nicht verschoben worden sein!") == QMessageBox.StandardButton.Yes:
+            self.machine.run_job(lines)
+
+    def _toggle_rotary(self):
+        self.profile.rotary = self.a_rotary.isChecked()
+        storage.save_machine(self.profile)
+        self._invalidate()
+        if self.profile.rotary:
+            self.statusBar().showMessage(f"Rotationsachse aktiv: Y-Faktor {self.profile.y_scale:.4f}", 5000)
+
+    # ------------------------------------------------------------ Simulation
+    def _set_sim_enabled(self, on):
+        for w in (self.btn_play, self.sim_slider, self.sim_speed, self.lbl_sim):
+            w.setEnabled(on)
+        if not on:
+            self.sim_timer.stop()
+            self.btn_play.setText("▶")
+            self.lbl_sim.setText("")
+
+    def _sim_ensure(self):
+        if self._sim_t is None and self.result is not None:
+            self.canvas.start_simulation(self.result)
+            self._sim_t = 0.0
+
+    def _sim_slider(self, v):
+        if self.result is None:
+            return
+        self._sim_ensure()
+        self._sim_t = self.result.time_s * v / 1000
+        self.canvas.set_simulation_time(self._sim_t)
+        self.lbl_sim.setText(f"{fmt_time(self._sim_t)} / {fmt_time(self.result.time_s)}")
+
+    def _sim_play(self):
+        if self.result is None:
+            return
+        if self.sim_timer.isActive():
+            self.sim_timer.stop()
+            self.btn_play.setText("▶")
+            return
+        self._sim_ensure()
+        if self.sim_slider.value() >= 1000:
+            self.sim_slider.setValue(0)
+        self.btn_play.setText("⏸")
+        self.sim_timer.start()
+
+    def _sim_tick(self):
+        if self.result is None or self.result.time_s <= 0:
+            self.sim_timer.stop()
+            return
+        t = (self._sim_t or 0.0) + 0.04 * self.sim_speed.currentData()
+        if t >= self.result.time_s:
+            t = self.result.time_s
+            self.sim_timer.stop()
+            self.btn_play.setText("▶")
+        self.sim_slider.blockSignals(True)
+        self.sim_slider.setValue(int(t / self.result.time_s * 1000))
+        self.sim_slider.blockSignals(False)
+        self._sim_t = t
+        self.canvas.set_simulation_time(t)
+        self.lbl_sim.setText(f"{fmt_time(t)} / {fmt_time(self.result.time_s)}")
 
     def closeEvent(self, e):
         if self.machine.conn.job_active and QMessageBox.question(

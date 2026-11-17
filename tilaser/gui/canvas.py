@@ -24,8 +24,9 @@ def _cosmetic(color: QColor, width: float = 1.0, style=Qt.PenStyle.SolidLine) ->
 class ItemGraphic(QGraphicsItem):
     """Darstellung eines Modell-Objekts. Lokale Koordinaten = (x, -y) der Modellpfade."""
 
-    def __init__(self, item: Item, project: Project, on_moved):
+    def __init__(self, item: Item, project: Project, on_moved, snap_fn=None):
         super().__init__()
+        self.snap_fn = snap_fn
         self.item = item
         self.project = project
         self.on_moved = on_moved
@@ -49,7 +50,8 @@ class ItemGraphic(QGraphicsItem):
             layer = self.project.layer(it.layer_id)
             if layer is not None and it.image is not None:
                 img = preview_image(it.image, it.img_w, it.img_h, layer.interval, layer.dither,
-                                    layer.threshold, layer.invert)
+                                    layer.threshold, layer.invert, 600, layer.brightness, layer.contrast,
+                                    layer.gamma)
             else:
                 img = it.image
             self._img_buf = np.ascontiguousarray(img)
@@ -118,11 +120,82 @@ class ItemGraphic(QGraphicsItem):
             painter.drawRect(self._rect)
 
     def itemChange(self, change, value):
+        if (change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and not self._syncing
+                and self.snap_fn is not None):
+            return self.snap_fn(self, value)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged and not self._syncing:
             p = self.pos()
             self.item.x, self.item.y = p.x(), -p.y()
             self.on_moved(self.item)
         return super().itemChange(change, value)
+
+
+class SelectionOverlay(QGraphicsItem):
+    """Auswahlrahmen mit Anfassern: Ecken = proportional skalieren, Kreis oben = drehen."""
+    HANDLE_PX = 7
+    ROT_PX = 22
+
+    def __init__(self, view):
+        super().__init__()
+        self.view = view
+        self.bb = None          # Welt-Box (x0, y0, x1, y1)
+        self.setZValue(50)
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+    def set_bbox(self, bb):
+        self.prepareGeometryChange()
+        self.bb = bb
+        self.setVisible(bb is not None)
+        self.update()
+
+    def _px(self):
+        return 1.0 / max(self.view.transform().m11(), 1e-6)
+
+    def scene_rect(self):
+        x0, y0, x1, y1 = self.bb
+        return QRectF(x0, -y1, x1 - x0, y1 - y0)
+
+    def handles(self):
+        """{'name': (Szenenpunkt QPointF, Ankerpunkt in Weltkoordinaten)}"""
+        x0, y0, x1, y1 = self.bb
+        h = {"bl": (QPointF(x0, -y0), (x1, y1)), "br": (QPointF(x1, -y0), (x0, y1)),
+             "tl": (QPointF(x0, -y1), (x1, y0)), "tr": (QPointF(x1, -y1), (x0, y0))}
+        h["rot"] = (QPointF((x0 + x1) / 2, -y1 - self.ROT_PX * self._px()), ((x0 + x1) / 2, (y0 + y1) / 2))
+        return h
+
+    def hit(self, scene_pt):
+        if self.bb is None or not self.isVisible():
+            return None
+        tol = (self.HANDLE_PX + 3) * self._px()
+        for name, (pt, anchor) in self.handles().items():
+            if abs(pt.x() - scene_pt.x()) <= tol and abs(pt.y() - scene_pt.y()) <= tol:
+                return name, anchor
+        return None
+
+    def boundingRect(self):
+        if self.bb is None:
+            return QRectF()
+        m = (self.ROT_PX + self.HANDLE_PX * 2) * self._px()
+        return self.scene_rect().adjusted(-m, -m, m, m)
+
+    def paint(self, painter, option, widget=None):
+        if self.bb is None:
+            return
+        px = self._px()
+        r = self.scene_rect()
+        painter.setPen(_cosmetic(QColor("#1976d2"), 1, Qt.PenStyle.DashLine))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(r)
+        hs = self.HANDLE_PX * px
+        painter.setPen(_cosmetic(QColor("#1976d2"), 1))
+        painter.setBrush(QColor("white"))
+        hd = self.handles()
+        for name, (pt, _) in hd.items():
+            if name == "rot":
+                painter.drawLine(QPointF(pt.x(), r.top()), pt)
+                painter.drawEllipse(pt, hs * 0.8, hs * 0.8)
+            else:
+                painter.drawRect(QRectF(pt.x() - hs / 2, pt.y() - hs / 2, hs, hs))
 
 
 class LaserCanvas(QGraphicsView):
@@ -132,6 +205,8 @@ class LaserCanvas(QGraphicsView):
     filesDropped = pyqtSignal(list)
     deleteRequested = pyqtSignal()
     contextMenuRequested = pyqtSignal(object)   # globale Position (QPoint)
+    aboutToModify = pyqtSignal(str)             # vor einer Änderung (für Rückgängig)
+    itemsTransformed = pyqtSignal(list)         # Anfasser: Skalierung/Drehung geändert
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -150,6 +225,13 @@ class LaserCanvas(QGraphicsView):
         self.toolpath_items = []
         self._pan_start = None
         self.bed_w, self.bed_h = 400.0, 400.0
+        self.snap_enabled = False
+        self.snap_step = 1.0
+        self._drag = None              # laufende Anfasser-Aktion
+        self.overlay = SelectionOverlay(self)
+        self.scene_.addItem(self.overlay)
+        self.overlay.set_bbox(None)
+        self.sim_items = []
         self.scene_.selectionChanged.connect(self._on_selection)
 
     # ------------------------------------------------------------ Bett
@@ -228,9 +310,10 @@ class LaserCanvas(QGraphicsView):
         self.graphics = {}
         for it in self.project.items:
             self.add_item(it, select=it.id in selected)
+        self.update_overlay()
 
     def add_item(self, item: Item, select=False):
-        gi = ItemGraphic(item, self.project, lambda it: self.itemMoved.emit(it.id))
+        gi = ItemGraphic(item, self.project, self._on_graphic_moved, self._snap)
         self.scene_.addItem(gi)
         self.graphics[item.id] = gi
         gi.setSelected(select)
@@ -240,6 +323,7 @@ class LaserCanvas(QGraphicsView):
         gi = self.graphics.pop(item_id, None)
         if gi:
             self.scene_.removeItem(gi)
+        self.update_overlay()
 
     def refresh_item(self, item_id: str, geometry=False):
         gi = self.graphics.get(item_id)
@@ -247,6 +331,7 @@ class LaserCanvas(QGraphicsView):
             if geometry:
                 gi.rebuild()
             gi.sync_from_model()
+        self.update_overlay()
 
     def refresh_styles(self):
         for gi in self.graphics.values():
@@ -263,9 +348,36 @@ class LaserCanvas(QGraphicsView):
 
     def _on_selection(self):
         try:
+            self.update_overlay()
             self.selectionChanged.emit(self.selected_ids())
         except RuntimeError:
             pass
+
+    def _on_graphic_moved(self, item):
+        self.update_overlay()
+        self.itemMoved.emit(item.id)
+
+    def update_overlay(self):
+        items = [gi.item for gi in self.graphics.values() if gi.isSelected()]
+        if not items:
+            self.overlay.set_bbox(None)
+            return
+        bbs = [it.world_bbox() for it in items]
+        self.overlay.set_bbox((min(b[0] for b in bbs), min(b[1] for b in bbs),
+                               max(b[2] for b in bbs), max(b[3] for b in bbs)))
+
+    def _snap(self, gi, value):
+        """Fangen: linke untere Ecke des Objekts auf das Raster legen."""
+        if not self.snap_enabled or self._drag is not None:
+            return value
+        it = gi.item
+        bb = it.world_bbox()
+        offx, offy = bb[0] - it.x, bb[1] - it.y
+        cx, cy = value.x(), -value.y()
+        st = self.snap_step
+        nx = round((cx + offx) / st) * st - offx
+        ny = round((cy + offy) / st) * st - offy
+        return QPointF(nx, -ny)
 
     # ------------------------------------------------------------ Werkzeugweg
     def clear_toolpath(self):
@@ -302,12 +414,109 @@ class LaserCanvas(QGraphicsView):
             self.scene_.addItem(bi)
             self.toolpath_items.append(bi)
 
+    # ------------------------------------------------------------ Simulation
+    def clear_simulation(self):
+        for it in self.sim_items:
+            self.scene_.removeItem(it)
+        self.sim_items = []
+        self._sim = None
+
+    def start_simulation(self, result):
+        """Bereitet die Simulation vor: Werkzeugweg blass, Fortschritt kräftig."""
+        self.clear_simulation()
+        self.clear_toolpath()
+        mv = result.moves if result.moves is not None else np.zeros((0, 6))
+        faint = QGraphicsPathItem(self._moves_path(mv[mv[:, 4] >= 0]))
+        faint.setPen(_cosmetic(QColor(0, 0, 0, 40), 1))
+        faint.setZValue(19)
+        self.scene_.addItem(faint)
+        travel = QGraphicsPathItem()
+        travel.setPen(_cosmetic(QColor(120, 120, 120, 160), 1, Qt.PenStyle.DashLine))
+        travel.setZValue(20)
+        self.scene_.addItem(travel)
+        burns = []
+        for c in result.colors:
+            bi = QGraphicsPathItem()
+            col = QColor(c)
+            if col.lightness() > 200:
+                col = col.darker(150)
+            bi.setPen(_cosmetic(col, 2))
+            bi.setZValue(21)
+            self.scene_.addItem(bi)
+            burns.append(bi)
+        head = QGraphicsPathItem()
+        hp = QPainterPath()
+        hp.addEllipse(QPointF(0, 0), 4, 4)
+        hp.moveTo(-8, 0)
+        hp.lineTo(8, 0)
+        hp.moveTo(0, -8)
+        hp.lineTo(0, 8)
+        head.setPath(hp)
+        head.setPen(_cosmetic(QColor("#d32f2f"), 2))
+        head.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        head.setZValue(30)
+        self.scene_.addItem(head)
+        self.sim_items = [faint, travel, head] + burns
+        self._sim = {"mv": mv, "k": 0, "travel": travel, "burns": burns, "head": head,
+                     "paths": [QPainterPath() for _ in burns], "tpath": QPainterPath(),
+                     "total": float(mv[-1, 5]) if len(mv) else 0.0}
+        self.set_simulation_time(0.0)
+
+    @staticmethod
+    def _moves_path(mv, pp=None):
+        if pp is None:
+            pp = QPainterPath()
+        last = None
+        for x0, y0, x1, y1 in mv[:, :4]:
+            if last is None or abs(last[0] - x0) > 1e-6 or abs(last[1] - y0) > 1e-6:
+                pp.moveTo(x0, -y0)
+            pp.lineTo(x1, -y1)
+            last = (x1, y1)
+        return pp
+
+    def set_simulation_time(self, t: float):
+        sim = getattr(self, "_sim", None)
+        if not sim:
+            return
+        mv = sim["mv"]
+        k = int(np.searchsorted(mv[:, 5], t, side="right")) if len(mv) else 0
+        if k < sim["k"]:                                  # rückwärts: neu aufbauen
+            sim["paths"] = [QPainterPath() for _ in sim["burns"]]
+            sim["tpath"] = QPainterPath()
+            sim["k"] = 0
+        new = mv[sim["k"]:k]
+        if len(new):
+            for ci in range(len(sim["burns"])):
+                sel = new[new[:, 4] == ci]
+                if len(sel):
+                    sim["paths"][ci] = self._moves_path(sel, sim["paths"][ci])
+            sel = new[new[:, 4] < 0]
+            if len(sel):
+                sim["tpath"] = self._moves_path(sel, sim["tpath"])
+        sim["k"] = k
+        for bi, pp in zip(sim["burns"], sim["paths"]):
+            bi.setPath(pp)
+        sim["travel"].setPath(sim["tpath"])
+        # Kopfposition (innerhalb der aktuellen Bewegung interpoliert)
+        if len(mv) == 0:
+            return
+        if k >= len(mv):
+            x, y = mv[-1, 2], mv[-1, 3]
+        else:
+            t0 = mv[k - 1, 5] if k > 0 else 0.0
+            t1 = mv[k, 5]
+            f = 0.0 if t1 <= t0 else (t - t0) / (t1 - t0)
+            x = mv[k, 0] + (mv[k, 2] - mv[k, 0]) * f
+            y = mv[k, 1] + (mv[k, 3] - mv[k, 1]) * f
+        sim["head"].setPos(x, -y)
+
     # ------------------------------------------------------------ Maus / Tastatur
     def wheelEvent(self, e):
         f = 1.15 ** (e.angleDelta().y() / 120)
         cur = self.transform().m11()
         if 0.05 < cur * f < 200:
             self.scale(f, f)
+            self.overlay.set_bbox(self.overlay.bb)
 
     def mousePressEvent(self, e):
         # Mitte: verschieben. Rechts: verschieben beim Ziehen, Kontextmenü beim Klicken.
@@ -317,9 +526,26 @@ class LaserCanvas(QGraphicsView):
             self._pan_button = e.button()
             self._panned = False
             return
+        if e.button() == Qt.MouseButton.LeftButton:
+            sp = self.mapToScene(e.position().toPoint())
+            hit = self.overlay.hit(sp)
+            if hit is not None:
+                name, anchor = hit
+                items = [gi.item for gi in self.graphics.values() if gi.isSelected()]
+                self.aboutToModify.emit("Drehen" if name == "rot" else "Skalieren")
+                self._drag = {"mode": name, "anchor": anchor, "start": (sp.x(), -sp.y()), "items": items,
+                              "orig": [(it.x, it.y, it.scale, it.rotation) for it in items]}
+                return
+            gi = self._graphic_at(e.position().toPoint())
+            if gi is not None:
+                self.aboutToModify.emit("Verschieben")
         super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
+        if self._drag is not None:
+            sp = self.mapToScene(e.position().toPoint())
+            self._drag_update(sp.x(), -sp.y(), e.modifiers())
+            return
         if self._pan_start is not None:
             if not self._panned and (e.position() - self._pan_origin).manhattanLength() < 4:
                 return
@@ -336,6 +562,10 @@ class LaserCanvas(QGraphicsView):
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
+        if self._drag is not None and e.button() == Qt.MouseButton.LeftButton:
+            self._drag = None
+            self.update_overlay()
+            return
         if self._pan_start is not None and e.button() == getattr(self, "_pan_button", None):
             self._pan_start = None
             self.unsetCursor()
@@ -350,6 +580,33 @@ class LaserCanvas(QGraphicsView):
             return
         super().mouseReleaseEvent(e)
 
+    def _drag_update(self, x, y, mods):
+        import math
+        from ..core.editing import transform_items
+        d = self._drag
+        ax, ay = d["anchor"]
+        sx, sy = d["start"]
+        if d["mode"] == "rot":
+            a = math.degrees(math.atan2(y - ay, x - ax) - math.atan2(sy - ay, sx - ax))
+            if mods & Qt.KeyboardModifier.ShiftModifier:
+                a = round(a / 15) * 15
+            transform_items(d["items"], d["orig"], 1.0, a, (ax, ay))
+            self.mouseMoved.emit(x, y)
+        else:
+            v0 = (sx - ax, sy - ay)
+            L2 = v0[0] ** 2 + v0[1] ** 2
+            if L2 < 1e-12:
+                return
+            f = ((x - ax) * v0[0] + (y - ay) * v0[1]) / L2       # Projektion auf die Diagonale
+            f = max(0.01, f)
+            transform_items(d["items"], d["orig"], f, 0.0, (ax, ay))
+        for it in d["items"]:
+            gi = self.graphics.get(it.id)
+            if gi:
+                gi.sync_from_model()
+        self.update_overlay()
+        self.itemsTransformed.emit([it.id for it in d["items"]])
+
     def _graphic_at(self, pos):
         for it in self.items(pos):
             if isinstance(it, ItemGraphic):
@@ -361,6 +618,7 @@ class LaserCanvas(QGraphicsView):
         moves = {Qt.Key.Key_Left: (-step, 0), Qt.Key.Key_Right: (step, 0),
                  Qt.Key.Key_Up: (0, step), Qt.Key.Key_Down: (0, -step)}
         if e.key() in moves and self.selected_ids():
+            self.aboutToModify.emit("Verschieben (Tastatur)")
             dx, dy = moves[e.key()]
             for i in self.selected_ids():
                 gi = self.graphics[i]
@@ -368,6 +626,7 @@ class LaserCanvas(QGraphicsView):
                 gi.item.y += dy
                 gi.sync_from_model()
                 self.itemMoved.emit(i)
+            self.update_overlay()
             return
         if e.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
             self.deleteRequested.emit()

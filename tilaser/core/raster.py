@@ -42,19 +42,39 @@ def resample(gray: np.ndarray, w_mm: float, h_mm: float, interval: float, rotati
     return np.asarray(im, dtype=np.uint8)
 
 
-def adjust(gray: np.ndarray, invert=False) -> np.ndarray:
-    g = gray.astype(np.float32) / 255.0
+def adjust(gray: np.ndarray, invert=False, brightness: float = 0.0, contrast: float = 0.0,
+           gamma: float = 1.0) -> np.ndarray:
+    """Graustufen -> 0..1 (1 = weiß) mit Helligkeit/Kontrast (-100..100) und Gamma."""
+    v = gray.astype(np.float32) / 255.0
+    if brightness:
+        v = v + brightness / 100.0
+    if contrast:
+        f = (1 + contrast / 100.0) if contrast > 0 else 1 / (1 - contrast / 100.0)
+        v = (v - 0.5) * f + 0.5
+    v = np.clip(v, 0.0, 1.0)
+    if gamma and abs(gamma - 1.0) > 1e-6:
+        v = v ** gamma
     if invert:
-        g = 1.0 - g
-    return g
+        v = 1.0 - v
+    return v
 
 
-def dither(gray: np.ndarray, mode: str = "floyd", threshold: int = 128, invert: bool = False) -> np.ndarray:
+# Fehlerverteilungs-Kerne: (dy, dx, Gewicht), Summe der Gewichte / Divisor = 1
+KERNELS = {
+    "jarvis": ([(0, 1, 7), (0, 2, 5), (1, -2, 3), (1, -1, 5), (1, 0, 7), (1, 1, 5), (1, 2, 3),
+                (2, -2, 1), (2, -1, 3), (2, 0, 5), (2, 1, 3), (2, 2, 1)], 48),
+    "stucki": ([(0, 1, 8), (0, 2, 4), (1, -2, 2), (1, -1, 4), (1, 0, 8), (1, 1, 4), (1, 2, 2),
+                (2, -2, 1), (2, -1, 2), (2, 0, 4), (2, 1, 2), (2, 2, 1)], 42),
+}
+
+
+def dither(gray: np.ndarray, mode: str = "floyd", threshold: int = 128, invert: bool = False,
+           brightness: float = 0.0, contrast: float = 0.0, gamma: float = 1.0) -> np.ndarray:
     """Liefert Brennintensität 0..1 pro Pixel (1 = volle Leistung).
 
     'grayscale' gibt kontinuierliche Werte zurück, alle anderen 0/1.
     """
-    v = adjust(gray, invert)          # 1 = weiß
+    v = adjust(gray, invert, brightness, contrast, gamma)          # 1 = weiß
     dark = 1.0 - v
     if mode == "grayscale":
         dark[v > 0.995] = 0.0
@@ -63,7 +83,32 @@ def dither(gray: np.ndarray, mode: str = "floyd", threshold: int = 128, invert: 
         return (v < threshold / 255.0).astype(np.float32)
     if mode == "atkinson":
         return _atkinson(v)
+    if mode in KERNELS:
+        return _diffuse(v, *KERNELS[mode])
     return _floyd(v)
+
+
+def _diffuse(v: np.ndarray, kernel, div) -> np.ndarray:
+    img = v.astype(np.float64).tolist()
+    h, w = len(img), len(img[0])
+    out = np.zeros((h, w), dtype=np.float32)
+    k = [(dy, dx, wt / div) for dy, dx, wt in kernel]
+    for y in range(h):
+        res = [0.0] * w
+        row = img[y]
+        for x in range(w):
+            old = row[x]
+            new = 1.0 if old >= 0.5 else 0.0
+            res[x] = new
+            err = old - new
+            if err == 0.0:
+                continue
+            for dy, dx, wt in k:
+                yy, xx = y + dy, x + dx
+                if yy < h and 0 <= xx < w:
+                    img[yy][xx] += err * wt
+        out[y] = res
+    return 1.0 - out
 
 
 def _floyd(v: np.ndarray) -> np.ndarray:
@@ -120,9 +165,10 @@ def _atkinson(v: np.ndarray) -> np.ndarray:
 
 
 def preview_image(gray: np.ndarray, w_mm: float, h_mm: float, interval: float, mode: str, threshold: int,
-                  invert: bool, max_px: int = 600) -> np.ndarray:
+                  invert: bool, max_px: int = 600, brightness: float = 0.0, contrast: float = 0.0,
+                  gamma: float = 1.0) -> np.ndarray:
     """Schnelle Vorschau des Ditherings (uint8, 255 = weiß), Auflösung begrenzt."""
     iv = max(interval, max(w_mm, h_mm) / max_px)
     small = resample(gray, w_mm, h_mm, iv)
-    d = dither(small, mode, threshold, invert)
+    d = dither(small, mode, threshold, invert, brightness, contrast, gamma)
     return (255 - np.clip(d, 0, 1) * 255).astype(np.uint8)

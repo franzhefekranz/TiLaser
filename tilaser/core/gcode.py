@@ -10,6 +10,7 @@ import numpy as np
 from . import geometry as g
 from .fill import hatch
 from .model import Layer, Project
+from .offset import add_tabs, apply_kerf
 from .raster import dither, resample
 
 DIALECTS = {
@@ -46,6 +47,20 @@ class MachineProfile:
     frame_speed: float = 3000.0
     port: str = ""
     baud: int = 115200
+    # Rotationsachse (Rollen-Typ, an Stelle der Y-Achse)
+    rotary: bool = False
+    rotary_mm_per_rev: float = 40.0   # Y-Weg in mm, den die Steuerung für eine Rollenumdrehung fährt
+    rotary_roller_d: float = 20.0     # Rollendurchmesser in mm
+    # Netzwerk (TCP/Telnet), z. B. ESP32/FluidNC
+    conn_type: str = "serial"         # 'serial' | 'tcp'
+    host: str = ""
+    tcp_port: int = 23
+
+    @property
+    def y_scale(self) -> float:
+        if self.rotary and self.rotary_roller_d > 0:
+            return self.rotary_mm_per_rev / (math.pi * self.rotary_roller_d)
+        return 1.0
 
     def apply_dialect(self, dialect: str):
         self.dialect = dialect
@@ -68,6 +83,8 @@ class GResult:
     time_s: float
     warnings: list[str] = field(default_factory=list)
     bbox: tuple | None = None
+    moves: np.ndarray | None = None              # (N, 6): x0, y0, x1, y1, Farbindex (-1 = Leerweg), t_ende [s]
+    colors: list[str] = field(default_factory=list)
 
     @property
     def text(self) -> str:
@@ -94,6 +111,9 @@ class GWriter:
         self.burn_segs: dict[str, list] = {}
         self.color = "#000000"
         self.t_min = 0.0
+        self.ys = prof.y_scale
+        self.moves: list = []
+        self.color_ids: dict[str, int] = {}
         self.s_decimals = 3 if prof.s_max <= 1.0 else (1 if prof.s_max < 100 else 0)
 
     def s_val(self, pct: float) -> float:
@@ -121,7 +141,7 @@ class GWriter:
             return
         self.laser_off()
         d = self._dist(x, y)
-        cmd = f"G0 X{fmt(x)} Y{fmt(y)}"
+        cmd = f"G0 X{fmt(x)} Y{fmt(y * self.ys)}"
         if self.p.rapid_with_feed:
             cmd += f" F{fmt(self.p.travel_speed, 0)}"
             self.feed = None          # G0 F verändert das modale F – nächstes G1 muss F setzen
@@ -129,6 +149,8 @@ class GWriter:
         if self.x is not None:
             self.travel_segs.append((self.x, self.y, x, y))
         self.t_min += d / max(self.p.travel_speed, 1)
+        if self.x is not None:
+            self.moves.append((self.x, self.y, x, y, -1, self.t_min * 60))
         self.x, self.y = x, y
 
     def burn(self, x: float, y: float, speed: float, s: float):
@@ -139,7 +161,7 @@ class GWriter:
             self.travel(x, y)
             return
         d = self._dist(x, y)
-        parts = [f"G1 X{fmt(x)} Y{fmt(y)}"]
+        parts = [f"G1 X{fmt(x)} Y{fmt(y * self.ys)}"]
         if self.feed != speed:
             parts.append(f"F{fmt(speed, 0)}")
             self.feed = speed
@@ -158,6 +180,9 @@ class GWriter:
         elif self.x is not None:
             self.travel_segs.append((self.x, self.y, x, y))
         self.t_min += d / max(speed, 1)
+        if self.x is not None:
+            ci = self.color_ids.setdefault(self.color, len(self.color_ids)) if s > 0 else -1
+            self.moves.append((self.x, self.y, x, y, ci, self.t_min * 60))
         self.x, self.y = x, y
 
     def polyline(self, pts: np.ndarray, speed: float, s: float):
@@ -186,11 +211,17 @@ class GWriter:
     def result(self, warnings, bbox) -> GResult:
         tr = np.array(self.travel_segs, dtype=float).reshape(-1, 2, 2)
         burn = [(c, np.array(s, dtype=float).reshape(-1, 2, 2)) for c, s in self.burn_segs.items()]
-        return GResult(self.lines, tr, burn, self.t_min * 60.0, warnings, bbox)
+        mv = np.array(self.moves, dtype=float).reshape(-1, 6)
+        colors = [c for c, _ in sorted(self.color_ids.items(), key=lambda kv: kv[1])]
+        return GResult(self.lines, tr, burn, self.t_min * 60.0, warnings, bbox, mv, colors)
 
 
 # --------------------------------------------------------------------------- Generator
 def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
+    if layer.kerf:
+        paths = apply_kerf(paths, layer.kerf)
+    if layer.tabs > 0:
+        paths = add_tabs(paths, layer.tabs, layer.tab_width, layer.tabs_outer_only)
     s = w.s_val(layer.power)
     for n in range(max(1, layer.passes)):
         if layer.passes > 1:
@@ -218,7 +249,8 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
     iv = max(0.01, layer.interval)
     img = resample(item.image, item.img_w * item.scale, item.img_h * item.scale, iv,
                    item.rotation, item.mirror_x)
-    inten = dither(img, layer.dither, layer.threshold, layer.invert)
+    inten = dither(img, layer.dither, layer.threshold, layer.invert, layer.brightness, layer.contrast,
+                   layer.gamma)
     rows, cols = inten.shape
     W, H = cols * iv, rows * iv
     x0 = item.x - W / 2
@@ -267,7 +299,34 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
                 forward = not forward
 
 
-def generate(project: Project, prof: MachineProfile) -> GResult:
+def job_project(project: Project, only_ids=None, offset=(0.0, 0.0)) -> Project:
+    """Projektkopie für die Ausgabe: optional nur ausgewählte Objekte, optional verschoben."""
+    if not only_ids and not any(offset):
+        return project
+    from .editing import snapshot
+    p = snapshot(project)
+    if only_ids:
+        p.items = [it for it in p.items if it.id in set(only_ids)]
+    for it in p.items:
+        it.x += offset[0]
+        it.y += offset[1]
+    return p
+
+
+ANCHORS = {"tl": (0, 1), "tc": (0.5, 1), "tr": (1, 1), "ml": (0, 0.5), "mc": (0.5, 0.5), "mr": (1, 0.5),
+           "bl": (0, 0), "bc": (0.5, 0), "br": (1, 0)}
+
+
+def origin_offset(bbox, anchor: str, target) -> tuple[float, float]:
+    """Versatz, der den Ankerpunkt der Auftrags-Box auf 'target' (z. B. aktuelle Kopfposition) legt."""
+    fx, fy = ANCHORS.get(anchor, (0, 0))
+    ax = bbox[0] + fx * (bbox[2] - bbox[0])
+    ay = bbox[1] + fy * (bbox[3] - bbox[1])
+    return target[0] - ax, target[1] - ay
+
+
+def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0, 0.0)) -> GResult:
+    project = job_project(project, only_ids, offset)
     w = GWriter(prof)
     warnings: list[str] = []
     w.start()
@@ -305,18 +364,22 @@ def generate(project: Project, prof: MachineProfile) -> GResult:
         if layer.air and prof.air_off:
             w.emit(prof.air_off)
     w.finish()
+    if prof.rotary:
+        warnings.append(f"Rotationsachse aktiv: Y wird mit Faktor {prof.y_scale:.4f} skaliert.")
     if not any_output:
         warnings.append("Keine aktiven Ebenen mit Objekten – G-Code enthält keine Bearbeitung.")
     bb = project.bbox()
-    if bb and (bb[0] < -1e-6 or bb[1] < -1e-6 or bb[2] > prof.bed_w + 1e-6 or bb[3] > prof.bed_h + 1e-6):
+    if bb and not prof.rotary and (bb[0] < -1e-6 or bb[1] < -1e-6 or bb[2] > prof.bed_w + 1e-6 or bb[3] > prof.bed_h + 1e-6):
         warnings.append(f"Auftrag liegt teilweise außerhalb des Arbeitsbereichs (0–{prof.bed_w:g} × 0–{prof.bed_h:g} mm).")
     return w.result(warnings, bb)
 
 
 def frame_gcode(bbox, prof: MachineProfile) -> list[str]:
     """Umriss (Bounding Box) abfahren – mit Laser aus oder sehr geringer Leistung."""
+    ys = prof.y_scale
     x0, y0, x1, y1 = bbox
-    lines = ["G21", "G90"]
+    y0, y1 = y0 * ys, y1 * ys
+    lines = ["G21", "G90", "M5"]
     corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
     lines.append(f"G0 X{fmt(x0)} Y{fmt(y0)}" + (f" F{fmt(prof.travel_speed, 0)}" if prof.rapid_with_feed else ""))
     if prof.frame_power > 0:
@@ -333,3 +396,53 @@ def frame_gcode(bbox, prof: MachineProfile) -> list[str]:
         for x, y in corners[1:]:
             lines.append(f"G1 X{fmt(x)} Y{fmt(y)} F{fmt(prof.frame_speed, 0)}")
     return lines
+
+
+# --------------------------------------------------------------------------- Fortsetzen
+def resume_lines(lines: list[str], start: int, prof: MachineProfile) -> list[str]:
+    """G-Code ab Zeile 'start' (Index in der bereinigten Zeilenliste) fortsetzen.
+
+    Stellt den modalen Zustand (Position, Vorschub, Laserleistung, Air Assist) wieder her
+    und fährt mit ausgeschaltetem Laser zur letzten Position vor 'start'.
+    """
+    import re
+    clean = []
+    for l in lines:
+        c = re.sub(r"\([^)]*\)", "", l.split(";", 1)[0]).strip()
+        if c:
+            clean.append(c)
+    start = max(0, min(start, len(clean)))
+    x = y = None
+    f = s = None
+    laser_cmd = None
+    air = False
+    for c in clean[:start]:
+        words = dict(re.findall(r"([A-Z])([-+]?\d*\.?\d+)", c.upper()))
+        if "X" in words:
+            x = float(words["X"])
+        if "Y" in words:
+            y = float(words["Y"])
+        if "F" in words and (c.startswith("G1") or c.startswith("G0") and prof.rapid_with_feed):
+            f = float(words["F"])
+        if "S" in words:
+            s = float(words["S"])
+        if c.startswith(("M3", "M4")):
+            laser_cmd = c.split()[0]
+        elif c.startswith("M5"):
+            laser_cmd = None if not prof.inline_power else laser_cmd
+        if c.startswith("M8"):
+            air = True
+        elif c.startswith("M9"):
+            air = False
+    out = [f"; Fortsetzen ab Zeile {start + 1} von {len(clean)}", "G21", "G90", "M5"]
+    if air and prof.air_on:
+        out.append(prof.air_on)
+    if x is not None and y is not None:
+        out.append(f"G0 X{fmt(x)} Y{fmt(y)}" + (f" F{fmt(prof.travel_speed, 0)}" if prof.rapid_with_feed else ""))
+    if f:
+        out.append(f"G1 F{fmt(f, 0)}")
+    if laser_cmd:
+        out.append(f"{laser_cmd} S{fmt(s or 0)}")
+    elif prof.inline_power and prof.laser_on:
+        out.append(f"{prof.laser_on} S{fmt(s or 0)}")
+    return out + clean[start:]

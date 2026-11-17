@@ -35,7 +35,7 @@ pip install -r requirements.txt
 python main.py            # oder: python -m tilaser  [dateien…]
 ```
 
-Abhängigkeiten: PyQt6, numpy, Pillow, fonttools, pyserial. SVG- und DXF-Import sind selbst geschrieben,
+Abhängigkeiten: PyQt6, numpy, Pillow, fonttools, pyserial, pyclipper (Kerf-Ausgleich; ohne pyclipper wird eine einfachere eigene Berechnung verwendet). SVG- und DXF-Import sind selbst geschrieben,
 es braucht also keine zusätzlichen Bibliotheken dafür.
 
 ## Pakete selbst bauen
@@ -83,7 +83,34 @@ ein GitHub-Release an.
   - **Bewegen**: relativ in 8 Richtungen sowie **absolut** auf eingegebene X/Y-Koordinaten
     (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
   - **Konsole**: Maschinenmeldungen und eigene Befehle.
-- Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause* und *Stopp*.
+- Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause*, *Stopp*, außerdem
+  **Ursprung** (*Absolut* oder *Aktuelle Position* mit 9-Punkt-Anker), **Nur Auswahl** und **Fortsetzen…**
+  (abgebrochenen Auftrag ab einer Zeile weiterlaufen lassen).
+
+### Bearbeiten
+
+| Funktion | Bedienung |
+|---|---|
+| Rückgängig / Wiederholen | Strg+Z / Strg+Y |
+| Ausschneiden, Kopieren, Einfügen | Strg+X / Strg+C / Strg+V, an Originalposition: Strg+Umschalt+V |
+| Skalieren / Drehen mit der Maus | Eckanfasser = proportional skalieren, runder Anfasser oben = drehen (Shift: 15°-Schritte) |
+| Am Raster fangen | Ansicht → Am Raster fangen (Strg+Umschalt+F), Rastermaß 0,5–10 mm |
+| Ausrichten, Verteilen | Menü *Anordnen* (links/rechts/oben/unten/mittig, gleiche Abstände) |
+| Spiegeln, 90° drehen | Menü *Anordnen*, Strg+L / Strg+R |
+| Array | *Anordnen → Array erstellen* (Strg+Umschalt+A): Raster oder Kreis |
+
+### Laser-Funktionen
+
+| Funktion | Wo |
+|---|---|
+| Kerf-Ausgleich | Ebene (Schneiden): Schnittbreite eintragen. Außenkonturen wachsen um die Hälfte, Löcher schrumpfen, damit Maße und Presspassungen stimmen |
+| Haltestege | Ebene (Schneiden): Anzahl und Breite, optional nur Außenkonturen |
+| Bildoptionen | Ebene (Raster): Helligkeit, Kontrast, Gamma; Dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
+| Bild nachzeichnen | *Werkzeuge → Bild nachzeichnen* (Alt+T) bzw. Rechtsklick auf ein Bild |
+| Materialtest | *Werkzeuge → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
+| Simulation | Werkzeugweg-Vorschau einschalten, dann ▶ bzw. Schieberegler in der Werkzeugleiste |
+| Rotationsachse (Rolle) | *Maschine → Maschineneinstellungen*: Y-Weg je Rollenumdrehung und Rollendurchmesser; ein/aus unter *Maschine → Rotationsachse aktiv* |
+| Netzwerk | Tab *Verbindung → Art: Netzwerk (TCP/Telnet)*, z. B. für ESP32-Steuerungen mit FluidNC/grblHAL (Port 23) |
 - **Ansicht → Werkzeugweg-Vorschau** (Strg+P) zeigt, was der Laser tatsächlich fährt.
 - Erkennt das Programm beim Verbinden eine andere Firmware als im Profil eingestellt,
   fragt es, ob es umstellen soll.
@@ -167,8 +194,7 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 
 ## Bekannte Grenzen / Ideen für später
 
-- Keine Z-Achse und keine Rotationsachse, keine Kamera.
-- Keine Schnittspaltkorrektur (Kerf-Offset) und keine Haltestege (Tabs).
+- Noch nicht umgesetzt: Formen zeichnen und Knotenbearbeitung, Boolesche Operationen, Unterebenen,
+  Z-Schritt pro Durchgang, Kamera, Export als SVG/DXF, Import von PDF/AI.
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.
-- Keine Rückgängig-Funktion. Gruppieren lässt sich mit „Gruppierung aufheben“ umkehren, Löschen nicht.

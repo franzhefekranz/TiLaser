@@ -5,7 +5,7 @@ import re
 import time
 
 from PyQt6.QtCore import QObject, Qt, QTimer, pyqtSignal
-from PyQt6.QtWidgets import (QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
                              QPlainTextEdit, QProgressBar, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
 from ..core import sender
@@ -21,8 +21,14 @@ class _Bridge(QObject):
     firmware = pyqtSignal(object, str)
 
 
+ANCHOR_LABELS = (("bl", "↙ links unten"), ("bc", "↓ unten Mitte"), ("br", "↘ rechts unten"),
+                 ("ml", "← links Mitte"), ("mc", "· Mitte"), ("mr", "→ rechts Mitte"),
+                 ("tl", "↖ links oben"), ("tc", "↑ oben Mitte"), ("tr", "↗ rechts oben"))
+
+
 class MachinePanel(QWidget):
     startRequested = pyqtSignal()
+    resumeRequested = pyqtSignal()
     frameRequested = pyqtSignal()
     firmwareDetected = pyqtSignal(str)
     profileChanged = pyqtSignal()
@@ -62,13 +68,32 @@ class MachinePanel(QWidget):
         self.baud.addItems(["115200", "250000", "230400", "57600", "9600"])
         self.btn_connect = QPushButton("Verbinden")
         self.lbl_fw = QLabel("Firmware: –")
-        cl.addWidget(QLabel("Port"), 0, 0)
-        cl.addWidget(self.port, 0, 1)
-        cl.addWidget(self.btn_refresh, 0, 2)
-        cl.addWidget(QLabel("Baud"), 1, 0)
-        cl.addWidget(self.baud, 1, 1, 1, 2)
-        cl.addWidget(self.btn_connect, 2, 0, 1, 3)
-        cl.addWidget(self.lbl_fw, 3, 0, 1, 3)
+        self.conn_type = QComboBox()
+        self.conn_type.addItem("USB / Seriell", "serial")
+        self.conn_type.addItem("Netzwerk (TCP/Telnet)", "tcp")
+        self.host = QLineEdit(profile.host)
+        self.host.setPlaceholderText("IP-Adresse, z. B. 192.168.1.50")
+        self.tcp_port = QSpinBox()
+        self.tcp_port.setRange(1, 65535)
+        self.tcp_port.setValue(profile.tcp_port)
+        self.lbl_port, self.lbl_baud = QLabel("Port"), QLabel("Baud")
+        self.lbl_host, self.lbl_tcp = QLabel("Adresse"), QLabel("TCP-Port")
+        cl.addWidget(QLabel("Art"), 0, 0)
+        cl.addWidget(self.conn_type, 0, 1, 1, 2)
+        cl.addWidget(self.lbl_port, 1, 0)
+        cl.addWidget(self.port, 1, 1)
+        cl.addWidget(self.btn_refresh, 1, 2)
+        cl.addWidget(self.lbl_baud, 2, 0)
+        cl.addWidget(self.baud, 2, 1, 1, 2)
+        cl.addWidget(self.lbl_host, 3, 0)
+        cl.addWidget(self.host, 3, 1, 1, 2)
+        cl.addWidget(self.lbl_tcp, 4, 0)
+        cl.addWidget(self.tcp_port, 4, 1, 1, 2)
+        cl.addWidget(self.btn_connect, 5, 0, 1, 3)
+        cl.addWidget(self.lbl_fw, 6, 0, 1, 3)
+        self.conn_type.setCurrentIndex(1 if profile.conn_type == "tcp" else 0)
+        self.conn_type.currentIndexChanged.connect(self._conn_vis)
+        self._conn_vis()
         cv.addWidget(cg)
         mg = QGroupBox("Maschine")
         ml = QGridLayout(mg)
@@ -179,6 +204,25 @@ class MachinePanel(QWidget):
         jb.addWidget(self.btn_stop, 1, 3)
         jb.addWidget(self.progress, 2, 0, 1, 3)
         jb.addWidget(self.lbl_time, 2, 3)
+        self.origin = QComboBox()
+        self.origin.addItem("Absolut", "abs")
+        self.origin.addItem("Aktuelle Position", "current")
+        self.origin.setToolTip("Absolut: Koordinaten wie auf der Arbeitsfläche.\n"
+                               "Aktuelle Position: der gewählte Ankerpunkt des Auftrags liegt an der Kopfposition.")
+        self.anchor = QComboBox()
+        for key, label in ANCHOR_LABELS:
+            self.anchor.addItem(label, key)
+        self.anchor.setToolTip("Ankerpunkt des Auftrags bei 'Aktuelle Position'")
+        self.only_sel = QCheckBox("Nur Auswahl")
+        self.only_sel.setToolTip("Nur die ausgewählten Objekte lasern bzw. umrahmen")
+        self.btn_resume = QPushButton("Fortsetzen…")
+        self.btn_resume.setToolTip("Abgebrochenen Auftrag ab einer Zeile fortsetzen")
+        jb.addWidget(self.origin, 3, 0, 1, 2)
+        jb.addWidget(self.anchor, 3, 2, 1, 2)
+        jb.addWidget(self.only_sel, 4, 0, 1, 2)
+        jb.addWidget(self.btn_resume, 4, 2, 1, 2)
+        self.origin.currentIndexChanged.connect(lambda _: self.anchor.setEnabled(self.origin.currentData() == "current"))
+        self.anchor.setEnabled(False)
         self.last_pos: list | None = None
 
         self.btn_refresh.clicked.connect(self.refresh_ports)
@@ -192,6 +236,7 @@ class MachinePanel(QWidget):
         self.btn_goto0.clicked.connect(self._goto0)
         self.btn_frame.clicked.connect(self.frameRequested.emit)
         self.btn_start.clicked.connect(self.startRequested.emit)
+        self.btn_resume.clicked.connect(self.resumeRequested.emit)
         self.btn_pause.clicked.connect(self._pause)
         self.btn_stop.clicked.connect(self._stop)
         self.cmd.returnPressed.connect(self._send_cmd)
@@ -217,6 +262,13 @@ class MachinePanel(QWidget):
         if cur:
             self.port.setCurrentText(cur)
 
+    def _conn_vis(self):
+        tcp = self.conn_type.currentData() == "tcp"
+        for w in (self.lbl_port, self.port, self.btn_refresh, self.lbl_baud, self.baud):
+            w.setVisible(not tcp)
+        for w in (self.lbl_host, self.host, self.lbl_tcp, self.tcp_port):
+            w.setVisible(tcp)
+
     def toggle_connect(self):
         if self.conn.connected:
             if self.conn.job_active and QMessageBox.question(
@@ -224,17 +276,27 @@ class MachinePanel(QWidget):
                 return
             self.conn.disconnect()
             return
-        port = self.port.currentText().strip()
-        if not port:
-            QMessageBox.warning(self, "Verbinden", "Bitte einen seriellen Port wählen.")
-            return
+        hint = "grbl" if self.profile.dialect == "grbl" else "ping"
+        tcp = self.conn_type.currentData() == "tcp"
         try:
-            hint = "grbl" if self.profile.dialect == "grbl" else "ping"
-            self.conn.connect(port, int(self.baud.currentText()), hint)
+            if tcp:
+                host = self.host.text().strip()
+                if not host:
+                    QMessageBox.warning(self, "Verbinden", "Bitte die IP-Adresse des Lasers eingeben.")
+                    return
+                self.conn.connect_tcp(host, self.tcp_port.value(), hint)
+                self.profile.host, self.profile.tcp_port = host, self.tcp_port.value()
+            else:
+                port = self.port.currentText().strip()
+                if not port:
+                    QMessageBox.warning(self, "Verbinden", "Bitte einen seriellen Port wählen.")
+                    return
+                self.conn.connect(port, int(self.baud.currentText()), hint)
+                self.profile.port, self.profile.baud = port, int(self.baud.currentText())
         except Exception as e:
             QMessageBox.critical(self, "Verbinden", f"Verbindung fehlgeschlagen:\n{e}")
             return
-        self.profile.port, self.profile.baud = port, int(self.baud.currentText())
+        self.profile.conn_type = "tcp" if tcp else "serial"
         self.profileChanged.emit()
         self.lbl_state.setText("Verbinde … (Firmware-Erkennung)")
         self.btn_connect.setText("Trennen")
@@ -410,5 +472,6 @@ class MachinePanel(QWidget):
         self.btn_take.setEnabled(con and self.last_pos is not None)
         self.btn_pause.setEnabled(con and job)
         self.btn_stop.setEnabled(con)
+        self.btn_resume.setEnabled(con and not job and bool(self.conn.last_job))
         self.cmd.setEnabled(con and not job)
         self.btn_connect.setText("Trennen" if con else "Verbinden")
