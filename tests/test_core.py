@@ -644,8 +644,12 @@ def test_pdf_import():
         assert len(fills) == 1 and not fills[0].poly.bez.is_line(0)
         blue = [ip for ip in paths if ip.color == "#0000ff"]            # aus dem Formular-XObject
         assert len(blue) == 1 and np.allclose(g.bbox([blue[0].poly]), (50.8, 0, 76.2, 25.4), atol=1e-6)
-    # PDF von matplotlib (Objektströme, Komprimierung)
-    import matplotlib
+    # PDF von matplotlib (Objektströme, Komprimierung) – nur wenn matplotlib installiert ist
+    try:
+        import matplotlib
+    except ImportError:
+        print("   (PDF-Test mit matplotlib übersprungen: matplotlib fehlt)")
+        return
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     fig = plt.figure(figsize=(2, 2))
