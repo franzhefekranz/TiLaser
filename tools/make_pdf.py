@@ -44,6 +44,9 @@ HEADER = r"""
 \renewenvironment{quote}{\begin{tcolorbox}[colback=tlred!5,colframe=tlred!70,boxrule=0pt,leftrule=3pt,
   arc=0pt,left=2mm,right=2mm,top=1mm,bottom=1mm]}{\end{tcolorbox}}
 \setlength{\emergencystretch}{3em}
+\AtBeginDocument{\renewcommand{\figurename}{Abbildung}\renewcommand{\tablename}{Tabelle}}
+\usepackage{chngcntr}
+\counterwithout{figure}{chapter}
 """
 
 TITLE = r"""
@@ -83,7 +86,13 @@ def prepare(md_text: str) -> tuple[str, int]:
         alt, path = m.group(1), m.group(2)
         src = os.path.join(SHOTS, os.path.basename(path))
         if os.path.exists(src):
-            return f"![{alt}]({src}){{width=100%}}"
+            from PIL import Image
+            w, h = Image.open(src).size
+            # Große Fenster auf Satzspiegelbreite, kleine Dialoge in lesbarer Größe; max. 115 mm hoch
+            mm_per_px = 170 / 1440 if w >= 1000 else 0.2
+            w_mm, h_mm = w * mm_per_px, h * mm_per_px
+            k = min(1.0, 170 / w_mm, 115 / h_mm)
+            return f"![{alt}]({src}){{width={w_mm * k:.0f}mm}}"
         missing += 1
         return f"```{{=latex}}\n\\begin{{platzhalter}}\\color{{gray}}Screenshot „{alt}“\\end{{platzhalter}}\n```"
 

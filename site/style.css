@@ -1,0 +1,166 @@
+/* TiLaser – Projektseite
+   Farben: Aluminiumprofil (Grund), Birkensperrholz (Platte), Brandkante (Schnitt), Laserblau 450 nm (Akzent) */
+:root {
+  --alu: #e4e7eb;
+  --alu-hell: #f2f4f6;
+  --alu-dunkel: #c4c9d0;
+  --sperrholz: #dcc196;
+  --brand: #4a2c17;
+  --laser: #3d63ff;
+  --laser-tief: #2445d6;
+  --schiefer: #232a33;
+  --text: #2e3742;
+  --text-leise: #5a6573;
+  --mass: 1.1rem;
+  --schrift: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", "DejaVu Sans Mono", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  font-family: var(--schrift);
+  font-size: var(--mass);
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--alu);
+}
+
+a { color: var(--laser-tief); text-underline-offset: 0.18em; }
+a:hover { color: var(--laser); }
+:focus-visible { outline: 3px solid var(--laser); outline-offset: 3px; border-radius: 2px; }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--alu-hell); padding: 0.1em 0.35em;
+       border-radius: 3px; }
+
+.skip { position: absolute; left: -999px; top: 0; background: var(--schiefer); color: white; padding: 0.6rem 1rem; }
+.skip:focus { left: 1rem; top: 1rem; z-index: 10; }
+
+/* ------------------------------------------------------------ Kopf */
+.kopf {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  max-width: 72rem; margin: 0 auto; padding: 1.1rem 1.5rem;
+}
+.marke { display: flex; align-items: center; gap: 0.55rem; text-decoration: none; color: var(--schiefer);
+         font-weight: 750; font-size: 1.15rem; letter-spacing: -0.01em; }
+.marke img { border-radius: 6px; }
+.kopf nav { display: flex; gap: 1.4rem; flex-wrap: wrap; }
+.kopf nav a { color: var(--text); text-decoration: none; font-size: 0.98rem; }
+.kopf nav a:hover { color: var(--laser-tief); text-decoration: underline; }
+
+/* ------------------------------------------------------------ Hero */
+main > section { max-width: 72rem; margin: 0 auto; padding: 4.5rem 1.5rem; }
+
+.hero {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 3.5rem; align-items: center;
+  padding-top: 3rem !important;
+}
+.hero h1 {
+  font-size: clamp(2.6rem, 5.4vw, 4.4rem); line-height: 1.02; letter-spacing: -0.035em; font-weight: 800;
+  color: var(--schiefer); margin: 0 0 1.4rem 0;
+}
+.lead { font-size: 1.22rem; line-height: 1.55; margin: 0 0 2rem 0; max-width: 34em; }
+.fakten { color: var(--text-leise); font-size: 0.98rem; margin-top: 1.6rem; max-width: 32em; }
+
+.aktionen { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.knopf {
+  display: inline-block; padding: 0.8rem 1.35rem; border-radius: 6px; text-decoration: none; font-weight: 650;
+  border: 2px solid var(--schiefer); color: var(--schiefer); background: transparent;
+}
+.knopf:hover { background: var(--alu-hell); color: var(--schiefer); }
+.knopf.primaer { background: var(--laser); border-color: var(--laser); color: white; }
+.knopf.primaer:hover { background: var(--laser-tief); border-color: var(--laser-tief); color: white; }
+
+.platte { margin: 0; }
+.platte svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 18px 22px rgba(35, 42, 51, 0.18)); }
+.platte figcaption { font-size: 0.88rem; color: var(--text-leise); margin-top: 0.9rem; max-width: 40em; }
+
+/* ------------------------------------------------------------ Ablauf (echte Reihenfolge -> nummeriert) */
+h2 { font-size: clamp(1.7rem, 3vw, 2.3rem); letter-spacing: -0.02em; line-height: 1.15; color: var(--schiefer);
+     margin: 0 0 2rem 0; font-weight: 780; }
+h3 { font-size: 1.25rem; color: var(--schiefer); margin: 0 0 0.4rem 0; }
+
+.ablauf { border-top: 2px solid var(--alu-dunkel); }
+.schritte { list-style: none; counter-reset: schritt; margin: 0; padding: 0;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.schritte > li {
+  counter-increment: schritt; position: relative; padding: 0 2rem 0 0;
+}
+.schritte > li + li { padding-left: 2rem; border-left: 1px dashed var(--brand); }
+.schritte > li::before {
+  content: counter(schritt); display: block; font-size: 3.2rem; font-weight: 800; line-height: 1;
+  color: transparent; -webkit-text-stroke: 1.5px var(--brand); margin-bottom: 0.8rem;
+}
+.schritte p { margin: 0 0 0.8rem 0; }
+.schritte ul { margin: 0; padding-left: 1.1rem; color: var(--text); }
+.schritte ul li { margin: 0.35rem 0; }
+.schritte ul li::marker { color: var(--laser); }
+
+/* ------------------------------------------------------------ Screenshots */
+.galerie { background: var(--schiefer); max-width: none !important; color: #d7dde4; }
+.galerie > * { max-width: 72rem; margin-left: auto; margin-right: auto; }
+.galerie h2 { color: white; }
+.galerie .gross { margin: 0 auto 1.5rem auto; }
+.galerie .gross img { width: 100%; height: auto; border-radius: 6px; display: block; }
+.galerie .gross figcaption, .galerie .reihe figcaption { font-size: 0.9rem; color: #aeb7c2; margin-top: 0.5rem; }
+.galerie .reihe { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1.2rem;
+                  list-style: none; padding: 0; margin-top: 0; }
+.galerie .reihe figure { margin: 0; }
+.galerie .reihe img { width: 100%; height: 11rem; object-fit: cover; object-position: top left; border-radius: 4px;
+                      display: block; background: #2f3843; }
+.galerie a { color: inherit; text-decoration: none; }
+.galerie a:hover figcaption { color: white; text-decoration: underline; }
+
+/* ------------------------------------------------------------ Maschinen */
+.spalten { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem; }
+.spalten p { margin: 0; max-width: 36em; }
+
+/* ------------------------------------------------------------ Download */
+.download { border-top: 2px solid var(--alu-dunkel); }
+.release { margin: 0 0 1.5rem 0; color: var(--text-leise); }
+.pakete { width: 100%; border-collapse: collapse; background: var(--alu-hell); border-radius: 6px; overflow: hidden; }
+.pakete th { text-align: left; font-size: 0.9rem; color: var(--text-leise); font-weight: 600; padding: 0.8rem 1rem;
+             border-bottom: 2px solid var(--alu-dunkel); }
+.pakete td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--alu); vertical-align: top; }
+.pakete tr:last-child td { border-bottom: none; }
+.pakete td:nth-child(2) a { font-weight: 650; }
+.pakete .groesse { color: var(--text-leise); font-size: 0.86rem; font-weight: 400; margin-left: 0.4rem; }
+.hinweis { font-size: 0.95rem; color: var(--text-leise); margin-top: 1.2rem; }
+
+/* ------------------------------------------------------------ Anleitung */
+.anleitung { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem 3rem;
+             border-top: 2px solid var(--alu-dunkel); }
+.anleitung h2 { grid-column: 1 / -1; margin-bottom: 0.5rem; }
+.anleitung > p { margin: 0; max-width: 34em; }
+.formate { list-style: none; padding: 0; margin: 0; grid-column: 1; }
+.formate li { margin: 0.5rem 0; font-weight: 600; }
+.sicherheit { grid-column: 2; grid-row: 2 / span 2; background: white; border-left: 4px solid #d32f2f;
+              padding: 1.2rem 1.4rem; border-radius: 0 6px 6px 0; }
+.sicherheit h3 { font-size: 1.05rem; }
+.sicherheit p { margin: 0; font-size: 0.97rem; }
+
+/* ------------------------------------------------------------ Fuß */
+.fuss { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 3rem 1.5rem; color: var(--text-leise);
+        font-size: 0.92rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+        border-top: 1px solid var(--alu-dunkel); }
+.fuss p { margin: 0; }
+.fuss a + a { margin-left: 1.2rem; }
+
+/* ------------------------------------------------------------ Laser-Animation */
+#schnitt path { transition: stroke 0.6s ease; }
+.laeuft #schnitt path { stroke: var(--laser); }
+.laeuft #schnitt path.fertig { stroke: var(--brand); }
+
+/* ------------------------------------------------------------ Schmale Bildschirme */
+@media (max-width: 860px) {
+  main > section { padding: 3rem 1.25rem; }
+  .hero { grid-template-columns: 1fr; gap: 2rem; }
+  .schritte { grid-template-columns: 1fr; gap: 2.2rem; }
+  .schritte > li + li { padding-left: 0; border-left: none; padding-top: 2.2rem; border-top: 1px dashed var(--brand); }
+  .schritte > li { padding-right: 0; }
+  .spalten, .anleitung { grid-template-columns: 1fr; }
+  .sicherheit { grid-column: 1; grid-row: auto; }
+  .pakete th:nth-child(3), .pakete td:nth-child(3) { display: none; }
+}
