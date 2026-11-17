@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=TiLaser
+GenericName=Laser Cutting and Engraving
+GenericName[de]=Laserschneiden und -gravieren
+Comment=Cut and engrave with G-code lasers (GRBL, Marlin, Smoothieware)
+Comment[de]=Schneiden und Gravieren mit G-Code-Lasern (GRBL, Marlin, Smoothieware)
+Exec=tilaser %F
+Icon=tilaser
+Terminal=false
+Categories=Graphics;Engineering;
+MimeType=application/x-tilaser-project;
+Keywords=laser;gcode;grbl;engraving;cutting;cnc;
+StartupWMClass=tilaser

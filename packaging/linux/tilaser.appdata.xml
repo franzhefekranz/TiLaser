@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.franzhefekranz.tilaser</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>TiLaser</name>
+  <summary>Laser cutting and engraving for G-code based lasers</summary>
+  <description>
+    <p>Import SVG, DXF, images and text, assign cut, fill and raster layers, preview the toolpath
+    and stream G-code to GRBL, Marlin or Smoothieware lasers.</p>
+  </description>
+  <launchable type="desktop-id">tilaser.desktop</launchable>
+  <url type="homepage">https://github.com/franzhefekranz/TiLaser</url>
+  <provides><binary>tilaser</binary></provides>
+</component>
