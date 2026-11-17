@@ -826,6 +826,69 @@ def test_dxf_curves():
     assert np.allclose(arc.pts[0], [5, 0]) and np.allclose(arc.pts[-1], [0, 5], atol=1e-9)
 
 
+def _min_dist(pa, pb):
+    """Kleinster Abstand zwischen zwei Konturmengen (dicht abgetastet)."""
+    def sample(polys):
+        out = []
+        for p in polys:
+            lp = p.loop_pts()
+            for a, b in zip(lp[:-1], lp[1:]):
+                n = max(2, int(np.hypot(*(b - a)) / 0.2) + 1)
+                out.append(a + (b - a) * np.linspace(0, 1, n)[:, None])
+        return np.vstack(out)
+    A, B = sample(pa), sample(pb)
+    best = np.inf
+    for k in range(0, len(A), 400):
+        d = np.sqrt(((A[k:k + 400, None, :] - B[None, :, :]) ** 2).sum(-1)).min()
+        best = min(best, d)
+    return best
+
+
+def test_nesting():
+    from tilaser.core import shapes
+    from tilaser.core.model import ImportedPath
+    from tilaser.core.nesting import NestSettings, nest
+    pr = Project()
+    items = []
+    for i in range(6):
+        items.append(pr.add_vector_import(f"r{i}", [ImportedPath(shapes.rectangle(30 + 5 * i, 18), "#000000", "#000000")],
+                                          center_at=(300 + i * 10, 300)))
+    for i in range(4):
+        items.append(pr.add_vector_import(f"c{i}", [ImportedPath(shapes.ellipse(20, 20), "#ff0000", "#ff0000")],
+                                          center_at=(350, 350)))
+    # Rahmen mit großem Loch: kleine Teile dürfen hinein
+    ring = pr.add_vector_import("ring", [ImportedPath(shapes.rectangle(70, 70), "#00ff00", "#00ff00"),
+                                         ImportedPath(shapes.rectangle(50, 50), "#00ff00", "#00ff00")],
+                                center_at=(300, 300))
+    items.append(ring)
+    st = NestSettings(x=10, y=20, width=120, height=100, spacing=3.0, margin=2.0)
+    res = nest(pr, items, st)
+    assert len(res.placed) >= 10, (res.placed, res.unplaced)
+    placed = [pr.item(i) for i in res.placed]
+    for it in placed:                                   # innerhalb der Grundfläche inkl. Rand
+        b = it.world_bbox()
+        assert b[0] >= 12 - 1e-6 and b[1] >= 22 - 1e-6 and b[2] <= 128 + 1e-6 and b[3] <= 118 + 1e-6, b
+    for i in range(len(placed)):                        # Mindestabstand
+        for j in range(i + 1, len(placed)):
+            d = _min_dist(placed[i].world_paths(), placed[j].world_paths())
+            assert d >= 3.0 - 0.05, (placed[i].name, placed[j].name, d)
+    inside_ring = [it for it in placed if it is not ring and
+                   all(ring.world_bbox()[0] < v < ring.world_bbox()[2] for v in (it.world_bbox()[0], it.world_bbox()[2]))
+                   and all(ring.world_bbox()[1] < v < ring.world_bbox()[3] for v in (it.world_bbox()[1], it.world_bbox()[3]))]
+    assert inside_ring, "kein Teil im Loch des Rahmens"
+    # Kopien: so viele Kreise wie möglich auf 60 × 60
+    pr2 = Project()
+    c = pr2.add_vector_import("k", [ImportedPath(shapes.ellipse(10, 10), "#000000", "#000000")])
+    r2 = nest(pr2, [c], NestSettings(0, 0, 60, 60, spacing=2, margin=0, copies=30, rotations=(0,)))
+    # theoretisch 25 (5 × 5); das konservative Raster (≈ 0,25 mm) kostet etwas Platz
+    assert 20 <= len(r2.placed) <= 25 and len(pr2.items) == len(r2.placed), len(r2.placed)
+    its = pr2.items
+    for i in range(len(its)):
+        for j in range(i + 1, len(its)):
+            a, b = its[i], its[j]
+            assert np.hypot(a.x - b.x, a.y - b.y) >= 12 - 0.05
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")

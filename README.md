@@ -3,6 +3,8 @@
 Programm zum Schneiden und Gravieren mit G-Code-gesteuerten Lasern (GRBL/FluidNC, Marlin, Smoothieware).
 Python 3.10+ mit PyQt6-Oberfläche. Lizenz: GPL-3.0.
 
+📖 **[Bedienungsanleitung](docs/Bedienungsanleitung.md)** – ausführlich, mit Screenshots.
+
 ## Download
 
 Fertige Pakete gibt es unter **Releases** (werden von GitHub Actions bei jedem Tag `v*` gebaut):
@@ -98,6 +100,7 @@ ein GitHub-Release an.
 | Ausrichten, Verteilen | Menü *Anordnen* (links/rechts/oben/unten/mittig, gleiche Abstände) |
 | Spiegeln, 90° drehen | Menü *Anordnen*, Strg+L / Strg+R |
 | Array | *Anordnen → Array erstellen* (Strg+Umschalt+A): Raster oder Kreis |
+| Nesting | *Anordnen → Nesting* (Strg+Umschalt+N): Teile platzsparend auf einer rechteckigen Grundfläche anordnen, mit Mindest- und Randabstand, Drehungen, Kopien und Platzierung in Löchern |
 
 ### Zeichnen und Formen
 
