@@ -107,7 +107,7 @@ ein GitHub-Release an.
 
 | Funktion | Bedienung |
 |---|---|
-| Werkzeugleiste links | ⬚ Auswählen (V), ▭ Rechteck (R), ◯ Ellipse (E), ⬡ Polygon/Stern (P), ╱ Linie/Polylinie (L), ◆ Knoten (N). Esc = zurück zu Auswählen |
+| Werkzeugleiste links | Auswählen (V), Rechteck (R), Ellipse (E), Polygon/Stern (P), Linie/Polylinie (L), Knoten (N). Esc = zurück zu Auswählen |
 | Rechteck, Ellipse, Polygon | Aufziehen; Shift = Quadrat/Kreis, Strg = vom Mittelpunkt aus. Ecken, Stern und Eckenradius in der Leiste darunter |
 | Linie/Polylinie | Punkte klicken, Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form |
 | Knoten bearbeiten | Objekt anklicken, Knoten ziehen; am markierten Knoten erscheinen die Kurven-Anfasser (glatte Knoten bleiben glatt, mit Alt einzeln). Doppelklick auf die Kontur fügt einen Knoten ein. Tasten: Entf = löschen, C = Segment in Kurve, L = in Linie, S = Knoten glätten, B = Pfad auftrennen |

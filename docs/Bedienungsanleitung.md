@@ -127,6 +127,9 @@ python main.py
 | **Auftragsleiste** (rechts unten) | Status, Position, Rahmen, Start, Pause, Stopp, Ursprung, Nur Auswahl, Fortsetzen |
 | **Statusleiste** (unten) | Mausposition in mm, Auftragsgröße, geschätzte Dauer, Zeilenzahl |
 
+Die Werkzeugleisten zeigen Symbole. Zeigt man mit der Maus darauf, erscheinen Name und Tastenkürzel; die
+Menüs verwenden dieselben Symbole.
+
 ![Werkzeugleiste](screenshots/02_werkzeugleiste.png)
 
 ![Objektleiste](screenshots/03_objektleiste.png)
