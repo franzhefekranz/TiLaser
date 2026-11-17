@@ -37,6 +37,7 @@ class MachineProfile:
     inline_power: bool = True         # S-Wert direkt in G1-Zeilen
     rapid_with_feed: bool = False     # G0 mit F (Marlin)
     travel_speed: float = 6000.0      # mm/min
+    passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     bed_w: float = 400.0
     bed_h: float = 400.0
     header: str = "G21\nG90"
@@ -250,9 +251,22 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
     if layer.tabs > 0:
         paths = add_tabs(paths, layer.tabs, layer.tab_width, layer.tabs_outer_only)
     s = w.s_val(layer.power)
-    for n in range(max(1, layer.passes)):
-        if layer.passes > 1:
-            w.comment(f"Durchgang {n + 1}/{layer.passes}")
+    passes = max(1, layer.passes)
+    if passes > 1 and w.p.passes_per_path:
+        # Jede Kontur mit allen Durchgängen fertig schneiden, erst dann zur nächsten
+        w.comment(f"{passes} Durchgänge je Kontur")
+        start = (w.x or 0.0, w.y or 0.0)
+        for p in g.order_paths(paths, start, layer.inner_first):
+            pts = p.loop_pts()
+            for n in range(passes):
+                # offene Pfade abwechselnd vor und zurück, damit keine Leerfahrt zum Anfang nötig ist
+                w.polyline(pts if p.closed or n % 2 == 0 else pts[::-1], layer.speed, s)
+                _z_between(w, layer, n)
+            _z_restore(w, layer)
+        return
+    for n in range(passes):
+        if passes > 1:
+            w.comment(f"Durchgang {n + 1}/{passes}")
         start = (w.x or 0.0, w.y or 0.0)
         for p in g.order_paths(paths, start, layer.inner_first):
             w.polyline(p.loop_pts(), layer.speed, s)
