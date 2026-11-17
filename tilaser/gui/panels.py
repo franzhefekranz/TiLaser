@@ -67,7 +67,11 @@ class LayerPanel(QWidget):
         # Presets
         pg = QGroupBox("Material-Presets")
         pl = QVBoxLayout(pg)
+        self.machine_filter = QComboBox()
+        self.machine_filter.setToolTip("Presets nach Maschine filtern")
         self.preset_combo = QComboBox()
+        self.preset_combo.setMaxVisibleItems(25)
+        pl.addWidget(self.machine_filter)
         pl.addWidget(self.preset_combo)
         prow = QHBoxLayout()
         self.btn_apply = QPushButton("Anwenden")
@@ -80,6 +84,8 @@ class LayerPanel(QWidget):
         self.btn_apply.clicked.connect(self._apply_preset)
         self.btn_save_preset.clicked.connect(self._save_preset)
         self.btn_del_preset.clicked.connect(self._delete_preset)
+        self._fill_machine_filter()
+        self.machine_filter.currentIndexChanged.connect(lambda _: self._fill_presets())
         self._fill_presets()
 
         # Einstellungen
@@ -280,17 +286,41 @@ class LayerPanel(QWidget):
         self.layersChanged.emit(True)
 
     # ------------------------------------------------------------ Presets
+    def _fill_machine_filter(self, select: str | None = None):
+        cur = select or self.machine_filter.currentData()
+        self.machine_filter.blockSignals(True)
+        self.machine_filter.clear()
+        self.machine_filter.addItem("Alle Maschinen", "")
+        for m in sorted({p.get("machine", "") for p in self.presets if p.get("machine")}):
+            self.machine_filter.addItem(m, m)
+        i = self.machine_filter.findData(cur) if cur else 0
+        self.machine_filter.setCurrentIndex(max(0, i))
+        self.machine_filter.blockSignals(False)
+
+    def set_machine(self, name: str):
+        """Filter auf die Maschine des aktuellen Profils setzen (falls Presets dafür existieren)."""
+        if self.machine_filter.findData(name) >= 0:
+            self._fill_machine_filter(name)
+            self._fill_presets()
+
     def _fill_presets(self):
+        flt = self.machine_filter.currentData() or ""
         self.preset_combo.clear()
-        for p in self.presets:
-            self.preset_combo.addItem(f"{p['name']}  [{MODE_LABELS.get(p.get('mode', 'cut'), '')}]")
+        for i, p in enumerate(self.presets):
+            if flt and p.get("machine", "") not in (flt, ""):
+                continue
+            self.preset_combo.addItem(f"{p['name']}  [{MODE_LABELS.get(p.get('mode', 'cut'), '')}]", i)
             self.preset_combo.setItemData(self.preset_combo.count() - 1, p.get("material", ""),
                                           Qt.ItemDataRole.ToolTipRole)
 
+    def _preset_index(self):
+        d = self.preset_combo.currentData()
+        return d if isinstance(d, int) and 0 <= d < len(self.presets) else None
+
     def _apply_preset(self):
         l = self.current_layer()
-        i = self.preset_combo.currentIndex()
-        if not l or i < 0:
+        i = self._preset_index()
+        if not l or i is None:
             return
         storage.apply_preset(l, self.presets[i])
         self._load_form(l)
@@ -307,20 +337,22 @@ class LayerPanel(QWidget):
         material, ok = QInputDialog.getText(self, "Preset speichern", "Material / Bemerkung:")
         if not ok:
             return
-        new = storage.preset_from_layer(name.strip(), material.strip(), l)
+        new = storage.preset_from_layer(name.strip(), material.strip(), l, self.machine_filter.currentData() or "")
         self.presets = [p for p in self.presets if p["name"] != new["name"]] + [new]
         storage.save_presets(self.presets)
+        self._fill_machine_filter()
         self._fill_presets()
-        self.preset_combo.setCurrentIndex(len(self.presets) - 1)
+        self.preset_combo.setCurrentIndex(self.preset_combo.findData(len(self.presets) - 1))
 
     def _delete_preset(self):
-        i = self.preset_combo.currentIndex()
-        if i < 0:
+        i = self._preset_index()
+        if i is None:
             return
         if QMessageBox.question(self, "Preset löschen", f"Preset „{self.presets[i]['name']}“ löschen?") \
                 == QMessageBox.StandardButton.Yes:
             del self.presets[i]
             storage.save_presets(self.presets)
+            self._fill_machine_filter()
             self._fill_presets()
 
 
@@ -333,36 +365,37 @@ class ObjectPanel(QWidget):
         self.project: Project | None = None
         self.item = None
         self._loading = False
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(4, 4, 4, 4)
+        # Horizontale Leiste über der Arbeitsfläche
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(4, 0, 4, 0)
+        lay.setSpacing(4)
         self.title = QLabel("Kein Objekt ausgewählt")
         self.title.setStyleSheet("font-weight: bold")
-        lay.addWidget(self.title)
-        form = QFormLayout()
+        self.title.setMinimumWidth(150)
+        self.title.setMaximumWidth(220)
         self.f_x = dspin(-5000, 5000, 2, 1, " mm")
         self.f_y = dspin(-5000, 5000, 2, 1, " mm")
         self.f_w = dspin(0.01, 5000, 2, 1, " mm")
         self.f_h = dspin(0.01, 5000, 2, 1, " mm")
-        self.f_scale = dspin(0.1, 10000, 2, 1, " %")
+        self.f_scale = dspin(0.1, 10000, 1, 1, " %")
         self.f_rot = dspin(-360, 360, 1, 15, " °")
-        self.f_mirror = QCheckBox("Horizontal spiegeln")
+        self.f_mirror = QCheckBox("Spiegeln")
         self.f_layer = QComboBox()
-        form.addRow("X (Mitte)", self.f_x)
-        form.addRow("Y (Mitte)", self.f_y)
-        form.addRow("Breite", self.f_w)
-        form.addRow("Höhe", self.f_h)
-        form.addRow("Skalierung", self.f_scale)
-        form.addRow("Drehung", self.f_rot)
-        form.addRow("", self.f_mirror)
-        form.addRow("Ebene", self.f_layer)
-        lay.addLayout(form)
-        row = QHBoxLayout()
-        for key, text in (("center", "Zentrieren"), ("origin", "An 0/0"), ("duplicate", "Duplizieren"),
-                          ("delete", "Löschen")):
-            b = QPushButton(text)
-            b.clicked.connect(lambda _=False, k=key: self.action.emit(k))
-            row.addWidget(b)
-        lay.addLayout(row)
+        self.f_layer.setMinimumWidth(150)
+        self.f_x.setToolTip("Mittelpunkt X")
+        self.f_y.setToolTip("Mittelpunkt Y")
+        lay.addWidget(self.title)
+        for label, w in (("X", self.f_x), ("Y", self.f_y), ("B", self.f_w), ("H", self.f_h),
+                         ("Skal.", self.f_scale), ("∠", self.f_rot)):
+            lab = QLabel(label)
+            lab.setContentsMargins(6, 0, 0, 0)
+            lay.addWidget(lab)
+            lay.addWidget(w)
+        lay.addWidget(self.f_mirror)
+        lab = QLabel("Ebene")
+        lab.setContentsMargins(6, 0, 0, 0)
+        lay.addWidget(lab)
+        lay.addWidget(self.f_layer)
         lay.addStretch(1)
         self.f_x.valueChanged.connect(self._pos)
         self.f_y.valueChanged.connect(self._pos)
@@ -388,8 +421,10 @@ class ObjectPanel(QWidget):
         self._loading = True
         if it is None:
             self.title.setText("Kein Objekt ausgewählt")
+            self.f_layer.clear()
         else:
-            self.title.setText(f"{it.name}  ({'Bild' if it.kind == 'raster' else 'Vektor'})")
+            self.title.setText(it.name)
+            self.title.setToolTip(f"{it.name} ({'Bild' if it.kind == 'raster' else f'Vektor, {len(it.paths)} Pfade'})")
             w, h = it.local_size()
             self.f_x.setValue(it.x)
             self.f_y.setValue(it.y)

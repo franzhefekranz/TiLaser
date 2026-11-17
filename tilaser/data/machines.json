@@ -1,0 +1,36 @@
+[
+ {
+  "name": "AlgoLaser DIY KIT MK2 (20 W)",
+  "dialect": "grbl",
+  "s_max": 1000.0,
+  "laser_on": "M4",
+  "inline_power": true,
+  "rapid_with_feed": false,
+  "travel_speed": 6000.0,
+  "bed_w": 400.0,
+  "bed_h": 400.0,
+  "header": "G21\nG90",
+  "footer": "G0 X0 Y0",
+  "air_on": "M8",
+  "air_off": "M9",
+  "frame_power": 1.0,
+  "frame_speed": 3000.0,
+  "baud": 115200,
+  "hinweis": "Arbeitsbereich mit $130/$131 aus der Maschine prüfen; $32=1 muss gesetzt sein."
+ },
+ {
+  "name": "Generischer GRBL-Diodenlaser",
+  "dialect": "grbl",
+  "s_max": 1000.0,
+  "laser_on": "M4",
+  "inline_power": true,
+  "rapid_with_feed": false,
+  "travel_speed": 6000.0,
+  "bed_w": 400.0,
+  "bed_h": 400.0,
+  "frame_power": 0.0,
+  "frame_speed": 3000.0,
+  "baud": 115200,
+  "hinweis": ""
+ }
+]

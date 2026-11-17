@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QD
 
 from ..core.gcode import DIALECT_DEFAULTS, DIALECTS, MachineProfile
 from ..core.model import Project
+from ..core.storage import load_machine_templates
 from ..core.text_import import default_font, system_fonts
 from .panels import color_icon, dspin
 
@@ -20,6 +21,20 @@ class MachineDialog(QDialog):
         self.prof = prof
         lay = QVBoxLayout(self)
         f = QFormLayout()
+        trow = QHBoxLayout()
+        self.template = QComboBox()
+        self.templates = load_machine_templates()
+        self.template.addItem("– Vorlage wählen –", None)
+        for i, t in enumerate(self.templates):
+            self.template.addItem(t["name"], i)
+        self.btn_template = QPushButton("Übernehmen")
+        trow.addWidget(self.template, 1)
+        trow.addWidget(self.btn_template)
+        f.addRow("Maschinenvorlage", trow)
+        self.lbl_hint = QLabel("")
+        self.lbl_hint.setWordWrap(True)
+        self.lbl_hint.setStyleSheet("color: #8a6d3b")
+        f.addRow("", self.lbl_hint)
         self.name = QLineEdit(prof.name)
         self.dialect = QComboBox()
         for k, v in DIALECTS.items():
@@ -77,6 +92,35 @@ class MachineDialog(QDialog):
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         self.btn_defaults.clicked.connect(self._defaults)
+        self.btn_template.clicked.connect(self._apply_template)
+
+    def _apply_template(self):
+        i = self.template.currentData()
+        if i is None:
+            return
+        t = self.templates[i]
+        self.name.setText(t.get("name", self.name.text()))
+        if t.get("dialect") in DIALECTS:
+            self.dialect.setCurrentIndex(list(DIALECTS).index(t["dialect"]))
+        for key, w in (("s_max", self.s_max), ("travel_speed", self.travel), ("bed_w", self.bed_w),
+                       ("bed_h", self.bed_h), ("frame_power", self.frame_power), ("frame_speed", self.frame_speed)):
+            if key in t:
+                w.setValue(float(t[key]))
+        if "laser_on" in t:
+            self.laser_on.setCurrentText(t["laser_on"])
+        if "inline_power" in t:
+            self.inline.setChecked(bool(t["inline_power"]))
+        if "rapid_with_feed" in t:
+            self.rapid_f.setChecked(bool(t["rapid_with_feed"]))
+        for key, w in (("air_on", self.air_on), ("air_off", self.air_off)):
+            if key in t:
+                w.setText(t[key])
+        if "header" in t:
+            self.header.setPlainText(t["header"])
+        if "footer" in t:
+            self.footer.setPlainText(t["footer"])
+        self.baud_from_template = t.get("baud")
+        self.lbl_hint.setText(t.get("hinweis", ""))
 
     def _defaults(self):
         d = DIALECT_DEFAULTS[self.dialect.currentData()]
@@ -99,6 +143,8 @@ class MachineDialog(QDialog):
         p.frame_speed = self.frame_speed.value()
         p.air_on, p.air_off = self.air_on.text().strip(), self.air_off.text().strip()
         p.header, p.footer = self.header.toPlainText(), self.footer.toPlainText()
+        if getattr(self, "baud_from_template", None):
+            p.baud = int(self.baud_from_template)
 
 
 class TextDialog(QDialog):

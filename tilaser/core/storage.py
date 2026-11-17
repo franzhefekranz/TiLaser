@@ -44,23 +44,51 @@ def _ensure_dir():
 
 
 # ------------------------------------------------------------------ Presets
-def load_presets() -> list[dict]:
-    path = USER_PRESETS if os.path.exists(USER_PRESETS) else DEFAULT_PRESETS
+DEFAULT_MACHINES = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "machines.json")
+
+
+def _read_json(path, default):
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
-        return []
+        return default
+
+
+def load_presets() -> list[dict]:
+    """Mitgelieferte Presets + eigene Presets des Benutzers.
+
+    Die Benutzerdatei enthält nur eigene/geänderte Presets und die Namen ausgeblendeter
+    Standard-Presets. So erscheinen neue Standard-Presets nach einem Update automatisch.
+    """
+    defaults = _read_json(DEFAULT_PRESETS, [])
+    user = _read_json(USER_PRESETS, None)
+    if user is None:
+        return defaults
+    if isinstance(user, list):                      # altes Format (vollständige Liste)
+        user = {"presets": user, "hidden": []}
+    own = {p["name"]: p for p in user.get("presets", [])}
+    hidden = set(user.get("hidden", []))
+    out = [own.pop(p["name"], p) for p in defaults if p["name"] not in hidden]
+    return out + list(own.values())
 
 
 def save_presets(presets: list[dict]):
+    defaults = {p["name"]: p for p in _read_json(DEFAULT_PRESETS, [])}
+    names = {p["name"] for p in presets}
+    own = [p for p in presets if defaults.get(p["name"]) != p]
+    hidden = sorted(n for n in defaults if n not in names)
     _ensure_dir()
     with open(USER_PRESETS, "w", encoding="utf-8") as f:
-        json.dump(presets, f, indent=2, ensure_ascii=False)
+        json.dump({"presets": own, "hidden": hidden}, f, indent=2, ensure_ascii=False)
 
 
-def preset_from_layer(name: str, material: str, layer: Layer) -> dict:
-    d = {"name": name, "material": material}
+def load_machine_templates() -> list[dict]:
+    return _read_json(DEFAULT_MACHINES, [])
+
+
+def preset_from_layer(name: str, material: str, layer: Layer, machine: str = "") -> dict:
+    d = {"name": name, "material": material, "machine": machine}
     d.update({k: getattr(layer, k) for k in PRESET_FIELDS})
     return d
 

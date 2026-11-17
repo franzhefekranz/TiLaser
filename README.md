@@ -69,11 +69,23 @@ ein GitHub-Release an.
 ## Bedienung
 
 - **Importieren** (Strg+I) oder Dateien ins Fenster ziehen.
-- Mausrad = Zoom, rechte/mittlere Maustaste = Ansicht verschieben, Objekte mit der Maus ziehen.
+- Mausrad = Zoom, mittlere Maustaste oder rechte Maustaste *ziehen* = Ansicht verschieben,
+  rechte Maustaste *klicken* = Kontextmenü.
 - Pfeiltasten verschieben die Auswahl um 1 mm, mit Shift um 10 mm. Entf löscht.
-- Rechts: Ebene auswählen → Parameter einstellen bzw. Preset anwenden. Häkchen = Ebene wird ausgegeben.
+- **Objektleiste** über der Arbeitsfläche: Position, Größe, Skalierung, Drehung, Spiegeln, Ebene.
+- **Gruppieren** (Strg+G) und **Gruppierung aufheben** (Strg+Umschalt+G): Beim Aufheben bleibt jede
+  Außenkontur mit ihren Löchern zusammen (z. B. ein „O“ oder eine Platte mit Bohrungen). Noch einmal
+  aufheben zerlegt so ein Teil in einzelne Konturen. Danach lassen sich Teile einzeln löschen oder
+  über *Kontextmenü → Ebene zuweisen* einer anderen Ebene (Farbe) zuordnen, auch einer neuen.
+- Rechte Seitenleiste mit Tabs:
+  - **Ebenen**: Parameter einstellen bzw. Preset anwenden. Das Häkchen bestimmt, ob die Ebene ausgegeben wird.
+  - **Verbindung**: Port, Baudrate, Referenzfahrt, Entsperren, Nullpunkt.
+  - **Bewegen**: relativ in 8 Richtungen sowie **absolut** auf eingegebene X/Y-Koordinaten
+    (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
+  - **Konsole**: Maschinenmeldungen und eigene Befehle.
+- Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause* und *Stopp*.
 - **Ansicht → Werkzeugweg-Vorschau** (Strg+P) zeigt, was der Laser tatsächlich fährt.
-- Unten: Port wählen → *Verbinden*. Erkennt das Programm eine andere Firmware als im Profil eingestellt,
+- Erkennt das Programm beim Verbinden eine andere Firmware als im Profil eingestellt,
   fragt es, ob es umstellen soll.
 
 ### Reihenfolge
@@ -96,6 +108,19 @@ unter **Maschine → Maschineneinstellungen** einstellen und *Standardwerte übe
 **Koordinaten:** Der G-Code ist absolut (`G90`) in mm, Nullpunkt links unten (rote Ecke im Canvas).
 Bei GRBL setzt *Nullpunkt hier* den Werkstück-Nullpunkt (`G10 L20 P1 X0 Y0`) auf die aktuelle Kopfposition.
 Bei Marlin wird dafür `G92` verwendet.
+
+## AlgoLaser DIY KIT MK2 (20 W)
+
+1. **Maschine → Maschineneinstellungen → Maschinenvorlage** „AlgoLaser DIY KIT MK2 (20 W)“ → *Übernehmen* → OK.
+   Das setzt GRBL, M4, S 1000, 400 × 400 mm, Eilgang 6000 mm/min und Rahmen mit 1 % Leistung.
+2. Per USB-C verbinden (115200 Baud). In der **Konsole** `$$` senden und prüfen:
+   `$32=1` (Lasermodus, sonst `$32=1` senden), `$130`/`$131` = Verfahrweg X/Y → ggf. als Arbeitsbereich eintragen.
+3. In **Ebenen → Material-Presets** den Filter „AlgoLaser DIY KIT MK2 (20 W)“ wählen. Die Werte stammen aus
+   der [AlgoLaser-Parametertabelle für den DIY KIT 20W](https://algolaser.com/pages/material). Ausnahmen
+   (im Tooltip als Schätz-/Startwert markiert) sind Sperrholz 2 mm, Linie ritzen und die Foto-Presets.
+4. Air Assist ist in den Presets aus. Wird die Pumpe über `M8`/`M9` geschaltet, das Häkchen pro Ebene setzen.
+
+Während TiLaser verbunden ist, keinen Auftrag gleichzeitig über Touchscreen oder App starten.
 
 ## Sicherheit
 
@@ -146,4 +171,4 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 - Keine Schnittspaltkorrektur (Kerf-Offset) und keine Haltestege (Tabs).
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.
-- Keine Rückgängig-Funktion.
+- Keine Rückgängig-Funktion. Gruppieren lässt sich mit „Gruppierung aufheben“ umkehren, Löschen nicht.
