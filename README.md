@@ -60,7 +60,7 @@ ein GitHub-Release an.
 
 | Bereich | Umfang |
 |---|---|
-| Import | **SVG** (Pfade inkl. Bögen, Rechtecke mit Rundung, Kreise, Ellipsen, Linien, Polygone, Gruppen, `use`, Transformationen, viewBox, Einheiten), **DXF** (LINE, LWPOLYLINE mit Bulges, POLYLINE, CIRCLE, ARC, ELLIPSE, SPLINE/NURBS, Blöcke/INSERT, `$INSUNITS`), **Bilder** (PNG, JPG, BMP, GIF, TIFF, WebP), **Text** aus jeder TTF/OTF-Schrift |
+| Import | **SVG** (Pfade inkl. Bögen, Rechtecke mit Rundung, Kreise, Ellipsen, Linien, Polygone, Gruppen, `use`, Transformationen, viewBox, Einheiten), **DXF** (LINE, LWPOLYLINE mit Bulges, POLYLINE, CIRCLE, ARC, ELLIPSE, SPLINE/NURBS, Blöcke/INSERT, `$INSUNITS`), **Bilder** (PNG, JPG, BMP, GIF, TIFF, WebP), **Text** aus jeder TTF/OTF-Schrift, **LightBurn** (`.lbrn2`/`.lbrn`, mit Ebenen und Parametern) |
 | Ebenen | Automatisch nach SVG-Farbe bzw. DXF-Layer. Modi: *Schneiden/Linie*, *Füllen (Schraffur)*, *Rasterbild*. Leistung, Geschwindigkeit, Durchgänge, Zeilenabstand, Winkel, Kreuzschraffur, Overscan, bidirektional, Air Assist, Reihenfolge per ▲▼ |
 | Bilder | Floyd-Steinberg, Atkinson, Schwellwert, Graustufen (Leistung min/max), Invertieren, Vorschau im Canvas |
 | Optimierung | Innen- vor Außenkonturen, Nächster-Nachbar-Sortierung, Startpunkt geschlossener Konturen wird optimiert |
@@ -134,7 +134,7 @@ ein GitHub-Release an.
 | Netzwerk | Tab *Verbindung → Art: Netzwerk (TCP/Telnet)*, z. B. für ESP32-Steuerungen mit FluidNC/grblHAL (Port 23) |
 | Unterebenen | Ebenen-Tab, *Arbeitsgang* → **+**: weiterer Arbeitsgang auf derselben Geometrie (z. B. erst Fläche gravieren, dann Kontur schneiden), jeweils mit eigenen Parametern |
 | Z-Schritt | Pro Arbeitsgang: Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |
-| Export | *Datei → Als SVG/DXF exportieren* (Lage wie auf dem Bett, Ebenen als Gruppen bzw. DXF-Layer) |
+| Export | *Datei → Als SVG/DXF exportieren* (Lage wie auf dem Bett, Ebenen als Gruppen bzw. DXF-Layer), *Datei → Als LightBurn-Datei speichern* (`.lbrn2`) |
 
 ### Kamera
 

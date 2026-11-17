@@ -159,6 +159,25 @@ Dateien können direkt aus dem Explorer bzw. Dateimanager auf die Arbeitsfläche
 *Datei → Projekt speichern* (Strg+S) legt eine `.tlp`-Datei an. Sie enthält alle Objekte, Ebenen mit
 Parametern und eingebettete Bilder. Kurven bleiben als echte Kurven gespeichert.
 
+### LightBurn-Projekte
+
+TiLaser liest und schreibt LightBurn-Dateien (`.lbrn2`, lesend auch das ältere `.lbrn`).
+
+- **Öffnen:** *Datei → Projekt öffnen* und den Dateityp *LightBurn-Projekt* wählen. Die Datei wird ein neues
+  Projekt; *Speichern* fragt danach nach einem Namen für die `.tlp`-Datei.
+- **Dazuladen:** *Datei → Importieren* fügt Ebenen und Objekte einer LightBurn-Datei zum aktuellen Projekt hinzu.
+- **Speichern:** *Datei → Als LightBurn-Datei speichern* schreibt eine `.lbrn2`.
+
+| Übernommen | Hinweise |
+|---|---|
+| Ebenen | Name, Modus (*Cut* → Schneiden, *Scan* → Füllen, *Scan+Cut* → Füllen mit Unterebene Schneiden, *Image* → Rasterbild), Geschwindigkeit (mm/s ↔ mm/min), Leistung, Durchgänge, Zeilenabstand, Winkel, Kreuzschraffur, bidirektional, Ausgabe, Reihenfolge, Z-Schritt, Dithering. Die LightBurn-Farbe wird auf die nächstliegende der 32 Ebenenfarben abgebildet. |
+| Formen | Pfade mit Bézierkurven, Rechtecke (mit Eckenradius), Ellipsen, Polygone, verschachtelte Gruppen mit Drehung/Spiegelung, Bilder. Lage und Maße bleiben erhalten. |
+| Text | Über die von LightBurn mitgespeicherten Umrisse; als Text bearbeitbar ist er danach nicht mehr. |
+| Nicht übernommen | Offset-Füllung (wird normale Füllung), variable Texte, Haltestege, Optimierungseinstellungen. Unbekannte Formen werden mit einem Hinweis übersprungen. |
+
+Beim Speichern erhält jede Ebene die LightBurn-Farbe, die ihrer Farbe am nächsten kommt; mehr als 30 Ebenen
+passen nicht. Unterebenen (außer *Füllen + Schneiden*) gehen in LightBurn verloren.
+
 ### Import
 
 | Format | Hinweise |
@@ -178,6 +197,7 @@ Liegt ein importiertes Objekt außerhalb des Arbeitsbereichs, wird es in die Mit
 | *Datei → G-Code exportieren* (Strg+E) | `.gcode`-Datei für SD-Karte oder andere Sender. Berücksichtigt *Ursprung* und *Nur Auswahl*. |
 | *Datei → Als SVG exportieren* | Alle Objekte in mm, Ebenen als Inkscape-Ebenen, Bilder eingebettet |
 | *Datei → Als DXF exportieren* | Konturen als LWPOLYLINE, je Ebene ein DXF-Layer (ohne Bilder) |
+| *Datei → Als LightBurn-Datei speichern* | `.lbrn2` mit Ebenen und Parametern, Kurven und Bildern (siehe *LightBurn-Projekte*) |
 | *Ansicht → G-Code anzeigen* | Zeigt den erzeugten G-Code |
 
 ---

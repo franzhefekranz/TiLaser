@@ -31,6 +31,8 @@ from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, Ma
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from .camera_live import CameraPanel, LiveCamera
 from ..core.eps_import import import_eps
+from ..core.lbrn_export import export_lbrn
+from ..core.lbrn_import import load_lbrn
 from ..core.pdf_import import PdfError, import_pdf
 from ..core.text_import import text_on_path
 from ..core import boolean as bo
@@ -179,6 +181,8 @@ class MainWindow(QMainWindow):
         m.addAction(self.a_export)
         m.addAction(self._act("Als SVG exportieren…", lambda: self.export_vector("svg")))
         m.addAction(self._act("Als DXF exportieren…", lambda: self.export_vector("dxf")))
+        m.addAction(self._act("Als LightBurn-Datei speichern…", lambda: self.export_vector("lbrn2"),
+                              None, "Projekt als .lbrn2 für LightBurn speichern (Ebenen, Formen, Bilder)"))
         m.addSeparator()
         m.addAction(self._act("Beenden", self.close, "Ctrl+Q"))
 
@@ -472,17 +476,31 @@ class MainWindow(QMainWindow):
         self._update_title()
 
     def open_project(self):
-        p, _ = QFileDialog.getOpenFileName(self, "Projekt öffnen", self.last_dir, "TiLaser-Projekt (*.tlp)")
+        p, _ = QFileDialog.getOpenFileName(self, "Projekt öffnen", self.last_dir,
+                                           "Projekte (*.tlp *.lbrn2 *.lbrn);;TiLaser-Projekt (*.tlp);;"
+                                           "LightBurn-Projekt (*.lbrn2 *.lbrn)")
         if not p:
             return
+        warn = []
         try:
-            self._set_project(storage.load_project(p))
+            if p.lower().endswith((".lbrn2", ".lbrn")):
+                self._checkpoint("LightBurn-Projekt öffnen")
+                project, warn = load_lbrn(p)
+            else:
+                project = storage.load_project(p)
+            self._set_project(project)
         except Exception as e:
             QMessageBox.critical(self, "Öffnen", f"Projekt konnte nicht geladen werden:\n{e}")
             return
-        self.project_path = p
+        is_tlp = p.lower().endswith(".tlp")
+        self.project_path = p if is_tlp else None          # LightBurn-Datei: beim Speichern als .tlp fragen
         self.last_dir = os.path.dirname(p)
         self._update_title()
+        if not is_tlp:
+            self.canvas.zoom_fit()
+            warn = [f"{os.path.basename(p)}: {w}" for w in warn]
+            if warn:
+                QMessageBox.information(self, "LightBurn-Projekt", "\n".join(warn))
 
     def save_project(self, save_as=False):
         p = self.project_path
@@ -506,8 +524,10 @@ class MainWindow(QMainWindow):
     def import_dialog(self):
         files, _ = QFileDialog.getOpenFileNames(
             self, "Importieren", self.last_dir,
-            "Alle unterstützten (*.svg *.dxf *.pdf *.ai *.eps *.ps *.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;"
+            "Alle unterstützten (*.svg *.dxf *.pdf *.ai *.eps *.ps *.lbrn2 *.lbrn *.png *.jpg *.jpeg *.bmp *.gif *.tif "
+            "*.tiff *.webp);;"
             "SVG (*.svg);;DXF (*.dxf);;PDF / Illustrator (*.pdf *.ai);;EPS / PostScript (*.eps *.ps);;"
+            "LightBurn (*.lbrn2 *.lbrn);;"
             "Bilder (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)")
         if files:
             self.import_files(files)
@@ -527,6 +547,15 @@ class MainWindow(QMainWindow):
                         self.project_path = f
                         self._set_project(storage.load_project(f))
                         self._update_title()
+                        continue
+                    if ext in (".lbrn2", ".lbrn"):                 # Ebenen und Objekte dazuladen
+                        lp, warn = load_lbrn(f)
+                        msgs += [f"{name}: {w}" for w in warn]
+                        self.project.layers += lp.layers
+                        for it in lp.items:
+                            self.project.items.append(it)
+                            self.canvas.add_item(it)
+                            new_ids.append(it.id)
                         continue
                     if ext in (".svg", ".dxf", ".pdf", ".ai", ".eps", ".ps"):
                         reader = {".svg": import_svg, ".dxf": import_dxf, ".eps": import_eps,
@@ -1525,19 +1554,28 @@ class MainWindow(QMainWindow):
         if not self.project.items:
             return
         base = os.path.splitext(os.path.basename(self.project_path))[0] if self.project_path else "zeichnung"
-        filt = "SVG (*.svg)" if fmt == "svg" else "DXF (*.dxf)"
-        p, _ = QFileDialog.getSaveFileName(self, f"Als {fmt.upper()} exportieren",
+        filt = {"svg": "SVG (*.svg)", "dxf": "DXF (*.dxf)", "lbrn2": "LightBurn-Projekt (*.lbrn2)"}[fmt]
+        title = "Als LightBurn-Datei speichern" if fmt == "lbrn2" else f"Als {fmt.upper()} exportieren"
+        p, _ = QFileDialog.getSaveFileName(self, title,
                                            os.path.join(self.last_dir, f"{base}.{fmt}"), filt)
         if not p:
             return
+        if not p.lower().endswith("." + fmt):
+            p += "." + fmt
+        warn = []
         try:
             if fmt == "svg":
                 export_svg(self.project, p, self.profile.bed_w, self.profile.bed_h)
+            elif fmt == "lbrn2":
+                warn = export_lbrn(self.project, p)
             else:
                 export_dxf(self.project, p)
         except Exception as e:
             QMessageBox.critical(self, "Export", str(e))
             return
+        self.last_dir = os.path.dirname(p)
+        if warn:
+            QMessageBox.information(self, "LightBurn-Datei", "\n".join(warn))
         msg = f"Gespeichert: {p}"
         if fmt == "dxf" and any(it.kind == "raster" for it in self.project.items):
             msg += "  (Bilder sind in DXF nicht enthalten)"
