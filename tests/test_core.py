@@ -567,11 +567,9 @@ def test_passes_per_path():
     assert res.text.count("G0 Z1") == 3                                              # Z je Kontur zurück
     open_burns = [l for l in res.lines if l.startswith("G1") and " X1" in l and ("X100" in l or "X120" in l)]
     assert [("X120" in l) for l in open_burns] == [True, False, True]                # offen: hin, zurück, hin
-    layer.passes_per_path = False
-    seq = order(generate(pr, MachineProfile()).lines)                                # Durchgang für Durchgang
+    seq = order(generate(pr, MachineProfile(passes_per_path=False)).lines)                                # Durchgang für Durchgang
     assert len(seq) > 3                                 # Konturen wechseln zwischen den Durchgängen
-    from tilaser.core.model import Layer
-    assert Layer.from_dict({"id": "x", "name": "alt"}).passes_per_path                # alte Projekte: an
+    assert MachineProfile.from_dict({"name": "alt"}).passes_per_path                 # alte Profile: an
 
 
 def test_export_roundtrip():

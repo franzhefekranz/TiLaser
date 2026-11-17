@@ -402,7 +402,6 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Leistung min | Raster (Graustufen) | Leistung für helle Bildbereiche |
 | Geschwindigkeit | alle | mm/min |
 | Durchgänge | alle | Wie oft der Arbeitsgang wiederholt wird |
-| Durchgänge je Kontur beenden | Schneiden | An (Standard): jede Kontur wird mit allen Durchgängen fertig geschnitten, erst dann geht es zur nächsten – offene Linien abwechselnd hin und zurück. Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw.; das Material kühlt dazwischen ab, dafür fährt der Laser öfter hin und her |
 | Zeilenabstand | Füllen, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
 | Winkel, Kreuzschraffur | Füllen | Richtung der Schraffur; zweite Schraffur um 90° gedreht |
 | Bildmodus | Raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (Dithering), Schwellwert, Graustufen |
@@ -487,6 +486,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 | Eilgang | Geschwindigkeit der Leerfahrten |
 | Arbeitsbereich | Breite und Tiefe in mm (GRBL: `$130`/`$131`) |
 | Rahmen: Leistung / Geschwindigkeit | 0 % = Laser beim Rahmen aus; bis 20 % für einen sichtbaren Punkt |
+| Durchgänge | *Bei mehreren Durchgängen jede Kontur fertig schneiden* – an (Standard): jede Kontur bekommt alle Durchgänge, erst dann geht es zur nächsten; offene Linien abwechselnd hin und zurück. Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw.; das Material kühlt dazwischen ab, dafür fährt der Laser öfter hin und her. Gilt für Schneid-Ebenen |
 | Rotationsachse | siehe [Kapitel 15](#15-rotationsachse) |
 | Air Assist an/aus | Standard M8/M9 |
 | G-Code Anfang/Ende | Wird jedem Auftrag voran- bzw. nachgestellt |

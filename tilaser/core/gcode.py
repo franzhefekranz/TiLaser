@@ -37,6 +37,7 @@ class MachineProfile:
     inline_power: bool = True         # S-Wert direkt in G1-Zeilen
     rapid_with_feed: bool = False     # G0 mit F (Marlin)
     travel_speed: float = 6000.0      # mm/min
+    passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     bed_w: float = 400.0
     bed_h: float = 400.0
     header: str = "G21\nG90"
@@ -251,7 +252,7 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         paths = add_tabs(paths, layer.tabs, layer.tab_width, layer.tabs_outer_only)
     s = w.s_val(layer.power)
     passes = max(1, layer.passes)
-    if passes > 1 and getattr(layer, "passes_per_path", True):
+    if passes > 1 and w.p.passes_per_path:
         # Jede Kontur mit allen Durchgängen fertig schneiden, erst dann zur nächsten
         w.comment(f"{passes} Durchgänge je Kontur")
         start = (w.x or 0.0, w.y or 0.0)

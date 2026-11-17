@@ -90,7 +90,6 @@ class Layer:
     min_power: float = 0.0        # % (nur Graustufen-Raster)
     speed: float = 1000.0         # mm/min
     passes: int = 1
-    passes_per_path: bool = True  # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     interval: float = 0.1         # mm Zeilenabstand (Füllen/Raster)
     angle: float = 0.0            # Grad (Füllen)
     crosshatch: bool = False      # zweite Füllung um 90° gedreht

@@ -86,6 +86,12 @@ class MachineDialog(QDialog):
         f.addRow("Rahmen: Geschwindigkeit", self.frame_speed)
         f.addRow("Air Assist an", self.air_on)
         f.addRow("Air Assist aus", self.air_off)
+        self.per_path = QCheckBox("Bei mehreren Durchgängen jede Kontur fertig schneiden")
+        self.per_path.setToolTip("An: jede Kontur bekommt alle Durchgänge, erst dann geht es zur nächsten.\n"
+                                 "Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw.\n"
+                                 "(Material kühlt zwischen den Durchgängen ab, dafür mehr Leerfahrten)")
+        self.per_path.setChecked(prof.passes_per_path)
+        f.addRow("Durchgänge", self.per_path)
         self.rotary = QCheckBox("Rotationsachse (Rolle) statt Y-Achse")
         self.rotary.setChecked(prof.rotary)
         self.rot_mm = dspin(0.1, 10000, 3, 1, " mm")
@@ -151,6 +157,7 @@ class MachineDialog(QDialog):
         p.inline_power = self.inline.isChecked()
         p.rapid_with_feed = self.rapid_f.isChecked()
         p.travel_speed = self.travel.value()
+        p.passes_per_path = self.per_path.isChecked()
         p.bed_w, p.bed_h = self.bed_w.value(), self.bed_h.value()
         p.frame_power = self.frame_power.value()
         p.frame_speed = self.frame_speed.value()
