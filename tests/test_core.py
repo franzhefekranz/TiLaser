@@ -954,6 +954,22 @@ def test_sender_stream():
     assert stats and stats[-1]["WPos"][0] == 0.0
 
 
+def test_layer_palette():
+    from tilaser.core.model import PALETTE, ImportedPath, nearest_palette
+    assert len(PALETTE) == 32 and len(set(PALETTE)) == 32
+    assert nearest_palette("#ff0000") == "#e53935" and nearest_palette("#000") == "#000000"
+    assert all(nearest_palette(c) == c for c in PALETTE)
+    pr = Project()
+    sq = g.Polyline(np.array([[0, 0], [10, 0], [10, 10], [0, 10]], float), True)
+    pr.add_vector_import("a", [ImportedPath(sq, "#ff0000", "#ff0000"), ImportedPath(sq, "#e83a36", "#e83a36"),
+                               ImportedPath(sq, "#123456", "#123456")])
+    assert all(l.color in PALETTE for l in pr.layers)
+    assert len(pr.layers) == 2 and pr.layers[0].name == "Schneiden Rot"      # Rottöne landen auf einer Ebene
+    assert pr.add_layer("x", "#abcdef").color in PALETTE
+    for i in range(40):                                                     # mehr Ebenen als Farben
+        assert pr.add_layer(f"L{i}").color in PALETTE
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

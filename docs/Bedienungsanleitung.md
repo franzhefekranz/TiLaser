@@ -376,6 +376,11 @@ unten**, damit Teile erst herausfallen, wenn alles darauf fertig ist.
 Das **Häkchen** vor einer Ebene bestimmt, ob sie ausgegeben wird. Ausgeschaltete Ebenen werden blass
 dargestellt.
 
+**Ebenenfarben:** Es gibt 32 feste Farben, mit *Farbe…* aus einem Farbfeld (8 × 4) gewählt. Ein Punkt
+markiert Farben, die schon eine andere Ebene benutzt; der Tooltip nennt Nummer, Name und Ebene. Beim Import
+werden die Farben der Datei auf die nächstliegende der 32 Farben abgebildet – reine Grundfarben (z. B.
+Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben landen dadurch auf derselben Ebene.
+
 ### Modi
 
 | Modus | Wirkung |

@@ -3,18 +3,66 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QIcon, QPixmap
-from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox,
-                             QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QGridLayout, QGroupBox,
+                             QHBoxLayout, QToolButton, QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
                              QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
 from ..core import storage
-from ..core.model import DITHER_LABELS, DITHER_MODES, MODE_LABELS, MODES, Project
+from ..core.model import DITHER_LABELS, DITHER_MODES, MODE_LABELS, MODES, PALETTE_NAMES, Project
 
 
 def color_icon(color: str, size=14) -> QIcon:
     pm = QPixmap(size, size)
     pm.fill(QColor(color))
     return QIcon(pm)
+
+
+class PaletteDialog(QDialog):
+    """Auswahl aus den 32 festen Ebenenfarben (8 × 4). Ein Klick wählt und schließt."""
+
+    def __init__(self, current: str | None = None, used: dict | None = None, title="Ebenenfarbe", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.color: str | None = None
+        lay = QVBoxLayout(self)
+        grid = QGridLayout()
+        grid.setSpacing(4)
+        cur = (current or "").lower()
+        used = {k.lower(): v for k, v in (used or {}).items()}
+        for i, (c, name) in enumerate(PALETTE_NAMES):
+            b = QToolButton()
+            b.setFixedSize(30, 30)
+            sel = c == cur
+            border = "3px solid palette(highlight)" if sel else "1px solid rgba(0,0,0,0.35)"
+            b.setStyleSheet(f"QToolButton {{ background: {c}; border: {border}; border-radius: 4px; }}"
+                            f"QToolButton:hover {{ border: 2px solid palette(highlight); }}")
+            tip = f"{i + 1}: {name}"
+            if c in used:
+                tip += f" – benutzt von: {used[c]}"
+                b.setText("•")
+                b.setStyleSheet(b.styleSheet() + " QToolButton { color: white; font-weight: bold; }")
+            b.setToolTip(tip)
+            b.clicked.connect(lambda _=False, col=c: self._choose(col))
+            grid.addWidget(b, i // 8, i % 8)
+        lay.addLayout(grid)
+        hint = QLabel("• = schon von einer Ebene benutzt")
+        hint.setStyleSheet("color: palette(mid);")
+        lay.addWidget(hint)
+
+    def _choose(self, c):
+        self.color = c
+        self.accept()
+
+
+def pick_layer_color(parent, current: str | None = None, project: Project | None = None,
+                     title="Ebenenfarbe", exclude_id: str | None = None) -> str | None:
+    used = {}
+    if project is not None:
+        for l in project.layers:
+            if l.id != exclude_id:
+                used[l.color.lower()] = (used[l.color.lower()] + ", " if l.color.lower() in used else "") + l.name
+    dlg = PaletteDialog(current, used, title, parent)
+    return dlg.color if dlg.exec() == QDialog.DialogCode.Accepted else None
 
 
 def dspin(lo, hi, dec=1, step=1.0, suffix="") -> QDoubleSpinBox:
@@ -385,10 +433,10 @@ class LayerPanel(QWidget):
         l = self.current_layer()
         if not l:
             return
-        c = QColorDialog.getColor(QColor(l.color), self, "Ebenenfarbe")
-        if c.isValid():
+        c = pick_layer_color(self, l.color, self.project, "Ebenenfarbe", l.id)
+        if c:
             self.aboutToChange.emit("Ebenenfarbe", "")
-            l.color = c.name()
+            l.color = c
             self.refresh(l.id)
             self.layersChanged.emit(True)
 

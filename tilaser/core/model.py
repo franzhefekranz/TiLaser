@@ -14,8 +14,67 @@ DITHER_MODES = ("floyd", "jarvis", "stucki", "atkinson", "threshold", "grayscale
 DITHER_LABELS = {"floyd": "Floyd-Steinberg", "jarvis": "Jarvis", "stucki": "Stucki", "atkinson": "Atkinson",
                  "threshold": "Schwellwert", "grayscale": "Graustufen (Leistung)"}
 
-PALETTE = ["#000000", "#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa",
-           "#00acc1", "#6d4c41", "#d81b60", "#7cb342", "#3949ab", "#fdd835"]
+# Feste Ebenenfarben (32). Die ersten zwölf sind die bisherigen Standardfarben, damit ältere Projekte passen.
+PALETTE_NAMES = [
+    ("#000000", "Schwarz"), ("#e53935", "Rot"), ("#1e88e5", "Blau"), ("#43a047", "Grün"),
+    ("#fb8c00", "Orange"), ("#8e24aa", "Violett"), ("#00acc1", "Cyan"), ("#6d4c41", "Braun"),
+    ("#d81b60", "Pink"), ("#7cb342", "Hellgrün"), ("#3949ab", "Indigo"), ("#fdd835", "Gelb"),
+    ("#00897b", "Petrol"), ("#f4511e", "Rotorange"), ("#039be5", "Hellblau"), ("#c0ca33", "Limette"),
+    ("#5e35b1", "Lila"), ("#ffb300", "Bernstein"), ("#546e7a", "Blaugrau"), ("#757575", "Grau"),
+    ("#b71c1c", "Dunkelrot"), ("#0d47a1", "Dunkelblau"), ("#1b5e20", "Dunkelgrün"), ("#e65100", "Dunkelorange"),
+    ("#4a148c", "Dunkelviolett"), ("#006064", "Dunkelcyan"), ("#880e4f", "Weinrot"), ("#827717", "Oliv"),
+    ("#f06292", "Rosa"), ("#4fc3f7", "Himmelblau"), ("#81c784", "Mintgrün"), ("#ba68c8", "Flieder"),
+]
+PALETTE = [c for c, _ in PALETTE_NAMES]
+GRAY = "#757575"
+
+
+def _rgb(color: str) -> tuple[int, int, int]:
+    c = color.strip().lstrip("#")
+    if len(c) == 3:
+        c = "".join(ch * 2 for ch in c)
+    try:
+        return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
+    except (ValueError, IndexError):
+        return 0, 0, 0
+
+
+def _lab(color: str) -> tuple[float, float, float]:
+    """sRGB -> CIE-Lab (D65), für wahrnehmungsnahe Farbabstände."""
+    def lin(v):
+        v /= 255
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g_, b = (lin(v) for v in _rgb(color))
+    x = (0.4124 * r + 0.3576 * g_ + 0.1805 * b) / 0.95047
+    y = 0.2126 * r + 0.7152 * g_ + 0.0722 * b
+    z = (0.0193 * r + 0.1192 * g_ + 0.9505 * b) / 1.08883
+
+    def f(t):
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+    fx, fy, fz = f(x), f(y), f(z)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+# Reine Grundfarben aus SVG/DXF (AutoCAD-Farben 1–9) auf die gleichnamige Palettenfarbe
+_ALIASES = {"#ff0000": "#e53935", "#ffff00": "#fdd835", "#00ff00": "#43a047", "#00ffff": "#00acc1",
+            "#0000ff": "#1e88e5", "#ff00ff": "#d81b60", "#ffffff": "#757575", "#808080": "#757575",
+            "#c0c0c0": "#757575", "#800000": "#b71c1c", "#008000": "#1b5e20", "#000080": "#0d47a1",
+            "#800080": "#8e24aa", "#008080": "#00897b", "#808000": "#827717"}
+
+
+def nearest_palette(color: str) -> str:
+    """Nächstliegende Palettenfarbe (reine Grundfarben gezielt, sonst Abstand im Lab-Farbraum)."""
+    r, g_, b = _rgb(color)
+    key = f"#{r:02x}{g_:02x}{b:02x}"
+    if key in _ALIASES:
+        return _ALIASES[key]
+    l1 = _lab(color)
+    return min(PALETTE, key=lambda c: sum((u - v) ** 2 for u, v in zip(l1, _lab(c))))
+
+
+def color_name(color: str) -> str:
+    return dict(PALETTE_NAMES).get(color.lower(), color)
+
 
 def new_id(prefix: str) -> str:
     return f"{prefix}{uuid.uuid4().hex[:8]}"
@@ -153,7 +212,9 @@ class Project:
         return None
 
     def add_layer(self, name: str, color: str | None = None, mode: str = "cut") -> Layer:
-        if color is None:
+        if color is not None:
+            color = nearest_palette(color)
+        else:
             used = {l.color for l in self.layers}
             color = next((c for c in PALETTE if c not in used), PALETTE[len(self.layers) % len(PALETTE)])
         layer = Layer(id=new_id("L"), name=name, color=color, mode=mode)
@@ -172,6 +233,7 @@ class Project:
         lid = self._key_to_layer.get(key)
         if lid and self.layer(lid):
             return self.layer(lid)
+        color = nearest_palette(color)       # Importfarben auf die 32 Ebenenfarben abbilden
         if key.startswith("#"):          # Farbschlüssel (SVG): gleiche Farbe + Modus wiederverwenden
             for l in self.layers:
                 if l.color.lower() == color.lower() and l.mode == mode:
@@ -180,7 +242,7 @@ class Project:
         elif any(l.color.lower() == color.lower() for l in self.layers):
             color = None                 # benannte Ebene (DXF): eigene Farbe vergeben
         base = key.split("#fill")[0]
-        name = base.split(":", 1)[-1] if not base.startswith("#") else f"{MODE_LABELS[mode].split()[0]} {color}"
+        name = base.split(":", 1)[-1] if not base.startswith("#") else f"{MODE_LABELS[mode].split()[0]} {color_name(color)}"
         l = self.add_layer(name, color, mode)
         self._key_to_layer[key] = l.id
         return l
