@@ -293,3 +293,41 @@ def group_parts(polys: list[Polyline]) -> list[list[int]]:
         idx.sort(key=lambda k: k != root)
         out.append(idx)
     return out
+
+
+def join_paths(polys: list[Polyline], tol: float = 0.05, close: bool = True) -> list[Polyline]:
+    """Verbindet offene Pfade, deren Enden sich (bis tol) berühren, und schließt Pfade,
+    deren Anfang und Ende zusammenfallen."""
+    closed = [p for p in polys if p.closed]
+    open_ = [p.pts.copy() for p in polys if not p.closed and len(p.pts) >= 2]
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(open_)):
+            for j in range(len(open_)):
+                if i == j:
+                    continue
+                a, b = open_[i], open_[j]
+                if np.hypot(*(a[-1] - b[0])) <= tol:
+                    new = np.vstack([a, b[1:]])
+                elif np.hypot(*(a[-1] - b[-1])) <= tol:
+                    new = np.vstack([a, b[::-1][1:]])
+                elif np.hypot(*(a[0] - b[-1])) <= tol:
+                    new = np.vstack([b, a[1:]])
+                elif np.hypot(*(a[0] - b[0])) <= tol:
+                    new = np.vstack([b[::-1], a[1:]])
+                else:
+                    continue
+                open_[i] = new
+                del open_[j]
+                merged = True
+                break
+            if merged:
+                break
+    out = list(closed)
+    for pts in open_:
+        if close and len(pts) >= 3 and np.hypot(*(pts[0] - pts[-1])) <= tol:
+            out.append(Polyline(pts[:-1], True))
+        else:
+            out.append(Polyline(pts, False))
+    return out

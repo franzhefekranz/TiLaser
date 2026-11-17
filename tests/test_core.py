@@ -487,6 +487,87 @@ def test_tcp_transport():
     assert fws == ["grbl"] and "done" in states
 
 
+def test_shapes_and_join():
+    from tilaser.core import shapes
+    r = shapes.rectangle(20, 10, 3)
+    assert r.closed and np.allclose(g.bbox([r]), (-10, -5, 10, 5), atol=1e-6)
+    e = shapes.ellipse(30, 10)
+    assert np.allclose(g.bbox([e]), (-15, -5, 15, 5), atol=0.05)
+    st = shapes.polygon(5, 40, 40, star=0.5)
+    assert len(st.pts) == 10 and np.allclose(g.bbox([st]), (-20, -20, 20, 20), atol=1e-6)
+    a = g.Polyline(np.array([[0, 0], [10, 0]]), False)
+    b = g.Polyline(np.array([[10, 10], [10, 0.01]]), False)       # umgekehrt, kleine Lücke
+    c = g.Polyline(np.array([[10, 10], [0, 10], [0, 0]]), False)
+    joined = g.join_paths([a, b, c], tol=0.05)
+    assert len(joined) == 1 and joined[0].closed and len(joined[0].pts) == 4
+
+
+def test_boolean_offset():
+    from tilaser.core import boolean as bo
+    from tilaser.core.offset import pyclipper
+    big, small = _sq(0, 0, 20), _sq(10, 10, 20)
+    off = bo.offset_shapes([big], 2)
+    assert np.allclose(g.bbox(off), (-2, -2, 22, 22), atol=0.01)
+    if pyclipper is None:
+        try:
+            bo.boolean([big], [small], "union")
+            assert False
+        except bo.BooleanUnavailable:
+            print("   (Boolesche Operationen übersprungen: pyclipper fehlt)")
+        return
+    area = lambda ps: sum(abs(0.5 * np.sum(p.pts[:, 0] * np.roll(p.pts[:, 1], -1) - np.roll(p.pts[:, 0], -1) * p.pts[:, 1])) for p in ps)
+    assert abs(area(bo.boolean([big], [small], "union")) - 700) < 1e-3
+    assert abs(area(bo.boolean([big], [small], "difference")) - 300) < 1e-3
+    assert abs(area(bo.boolean([big], [small], "intersection")) - 100) < 1e-3
+    ring = bo.boolean([big], [_sq(5, 5, 10)], "difference")
+    assert len(ring) == 2
+
+
+def test_sublayers_and_z():
+    from tilaser.core.model import ImportedPath, Layer
+    pr = Project()
+    pr.add_vector_import("p", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000", True)])
+    layer = pr.layers[0]
+    assert layer.mode == "fill"
+    sub = layer.add_sub("cut")
+    sub.passes, sub.z_step, sub.power = 3, 0.5, 90
+    res = generate(pr, MachineProfile())
+    txt = res.text
+    assert "Unterebene 1" in txt and txt.count("G0 Z-0.5") == 2 and "G0 Z1" in txt
+    assert any(" S900" in l for l in res.lines)
+    d = layer.to_dict()
+    back = Layer.from_dict(d)
+    assert len(back.subs) == 1 and back.subs[0].z_step == 0.5
+
+
+def test_export_roundtrip():
+    from tilaser.core.export import export_dxf, export_svg
+    pr = make_project()
+    p_svg, p_dxf = os.path.join(TMP, "ex.svg"), os.path.join(TMP, "ex.dxf")
+    export_svg(pr, p_svg, 400, 400)
+    export_dxf(pr, p_dxf)
+    vec = [p for it in pr.items if it.kind == "vector" for p in it.world_paths()]
+    ref = g.bbox(vec)
+    back_svg, _ = import_svg(p_svg)
+    back_dxf, _ = import_dxf(p_dxf)
+    assert len(back_dxf) == len(vec)
+    assert np.allclose(g.bbox([ip.poly for ip in back_dxf]), ref, atol=1e-3)
+    vb = g.bbox([ip.poly for ip in back_svg])
+    assert np.allclose(vb, ref, atol=1e-3), (vb, ref)       # Bild-Element wird beim SVG-Import ignoriert
+
+
+def test_camera():
+    from tilaser.core.camera import apply_h, homography, rectify
+    mm = np.array([[30, 30], [370, 30], [370, 370], [30, 370]], float)
+    H_true = np.array([[0.8, 0.05, 20], [-0.02, -0.9, 400], [0.0001, 0.00005, 1]])
+    px = apply_h(np.linalg.inv(H_true), mm)                 # simulierte Kamerapixel
+    H = homography(px, mm)
+    assert np.allclose(apply_h(H, px), mm, atol=1e-6)
+    cam = np.zeros((500, 500), np.uint8)
+    out = rectify(cam, H, 400, 400, 1.0)
+    assert out.shape == (400, 400)
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")

@@ -55,6 +55,11 @@ class MachineProfile:
     conn_type: str = "serial"         # 'serial' | 'tcp'
     host: str = ""
     tcp_port: int = 23
+    # Kamera
+    camera_device: str = ""           # Beschreibung des Geräts oder '__file__'
+    camera_h: list = field(default_factory=list)   # 3×3-Homographie Kamerapixel -> Bett-mm (9 Werte)
+    camera_inset: float = 30.0        # Abstand der Passmarken vom Bettrand
+    camera_opacity: float = 0.75
 
     @property
     def y_scale(self) -> float:
@@ -217,6 +222,21 @@ class GWriter:
 
 
 # --------------------------------------------------------------------------- Generator
+def _z_between(w: GWriter, op: Layer, n: int):
+    """Nach Durchgang n (0-basiert) Fokus um z_step absenken (relativ)."""
+    if op.z_step > 0 and n < op.passes - 1:
+        w.emit("G91")
+        w.emit(f"G0 Z{fmt(-op.z_step)}")
+        w.emit("G90")
+
+
+def _z_restore(w: GWriter, op: Layer):
+    if op.z_step > 0 and op.passes > 1:
+        w.emit("G91")
+        w.emit(f"G0 Z{fmt(op.z_step * (op.passes - 1))}")
+        w.emit("G90")
+
+
 def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
     if layer.kerf:
         paths = apply_kerf(paths, layer.kerf)
@@ -229,6 +249,8 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         start = (w.x or 0.0, w.y or 0.0)
         for p in g.order_paths(paths, start, layer.inner_first):
             w.polyline(p.loop_pts(), layer.speed, s)
+        _z_between(w, layer, n)
+    _z_restore(w, layer)
 
 
 def _layer_fill(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: list[str]):
@@ -239,10 +261,12 @@ def _layer_fill(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: lis
     if layer.crosshatch:
         segs += hatch(paths, layer.interval, layer.angle + 90, layer.bidirectional)
     s = w.s_val(layer.power)
-    for _ in range(max(1, layer.passes)):
+    for n in range(max(1, layer.passes)):
         for seg in segs:
             w.travel(*seg[0])
             w.burn(*seg[1], layer.speed, s)
+        _z_between(w, layer, n)
+    _z_restore(w, layer)
 
 
 def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
@@ -267,7 +291,9 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
         warnings.append(f"Ebene '{layer.name}': Rastergravur ohne Inline-Leistung (M3/M5 je Abschnitt) ist langsam.")
     ov = max(0.0, layer.overscan)
     forward = True
-    for _ in range(max(1, layer.passes)):
+    for n_pass in range(max(1, layer.passes)):
+        if n_pass:
+            _z_between(w, layer, n_pass - 1)
         for r in range(rows):
             row = S[r]
             nz = np.flatnonzero(row > 0)
@@ -297,6 +323,7 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
                 w.burn(x0 + first * iv - ov, y, layer.speed, 0.0)
             if layer.bidirectional:
                 forward = not forward
+    _z_restore(w, layer)
 
 
 def job_project(project: Project, only_ids=None, offset=(0.0, 0.0)) -> Project:
@@ -348,18 +375,23 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
         w.comment(f"Ebene: {layer.name} | {layer.mode} | {layer.power:g}% | {layer.speed:g} mm/min | {layer.passes}x")
         if layer.air and prof.air_on:
             w.emit(prof.air_on)
-        if layer.mode == "cut":
-            _layer_cut(w, layer, paths)
-        elif layer.mode == "fill":
-            _layer_fill(w, layer, paths, warnings)
-        elif layer.mode == "raster":
-            for it in rasters:
-                _layer_raster(w, layer, it, warnings)
-            if paths:
-                _layer_fill(w, layer, paths, warnings)
-        if layer.mode != "raster" and rasters:
-            for it in rasters:
-                _layer_raster(w, layer, it, warnings)
+        ops = [layer] + [sub for sub in layer.subs if sub.output]
+        for k, op in enumerate(ops):
+            if k:
+                w.laser_off()
+                w.comment(f"Unterebene {k}: {op.mode} | {op.power:g}% | {op.speed:g} mm/min | {op.passes}x")
+            if op.mode == "cut":
+                _layer_cut(w, op, paths)
+            elif op.mode == "fill":
+                _layer_fill(w, op, paths, warnings)
+            elif op.mode == "raster":
+                for it in rasters:
+                    _layer_raster(w, op, it, warnings)
+                if paths:
+                    _layer_fill(w, op, paths, warnings)
+            if k == 0 and op.mode != "raster" and rasters:
+                for it in rasters:
+                    _layer_raster(w, op, it, warnings)
         w.laser_off()
         if layer.air and prof.air_off:
             w.emit(prof.air_off)

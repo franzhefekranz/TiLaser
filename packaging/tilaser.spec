@@ -11,7 +11,7 @@ ICON = os.path.join(ROOT, "packaging", "icon", "tilaser.ico" if sys.platform.sta
 hidden = (
     collect_submodules("fontTools.ttLib.tables")      # Tabellenmodule werden dynamisch geladen
     + collect_submodules("serial.tools")
-    + ["fontTools.pens.basePen"]
+    + ["fontTools.pens.basePen", "PyQt6.QtMultimedia", "pyclipper"]
 )
 
 a = Analysis(
@@ -21,7 +21,7 @@ a = Analysis(
     hiddenimports=hidden,
     excludes=["tkinter", "matplotlib", "scipy", "pandas", "IPython", "pytest",
               "PyQt6.QtWebEngineCore", "PyQt6.QtWebEngineWidgets", "PyQt6.QtQml", "PyQt6.QtQuick",
-              "PyQt6.QtMultimedia", "PyQt6.Qt3DCore", "PyQt6.QtBluetooth"],
+              "PyQt6.Qt3DCore", "PyQt6.QtBluetooth"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

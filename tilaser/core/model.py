@@ -51,14 +51,26 @@ class Layer:
     brightness: float = 0.0       # -100..100
     contrast: float = 0.0         # -100..100
     gamma: float = 1.0
+    z_step: float = 0.0           # mm Absenkung je Durchgang (0 = aus)
+    subs: list = field(default_factory=list)   # Unterebenen: weitere Arbeitsgänge (Layer) auf derselben Geometrie
 
     def to_dict(self):
-        return dict(self.__dict__)
+        d = dict(self.__dict__)
+        d["subs"] = [s.to_dict() for s in self.subs]
+        return d
 
     @classmethod
     def from_dict(cls, d):
         known = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        known["subs"] = [cls.from_dict(x) for x in d.get("subs", [])]
         return cls(**known)
+
+    def add_sub(self, mode: str = "cut") -> "Layer":
+        sub = Layer(id=new_id("S"), name=f"{self.name} · {len(self.subs) + 1}", color=self.color, mode=mode)
+        if mode == "fill":
+            sub.speed, sub.power = 3000.0, 40.0
+        self.subs.append(sub)
+        return sub
 
 
 @dataclass

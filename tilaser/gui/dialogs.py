@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 
+import numpy as np
+
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
                              QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton,
                              QSpinBox, QVBoxLayout, QWidget)
@@ -448,3 +450,160 @@ class MaterialTestDialog(QDialog):
                             interval=self.interval.value(), passes=self.passes.value(), x=self.x.value(),
                             y=self.y.value(), labels=self.labels.isChecked(), label_power=self.l_power.value(),
                             label_speed=self.l_speed.value())
+
+
+class OffsetDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Offset (Kontur versetzen)")
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.dist = dspin(-100, 100, 3, 0.1, " mm")
+        self.dist.setValue(1.0)
+        self.dist.setToolTip("Positiv = nach außen (Formen werden größer), negativ = nach innen")
+        self.round = QCheckBox("Runde Ecken")
+        self.round.setChecked(True)
+        self.keep = QCheckBox("Original behalten")
+        self.keep.setChecked(True)
+        f.addRow("Abstand", self.dist)
+        f.addRow("", self.round)
+        f.addRow("", self.keep)
+        lay.addLayout(f)
+        _ok_cancel(self, lay)
+
+
+# --------------------------------------------------------------------------- Kamera
+class CameraGrabber:
+    """Einzelbild von einer Kamera über QtMultimedia aufnehmen (asynchron, Rückruf mit numpy-Bild)."""
+
+    def __init__(self, device_desc: str, on_image, on_error, timeout_ms: int = 10000):
+        from PyQt6.QtCore import QTimer
+        from PyQt6.QtMultimedia import QCamera, QImageCapture, QMediaCaptureSession, QMediaDevices
+        self.on_image, self.on_error = on_image, on_error
+        devs = QMediaDevices.videoInputs()
+        dev = next((d for d in devs if d.description() == device_desc), devs[0] if devs else None)
+        if dev is None:
+            on_error("Keine Kamera gefunden.")
+            self.cam = None
+            return
+        self.cam = QCamera(dev)
+        self.session = QMediaCaptureSession()
+        self.session.setCamera(self.cam)
+        self.cap = QImageCapture()
+        self.session.setImageCapture(self.cap)
+        self.cap.readyForCaptureChanged.connect(self._ready)
+        self.cap.imageCaptured.connect(self._captured)
+        self.cap.errorOccurred.connect(lambda _id, _err, msg: self._fail(msg))
+        self.cam.errorOccurred.connect(lambda _err, msg: self._fail(msg))
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(lambda: self._fail("Zeitüberschreitung beim Aufnehmen."))
+        self.timer.start(timeout_ms)
+        self.done = False
+        self.cam.start()
+
+    def _ready(self, ok):
+        if ok and not self.done:
+            self.cap.capture()
+
+    def _captured(self, _id, qimg):
+        if self.done:
+            return
+        from PyQt6.QtGui import QImage
+        img = qimg.convertToFormat(QImage.Format.Format_RGB888)
+        w, h, bpl = img.width(), img.height(), img.bytesPerLine()
+        ptr = img.bits()
+        ptr.setsize(img.sizeInBytes())
+        arr = np.frombuffer(ptr, np.uint8).reshape(h, bpl)[:, : w * 3].reshape(h, w, 3).copy()
+        self._finish()
+        self.on_image(arr)
+
+    def _fail(self, msg):
+        if self.done:
+            return
+        self._finish()
+        self.on_error(msg or "Kamerafehler")
+
+    def _finish(self):
+        self.done = True
+        self.timer.stop()
+        if self.cam is not None:
+            self.cam.stop()
+
+
+def camera_devices() -> list[str]:
+    try:
+        from PyQt6.QtMultimedia import QMediaDevices
+        return [d.description() for d in QMediaDevices.videoInputs()]
+    except Exception:
+        return []
+
+
+class PointPickDialog(QDialog):
+    """Kamerabild anzeigen und die 4 Passmarken der Reihe nach anklicken."""
+    LABELS = ("links unten", "rechts unten", "rechts oben", "links oben")
+
+    def __init__(self, image: np.ndarray, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QImage, QPainter, QPen, QColor, QPixmap
+        from PyQt6.QtWidgets import QGraphicsScene, QGraphicsView
+        self.setWindowTitle("Passmarken anklicken")
+        self.resize(1000, 760)
+        self.points: list[tuple[float, float]] = []
+        lay = QVBoxLayout(self)
+        self.info = QLabel()
+        lay.addWidget(self.info)
+        a = np.ascontiguousarray(image)
+        h, w = a.shape[:2]
+        qi = (QImage(a.data, w, h, w * 3, QImage.Format.Format_RGB888) if a.ndim == 3
+              else QImage(a.data, w, h, w, QImage.Format.Format_Grayscale8)).copy()
+        self.scene = QGraphicsScene(self)
+        self.scene.addPixmap(QPixmap.fromImage(qi))
+        dlg = self
+
+        class View(QGraphicsView):
+            def mousePressEvent(self, e):
+                if e.button() == Qt.MouseButton.LeftButton and len(dlg.points) < 4:
+                    p = self.mapToScene(e.position().toPoint())
+                    dlg._add(p.x(), p.y())
+
+            def wheelEvent(self, e):
+                f = 1.15 ** (e.angleDelta().y() / 120)
+                self.scale(f, f)
+
+        self.view = View(self.scene)
+        self.view.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        self.view.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        lay.addWidget(self.view, 1)
+        row = QHBoxLayout()
+        self.btn_reset = QPushButton("Zurücksetzen")
+        self.btn_reset.clicked.connect(self._reset)
+        row.addWidget(self.btn_reset)
+        row.addStretch(1)
+        lay.addLayout(row)
+        self.bb = _ok_cancel(self, lay)
+        self._pen = QPen(QColor("#ff1744"), 0)
+        self._marks = []
+        self._update()
+        self.view.fitInView(self.scene.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def _add(self, x, y):
+        self.points.append((x, y))
+        r = 6 / max(self.view.transform().m11(), 1e-6)
+        self._marks.append(self.scene.addLine(x - r, y, x + r, y, self._pen))
+        self._marks.append(self.scene.addLine(x, y - r, x, y + r, self._pen))
+        self._update()
+
+    def _reset(self):
+        for m in self._marks:
+            self.scene.removeItem(m)
+        self._marks, self.points = [], []
+        self._update()
+
+    def _update(self):
+        n = len(self.points)
+        self.info.setText(f"Klicke die Mitte der Marke {n + 1}: {self.LABELS[n]}  (Mausrad = Zoom)" if n < 4
+                          else "Alle 4 Marken gesetzt. OK zum Übernehmen.")
+        self.bb.button(QDialogButtonBox.StandardButton.Ok).setEnabled(n == 4)

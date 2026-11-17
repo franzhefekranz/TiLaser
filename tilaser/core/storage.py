@@ -37,7 +37,7 @@ MACHINE_FILE = os.path.join(CONFIG_DIR, "machine.json")
 
 PRESET_FIELDS = ("mode", "power", "min_power", "speed", "passes", "interval", "angle", "crosshatch",
                  "dither", "threshold", "overscan", "bidirectional", "air", "kerf", "tabs", "tab_width",
-                 "brightness", "contrast", "gamma")
+                 "brightness", "contrast", "gamma", "z_step")
 
 
 def _ensure_dir():
