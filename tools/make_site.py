@@ -60,8 +60,11 @@ def manual_html(out: str):
 
     def img(m):
         alt, path = m.group(1), m.group(2)
-        if os.path.exists(os.path.join(SHOTS, os.path.basename(path))):
-            return f"![{alt}](screenshots/{os.path.basename(path)})"
+        fn = os.path.basename(path)
+        if fn.startswith("icon_") and os.path.exists(os.path.join(SHOTS, fn)):
+            return f"![{alt}](screenshots/{fn}){{.symbol}}"
+        if os.path.exists(os.path.join(SHOTS, fn)):
+            return f"![{alt}](screenshots/{fn})"
         return f'<div class="platzhalter">Screenshot „{html.escape(alt)}“ folgt</div>'
 
     md = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", img, md)

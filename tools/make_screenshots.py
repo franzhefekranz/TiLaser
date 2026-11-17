@@ -276,5 +276,25 @@ w._invalidate()
 w.canvas.zoom_fit()
 shot(w.canvas, "29_nesting_ergebnis", "Nesting-Ergebnis")
 
+# Symbole der Werkzeugleisten für die Anleitung (weiße Kachel, 40 × 40 px)
+from PyQt6.QtCore import QByteArray, QRectF                     # noqa: E402
+from PyQt6.QtGui import QColor, QImage, QPainter, QPen         # noqa: E402
+from PyQt6.QtSvg import QSvgRenderer                           # noqa: E402
+from tilaser.gui import icons as ic                            # noqa: E402
+
+DOC_ICONS = ["new", "open", "save", "import", "text", "fit", "toolpath", "play", "laser", "group", "ungroup",
+             "center", "origin", "duplicate", "delete", "select", "rect", "ellipse", "polygon", "line", "node"]
+for n in DOC_ICONS:
+    img = QImage(40, 40, QImage.Format.Format_ARGB32)
+    img.fill(QColor(0, 0, 0, 0))
+    p = QPainter(img)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(QPen(QColor("#c9ced3"), 0.8))
+    p.setBrush(QColor("#ffffff"))
+    p.drawRoundedRect(QRectF(0.5, 0.5, 39, 39), 6.5, 6.5)
+    QSvgRenderer(QByteArray(ic.svg(n, "#2b2f33").encode())).render(p, QRectF(4, 4, 32, 32))
+    p.end()
+    img.save(os.path.join(OUT, f"icon_{n}.png"))
+
 print(f"{len(SHOTS)} Screenshots in {OUT}")
 w.close()

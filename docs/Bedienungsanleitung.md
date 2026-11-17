@@ -132,6 +132,41 @@ Menüs verwenden dieselben Symbole.
 
 ![Werkzeugleiste](screenshots/02_werkzeugleiste.png)
 
+#### Werkzeugleiste oben
+
+Von links nach rechts:
+
+| Symbol | Funktion | Beschreibung | Taste |
+|:------:|------------------|------------------------------------------------------------|--------------|
+| ![Neu](screenshots/icon_new.png) | **Neu** | Leeres Projekt anlegen | Strg+N |
+| ![Öffnen](screenshots/icon_open.png) | **Öffnen** | Projekt öffnen (TiLaser `.tlp` oder LightBurn `.lbrn2`) | Strg+O |
+| ![Speichern](screenshots/icon_save.png) | **Speichern** | Projekt speichern | Strg+S |
+| ![Importieren](screenshots/icon_import.png) | **Importieren** | SVG, DXF, PDF/AI, EPS, LightBurn oder Bild hinzufügen | Strg+I |
+| ![Text](screenshots/icon_text.png) | **Text** | Text aus einer Schrift einfügen | Strg+T |
+| ![Alles zeigen](screenshots/icon_fit.png) | **Alles zeigen** | Ansicht so zoomen, dass alle Objekte und das Bett sichtbar sind | Strg+0 |
+| ![Vorschau](screenshots/icon_toolpath.png) | **Vorschau** | Werkzeugweg-Vorschau ein/aus: Brennwege in Ebenenfarbe, Leerfahrten gestrichelt (daneben *Leerwege* zum Ausblenden) | Strg+P |
+| ![Simulation](screenshots/icon_play.png) | **Simulation** | Auftrag als Animation abspielen (in der Vorschau). Daneben: Schieberegler für den Zeitpunkt und Abspielgeschwindigkeit 1×–500×. Während des Abspielens wird das Symbol zu Pause |  |
+| ![G-Code exportieren](screenshots/icon_laser.png) | **G-Code exportieren** | Auftrag als `.gcode`-Datei speichern | Strg+E |
+| ![Gruppieren](screenshots/icon_group.png) | **Gruppieren** | Ausgewählte Objekte zu einem Objekt zusammenfassen | Strg+G |
+| ![Gruppierung aufheben](screenshots/icon_ungroup.png) | **Gruppierung aufheben** | Gruppe bzw. importierte Datei in Einzelteile zerlegen | Strg+Shift+G |
+| ![Zentrieren](screenshots/icon_center.png) | **Zentrieren** | Auswahl in die Mitte des Arbeitsbereichs setzen |  |
+| ![An 0/0](screenshots/icon_origin.png) | **An 0/0** | Auswahl mit der linken unteren Ecke an den Nullpunkt setzen |  |
+| ![Duplizieren](screenshots/icon_duplicate.png) | **Duplizieren** | Kopie der Auswahl, um 10 mm versetzt | Strg+D |
+| ![Löschen](screenshots/icon_delete.png) | **Löschen** | Ausgewählte Objekte löschen | Entf |
+
+#### Zeichenwerkzeuge links
+
+| Symbol | Funktion | Beschreibung | Taste |
+|:------:|------------------|------------------------------------------------------------|--------------|
+| ![Auswählen](screenshots/icon_select.png) | **Auswählen** | Objekte anklicken, mit Rahmen auswählen, verschieben; Anfasser zum Skalieren und Drehen | V |
+| ![Rechteck](screenshots/icon_rect.png) | **Rechteck** | Rechteck aufziehen. Shift: Quadrat, Strg: von der Mitte aus. Eckenradius im Feld *r* unten | R |
+| ![Ellipse](screenshots/icon_ellipse.png) | **Ellipse** | Ellipse aufziehen. Shift: Kreis, Strg: von der Mitte aus | E |
+| ![Polygon/Stern](screenshots/icon_polygon.png) | **Polygon/Stern** | Vieleck aufziehen; Eckenzahl im Feld darunter, ★ macht einen Stern | P |
+| ![Linie/Polylinie](screenshots/icon_line.png) | **Linie/Polylinie** | Punkte anklicken; Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form | L |
+| ![Knoten bearbeiten](screenshots/icon_node.png) | **Knoten bearbeiten** | Punkte und Kurvenanfasser ziehen; Doppelklick auf eine Linie fügt einen Punkt ein, Entf löscht ihn | N |
+
+Esc schaltet jederzeit zurück zu *Auswählen*.
+
 ![Objektleiste](screenshots/03_objektleiste.png)
 
 ### Maus und Tastatur auf der Arbeitsfläche
