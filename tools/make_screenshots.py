@@ -263,7 +263,7 @@ pick.close()
 w._checkpoint("Nesting")
 parts = [it for it in w.project.items if it.kind == "vector"]
 nest(w.project, parts, NestSettings(x=0, y=0, width=250, height=180, spacing=3, margin=3, copies=2), thorough=False)
-fl = w.project.add_layer("Nesting-Grundfläche", "#9e9e9e", "cut")
+fl = w.project.add_layer("Nesting-Grundfläche", "#757575", "cut")
 fl.output = False
 fr = Item(id=new_id("I"), name="Grundfläche", kind="vector", x=125, y=90)
 from tilaser.core import shapes                               # noqa: E402

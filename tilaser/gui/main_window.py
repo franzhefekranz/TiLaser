@@ -7,7 +7,7 @@ import os
 import numpy as np
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QActionGroup, QColor, QKeySequence
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QDockWidget, QFileDialog, QFrame, QInputDialog,
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QDockWidget, QFileDialog, QFrame, QInputDialog,
                              QComboBox, QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QSlider, QTabWidget,
                              QDoubleSpinBox, QSpinBox, QToolBar, QToolButton,
                              QVBoxLayout, QWidget)
@@ -20,7 +20,7 @@ from ..core import editing as ed
 from ..core.gcode import DIALECTS, frame_gcode, generate, job_project, origin_offset, resume_lines
 from ..core.materialtest import build_project
 from ..core.trace import trace_image
-from ..core.model import MODE_LABELS, Item, Project, VectorPath, new_id
+from ..core.model import MODE_LABELS, PALETTE, Item, Project, VectorPath, color_name, new_id
 from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
@@ -38,7 +38,7 @@ from ..core import shapes
 from ..core.export import export_dxf, export_svg
 from ..core.nesting import NestSettings, nest
 from .machine_panel import MachinePanel
-from .panels import LayerPanel, ObjectPanel, color_icon
+from .panels import LayerPanel, ObjectPanel, color_icon, pick_layer_color
 
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff", ".webp")
 MAX_IMAGE_PX = 4000
@@ -720,13 +720,15 @@ class MainWindow(QMainWindow):
     def assign_new_layer(self, mode: str):
         if not self._selected_items():
             return
-        c = QColorDialog.getColor(QColor("#e53935"), self, "Farbe der neuen Ebene")
-        if not c.isValid():
+        used = {l.color.lower() for l in self.project.layers}
+        free = next((c for c in PALETTE if c not in used), "#e53935")
+        c = pick_layer_color(self, free, self.project, "Farbe der neuen Ebene")
+        if not c:
             return
-        name, ok = QInputDialog.getText(self, "Neue Ebene", "Name:", text=f"{MODE_LABELS[mode].split()[0]} {c.name()}")
+        name, ok = QInputDialog.getText(self, "Neue Ebene", "Name:", text=f"{MODE_LABELS[mode].split()[0]} {color_name(c)}")
         if not ok:
             return
-        layer = self.project.add_layer(name.strip() or c.name(), c.name(), mode)
+        layer = self.project.add_layer(name.strip() or color_name(c), c, mode)
         self.assign_layer(layer.id)
 
     def _context_menu(self, global_pos):
@@ -1116,7 +1118,7 @@ class MainWindow(QMainWindow):
             return
         prog.close()
         if dlg.frame.isChecked():
-            layer = self.project.add_layer("Nesting-Grundfläche", "#9e9e9e", "cut")
+            layer = self.project.add_layer("Nesting-Grundfläche", "#757575", "cut")
             layer.output = False
             fr = Item(id=new_id("I"), name="Grundfläche", kind="vector", x=st.x + st.width / 2,
                       y=st.y + st.height / 2)
