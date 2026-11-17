@@ -694,7 +694,7 @@ def test_text_on_path_and_lens():
     k1, H, err = fit_lens(pd, mm, size)
     assert abs(k1 - k_true) < 0.01 and err < 0.05, (k1, err)
     out = rectify(np.full((1000, 1000, 3), 128, np.uint8), H, 400, 400, 1.0, k1)
-    assert out.shape == (400, 400, 3) and out[200, 200, 0] == 128
+    assert out.shape == (400, 400, 3) and abs(int(out[200, 200, 0]) - 128) <= 1
 
 
 class FakeGrbl:

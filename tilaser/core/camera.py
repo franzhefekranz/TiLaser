@@ -143,5 +143,5 @@ def _rectify_lens(image, H, bed_w, bed_h, px_per_mm, k1):
     val = (img[y0c, x0c] * (1 - fx2) * (1 - fy2) + img[y0c, x0c + 1] * fx2 * (1 - fy2)
            + img[y0c + 1, x0c] * (1 - fx2) * fy2 + img[y0c + 1, x0c + 1] * fx2 * fy2)
     val[~valid] = 0
-    out = val.reshape(out_h, out_w, -1).astype(np.uint8)
+    out = np.clip(np.rint(val), 0, 255).reshape(out_h, out_w, -1).astype(np.uint8)   # runden statt abschneiden
     return out[:, :, 0] if image.ndim == 2 else out
