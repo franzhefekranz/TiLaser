@@ -289,7 +289,33 @@ def test_frame():
     assert lines.count("G1 X10 Y10 F3000") == 1
 
 
-# ------------------------------------------------------------ Sender mit simuliertem GRBL
+def test_group_ungroup():
+    pr = Project()
+    sq = lambda x0, y0, w: g.Polyline(np.array([[x0, y0], [x0 + w, y0], [x0 + w, y0 + w], [x0, y0 + w]]), True)
+    # Platte 0..50 mit zwei Löchern, darin im Loch ein Inselteil, daneben ein zweites Teil und eine offene Linie
+    from tilaser.core.model import ImportedPath
+    shapes = [sq(0, 0, 50), sq(5, 5, 20), sq(10, 10, 5), sq(30, 30, 10), sq(60, 0, 10),
+              g.Polyline(np.array([[0, 60], [50, 60]]), False)]
+    it = pr.add_vector_import("t", [ImportedPath(p, "#000000", "#000000") for p in shapes])
+    it.x += 100
+    it.rotation = 90
+    before = sorted(np.round(g.bbox([p]), 6).tolist() for p in it.world_paths())
+    parts = pr.ungroup(it)
+    sizes = sorted(len(p.paths) for p in parts)
+    assert sizes == [1, 1, 1, 3], sizes          # Platte+2 Löcher, Insel, Teil, Linie
+    after = sorted(np.round(g.bbox([p]), 6).tolist() for it2 in parts for p in it2.world_paths())
+    assert before == after                       # Geometrie unverändert
+    plate = next(p for p in parts if len(p.paths) == 3)
+    singles = pr.ungroup(plate)                  # zweite Stufe: einzelne Konturen
+    assert len(singles) == 3 and all(len(p.paths) == 1 for p in singles)
+    parts = pr.items[:]
+    grp = pr.group(parts)
+    assert len(pr.items) == 1 and len(grp.paths) == 6
+    new_layer = pr.add_layer("Rot", "#ff0000")
+    pr.assign_layer([grp], new_layer.id)
+    assert grp.layer_ids() == {new_layer.id}
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")

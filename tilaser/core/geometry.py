@@ -255,3 +255,41 @@ def simplify(pts: np.ndarray, tol=0.005) -> np.ndarray:
         keep.append(i)
     keep.append(len(pts) - 1)
     return pts[keep]
+
+
+def _bbox_area(p: Polyline) -> float:
+    return float((p.pts[:, 0].max() - p.pts[:, 0].min()) * (p.pts[:, 1].max() - p.pts[:, 1].min()))
+
+
+def group_parts(polys: list[Polyline]) -> list[list[int]]:
+    """Zerlegt Konturen in Teile: jede Außenkontur bleibt mit ihren Löchern zusammen
+    (z. B. 'O', 'A' oder eine Platte mit Bohrungen). Offene Pfade sind eigene Teile.
+
+    Rückgabe: Liste von Index-Listen, jeweils Außenkontur zuerst.
+    """
+    n = len(polys)
+    if n == 0:
+        return []
+    depth = nesting_depth(polys)
+    parent = list(range(n))
+    for i, p in enumerate(polys):
+        if not p.closed or depth[i] % 2 == 0 or len(p.pts) < 3:
+            continue
+        probe = p.pts[len(p.pts) // 2][None, :]
+        best, best_area = i, float("inf")
+        for j, q in enumerate(polys):
+            if j == i or not q.closed or len(q.pts) < 3 or depth[j] != depth[i] - 1:
+                continue
+            a = _bbox_area(q)
+            if a < best_area and points_in_polygon(probe, q.pts)[0]:
+                best, best_area = j, a
+        parent[i] = best
+    groups: dict[int, list[int]] = {}
+    for i in range(n):
+        groups.setdefault(parent[i], []).append(i)
+    out = []
+    for root in sorted(groups):
+        idx = groups[root]
+        idx.sort(key=lambda k: k != root)
+        out.append(idx)
+    return out

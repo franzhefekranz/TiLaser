@@ -6,23 +6,24 @@ import os
 
 import numpy as np
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QKeySequence
-from PyQt6.QtWidgets import (QApplication, QCheckBox, QDockWidget, QFileDialog, QLabel, QMainWindow,
-                             QMessageBox, QScrollArea, QToolBar)
+from PyQt6.QtGui import QAction, QColor, QKeySequence
+from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QDockWidget, QFileDialog, QFrame, QInputDialog,
+                             QLabel, QMainWindow, QMenu, QMessageBox, QScrollArea, QTabWidget, QToolBar,
+                             QVBoxLayout, QWidget)
 
 from .. import __version__
 from ..core import geometry as g
 from ..core import storage
 from ..core.dxf_import import import_dxf
 from ..core.gcode import DIALECTS, frame_gcode, generate
-from ..core.model import Item, Project, VectorPath, new_id
+from ..core.model import MODE_LABELS, Item, Project, VectorPath, new_id
 from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from .dialogs import GcodeDialog, MachineDialog, TextDialog
 from .machine_panel import MachinePanel
-from .panels import LayerPanel, ObjectPanel
+from .panels import LayerPanel, ObjectPanel, color_icon
 
 IMAGE_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff", ".webp")
 MAX_IMAGE_PX = 4000
@@ -53,23 +54,37 @@ class MainWindow(QMainWindow):
 
         self.layers = LayerPanel()
         self.objects = ObjectPanel()
-        self.machine = MachinePanel(self.profile)
+        self.machine = MachinePanel(self.profile, self)
         self.layers.set_project(self.project)
         self.objects.set_project(self.project)
 
-        d1 = QDockWidget("Ebenen", self)
+        # Rechte Seitenleiste: Tabs + immer sichtbare Auftragsleiste (Start/Pause/Stopp)
+        self.tabs = QTabWidget()
         sa = QScrollArea()
         sa.setWidgetResizable(True)
         sa.setWidget(self.layers)
-        d1.setWidget(sa)
-        d1.setMinimumWidth(340)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, d1)
-        d2 = QDockWidget("Objekt", self)
-        d2.setWidget(self.objects)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, d2)
-        d3 = QDockWidget("Laser", self)
-        d3.setWidget(self.machine)
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, d3)
+        self.tabs.addTab(sa, "Ebenen")
+        self.tabs.addTab(self.machine.w_connection, "Verbindung")
+        self.tabs.addTab(self.machine.w_jog, "Bewegen")
+        self.tabs.addTab(self.machine.w_console, "Konsole")
+        side = QWidget()
+        sv = QVBoxLayout(side)
+        sv.setContentsMargins(0, 0, 0, 0)
+        sv.addWidget(self.tabs, 1)
+        frame = QFrame()
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
+        fl = QVBoxLayout(frame)
+        fl.setContentsMargins(0, 0, 0, 0)
+        fl.addWidget(self.machine.w_jobbar)
+        sv.addWidget(frame)
+        dock = QDockWidget("Werkzeuge", self)
+        dock.setObjectName("sidebar")
+        dock.setWidget(side)
+        dock.setMinimumWidth(340)
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable
+                         | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self.sidebar = dock
 
         self.lbl_pos = QLabel("")
         self.lbl_info = QLabel("")
@@ -83,6 +98,7 @@ class MainWindow(QMainWindow):
         self.canvas.mouseMoved.connect(lambda x, y: self.lbl_pos.setText(f"X {x:7.2f}   Y {y:7.2f} mm"))
         self.canvas.filesDropped.connect(self.import_files)
         self.canvas.deleteRequested.connect(self.delete_selected)
+        self.canvas.contextMenuRequested.connect(self._context_menu)
         self.layers.layersChanged.connect(self._on_layers_changed)
         self.objects.changed.connect(self._on_object_changed)
         self.objects.action.connect(self._on_object_action)
@@ -125,10 +141,26 @@ class MainWindow(QMainWindow):
 
         e = mb.addMenu("&Bearbeiten")
         self.a_dup = self._act("Duplizieren", lambda: self._on_object_action("duplicate"), "Ctrl+D")
-        self.a_del = self._act("Löschen", self.delete_selected)
+        self.a_del = self._act("Löschen", self.delete_selected, None, "Ausgewählte Objekte löschen (Entf)")
         self.a_all = self._act("Alles auswählen", lambda: self.canvas.select_only([i.id for i in self.project.items]),
                                "Ctrl+A")
+        self.a_group = self._act("Gruppieren", self.group_selected, "Ctrl+G",
+                                 "Ausgewählte Vektorobjekte zu einem Objekt zusammenfassen")
+        self.a_ungroup = self._act("Gruppierung aufheben", self.ungroup_selected, "Ctrl+Shift+G",
+                                   "In Einzelteile zerlegen (Außenkontur bleibt mit ihren Löchern zusammen)")
+        self.a_center = self._act("Zentrieren", lambda: self._on_object_action("center"), None,
+                                  "Auswahl in die Mitte des Arbeitsbereichs setzen")
+        self.a_origin = self._act("An 0/0", lambda: self._on_object_action("origin"), None,
+                                  "Auswahl an den Nullpunkt (links unten) schieben")
         for a in (self.a_dup, self.a_del, self.a_all):
+            e.addAction(a)
+        e.addSeparator()
+        for a in (self.a_group, self.a_ungroup):
+            e.addAction(a)
+        self.layer_menu = e.addMenu("Ebene zuweisen")
+        self.layer_menu.aboutToShow.connect(lambda: self._fill_layer_menu(self.layer_menu))
+        e.addSeparator()
+        for a in (self.a_center, self.a_origin):
             e.addAction(a)
 
         v = mb.addMenu("&Ansicht")
@@ -163,6 +195,15 @@ class MainWindow(QMainWindow):
         tb.addWidget(self.chk_travel)
         tb.addSeparator()
         tb.addAction(self.a_export)
+        tb.addSeparator()
+        for a in (self.a_group, self.a_ungroup, self.a_center, self.a_origin, self.a_dup, self.a_del):
+            tb.addAction(a)
+
+        self.addToolBarBreak()
+        ob = QToolBar("Objekt")
+        ob.setMovable(False)
+        ob.addWidget(self.objects)
+        self.addToolBar(ob)
 
     # ------------------------------------------------------------ Projekt
     def _update_title(self):
@@ -377,6 +418,117 @@ class MainWindow(QMainWindow):
             self.canvas.refresh_item(it.id)
         self.objects.refresh()
         self._invalidate()
+
+    # ------------------------------------------------------------ Gruppieren / Ebenen zuweisen
+    def group_selected(self):
+        items = self._selected_items()
+        if sum(1 for it in items if it.kind == "vector") < 2:
+            self.statusBar().showMessage("Zum Gruppieren mindestens zwei Vektorobjekte auswählen.", 4000)
+            return
+        for it in items:
+            if it.kind == "vector":
+                self.canvas.remove_item(it.id)
+        g_item = self.project.group(items)
+        self.canvas.add_item(g_item)
+        self.canvas.select_only([g_item.id] + [it.id for it in items if it.kind == "raster"])
+        self._invalidate()
+
+    def ungroup_selected(self):
+        items = [it for it in self._selected_items() if it.kind == "vector"]
+        if not items:
+            return
+        new_ids = []
+        for it in items:
+            n = len(g.group_parts([vp.poly for vp in it.paths]))
+            if n > 300 and QMessageBox.question(
+                    self, "Gruppierung aufheben", f"„{it.name}“ zerfällt in {n} Teile. Fortfahren?") \
+                    != QMessageBox.StandardButton.Yes:
+                new_ids.append(it.id)
+                continue
+            parts = self.project.ungroup(it)
+            if len(parts) == 1 and parts[0] is it:
+                new_ids.append(it.id)
+                continue
+            self.canvas.remove_item(it.id)
+            for p in parts:
+                self.canvas.add_item(p)
+                new_ids.append(p.id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"{len(new_ids)} Objekte", 3000)
+        self._invalidate()
+
+    def _fill_layer_menu(self, menu: QMenu):
+        menu.clear()
+        items = self._selected_items()
+        if not items:
+            a = menu.addAction("(keine Auswahl)")
+            a.setEnabled(False)
+            return
+        only_raster = all(it.kind == "raster" for it in items)
+        current = set().union(*[it.layer_ids() for it in items])
+        for l in self.project.layers:
+            if only_raster and l.mode != "raster":
+                continue
+            a = menu.addAction(color_icon(l.color), f"{l.name}   ({MODE_LABELS[l.mode]})")
+            a.setCheckable(True)
+            a.setChecked(current == {l.id})
+            a.triggered.connect(lambda _=False, lid=l.id: self.assign_layer(lid))
+        menu.addSeparator()
+        if only_raster:
+            modes = (("raster", "Neue Ebene: Rasterbild…"),)
+        else:
+            modes = (("cut", "Neue Ebene: Schneiden / Linie…"), ("fill", "Neue Ebene: Füllen…"))
+        for mode, text in modes:
+            a = menu.addAction(text)
+            a.triggered.connect(lambda _=False, m=mode: self.assign_new_layer(m))
+
+    def assign_layer(self, layer_id: str):
+        items = self._selected_items()
+        if not items:
+            return
+        layer = self.project.layer(layer_id)
+        skipped = [it for it in items if it.kind == "raster" and layer.mode != "raster"]
+        self.project.assign_layer(items, layer_id)
+        self.canvas.refresh_styles()
+        self.layers.refresh(layer_id)
+        self.objects.refresh()
+        self._invalidate()
+        if skipped:
+            self.statusBar().showMessage(f"{len(skipped)} Bild(er) übersprungen – Bilder nur Raster-Ebenen zuweisen.",
+                                         5000)
+
+    def assign_new_layer(self, mode: str):
+        if not self._selected_items():
+            return
+        c = QColorDialog.getColor(QColor("#e53935"), self, "Farbe der neuen Ebene")
+        if not c.isValid():
+            return
+        name, ok = QInputDialog.getText(self, "Neue Ebene", "Name:", text=f"{MODE_LABELS[mode].split()[0]} {c.name()}")
+        if not ok:
+            return
+        layer = self.project.add_layer(name.strip() or c.name(), c.name(), mode)
+        self.assign_layer(layer.id)
+
+    def _context_menu(self, global_pos):
+        items = self._selected_items()
+        menu = QMenu(self)
+        if items:
+            menu.addAction(self.a_group)
+            menu.addAction(self.a_ungroup)
+            lm = menu.addMenu("Ebene zuweisen")
+            self._fill_layer_menu(lm)
+            menu.addSeparator()
+            menu.addAction(self.a_center)
+            menu.addAction(self.a_origin)
+            menu.addAction(self.a_dup)
+            menu.addSeparator()
+            menu.addAction(self.a_del)
+        else:
+            menu.addAction(self.a_import)
+            menu.addAction(self.a_text)
+            menu.addAction(self.a_all)
+            menu.addAction(self.a_fit)
+        menu.exec(global_pos)
 
     def delete_selected(self):
         ids = self.canvas.selected_ids()

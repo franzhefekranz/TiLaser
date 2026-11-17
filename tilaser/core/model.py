@@ -200,6 +200,62 @@ class Project:
         self.items.append(item)
         return item
 
+    # ---------------------------------------------------------------- Gruppieren
+    def _item_from_world(self, name: str, world: list[tuple[g.Polyline, str]]) -> Item:
+        """Neues Objekt aus Pfaden in Weltkoordinaten (Transformation wird 'eingebacken')."""
+        bb = g.bbox([p for p, _ in world])
+        cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+        it = Item(id=new_id("I"), name=name, kind="vector", x=cx, y=cy)
+        it.paths = [VectorPath(g.Polyline(p.pts - [cx, cy], p.closed), lid) for p, lid in world]
+        return it
+
+    def ungroup(self, item: Item) -> list[Item]:
+        """Zerlegt ein Vektorobjekt in Teile (Außenkontur + zugehörige Löcher).
+
+        Besteht es nur noch aus einem solchen Teil, wird es in einzelne Konturen zerlegt.
+        """
+        if item.kind != "vector" or len(item.paths) < 2:
+            return [item]
+        m = item.matrix()
+        world = [(vp.poly.transformed(m), vp.layer_id) for vp in item.paths]
+        parts = g.group_parts([p for p, _ in world])
+        if len(parts) < 2:                       # nur noch ein Teil -> in einzelne Konturen zerlegen
+            parts = [[i] for i in range(len(world))]
+        new = [self._item_from_world(f"{item.name} #{k + 1}", [world[i] for i in idx])
+               for k, idx in enumerate(parts)]
+        pos = self.items.index(item)
+        self.items[pos:pos + 1] = new
+        return new
+
+    def group(self, items: list[Item], name: str = "Gruppe") -> Item | None:
+        """Fasst Vektorobjekte zu einem Objekt zusammen (Bilder bleiben einzeln)."""
+        vec = [it for it in items if it.kind == "vector" and it.paths]
+        if len(vec) < 2:
+            return None
+        world = []
+        for it in vec:
+            m = it.matrix()
+            world += [(vp.poly.transformed(m), vp.layer_id) for vp in it.paths]
+        g_item = self._item_from_world(name, world)
+        pos = min(self.items.index(it) for it in vec)
+        ids = {it.id for it in vec}
+        self.items = [it for it in self.items if it.id not in ids]
+        self.items.insert(min(pos, len(self.items)), g_item)
+        return g_item
+
+    def assign_layer(self, items: list[Item], layer_id: str):
+        """Weist Objekte einer Ebene zu. Bilder nur Raster-Ebenen, Vektoren beliebigen."""
+        layer = self.layer(layer_id)
+        if layer is None:
+            return
+        for it in items:
+            if it.kind == "raster":
+                if layer.mode == "raster":
+                    it.layer_id = layer_id
+            else:
+                for vp in it.paths:
+                    vp.layer_id = layer_id
+
     def remove_item(self, item_id: str):
         self.items = [it for it in self.items if it.id != item_id]
 

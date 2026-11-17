@@ -131,6 +131,7 @@ class LaserCanvas(QGraphicsView):
     mouseMoved = pyqtSignal(float, float)
     filesDropped = pyqtSignal(list)
     deleteRequested = pyqtSignal()
+    contextMenuRequested = pyqtSignal(object)   # globale Position (QPoint)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -309,14 +310,22 @@ class LaserCanvas(QGraphicsView):
             self.scale(f, f)
 
     def mousePressEvent(self, e):
+        # Mitte: verschieben. Rechts: verschieben beim Ziehen, Kontextmenü beim Klicken.
         if e.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.RightButton):
             self._pan_start = e.position()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            self._pan_origin = e.position()
+            self._pan_button = e.button()
+            self._panned = False
             return
         super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
         if self._pan_start is not None:
+            if not self._panned and (e.position() - self._pan_origin).manhattanLength() < 4:
+                return
+            if not self._panned:
+                self._panned = True
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
             d = e.position() - self._pan_start
             self._pan_start = e.position()
             self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - d.x()))
@@ -327,11 +336,25 @@ class LaserCanvas(QGraphicsView):
         super().mouseMoveEvent(e)
 
     def mouseReleaseEvent(self, e):
-        if self._pan_start is not None and e.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.RightButton):
+        if self._pan_start is not None and e.button() == getattr(self, "_pan_button", None):
             self._pan_start = None
             self.unsetCursor()
+            if e.button() == Qt.MouseButton.RightButton and not self._panned:
+                gi = self._graphic_at(e.position().toPoint())
+                if gi is not None and not gi.isSelected():
+                    self.scene_.clearSelection()
+                    gi.setSelected(True)
+                elif gi is None:
+                    self.scene_.clearSelection()
+                self.contextMenuRequested.emit(e.globalPosition().toPoint())
             return
         super().mouseReleaseEvent(e)
+
+    def _graphic_at(self, pos):
+        for it in self.items(pos):
+            if isinstance(it, ItemGraphic):
+                return it
+        return None
 
     def keyPressEvent(self, e):
         step = 10.0 if e.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1.0

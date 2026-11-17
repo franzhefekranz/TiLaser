@@ -69,11 +69,23 @@ ein GitHub-Release an.
 ## Bedienung
 
 - **Importieren** (Strg+I) oder Dateien ins Fenster ziehen.
-- Mausrad = Zoom, rechte/mittlere Maustaste = Ansicht verschieben, Objekte mit der Maus ziehen.
+- Mausrad = Zoom, mittlere Maustaste oder rechte Maustaste *ziehen* = Ansicht verschieben,
+  rechte Maustaste *klicken* = Kontextmenü.
 - Pfeiltasten verschieben die Auswahl um 1 mm, mit Shift um 10 mm. Entf löscht.
-- Rechts: Ebene auswählen → Parameter einstellen bzw. Preset anwenden. Häkchen = Ebene wird ausgegeben.
+- **Objektleiste** über der Arbeitsfläche: Position, Größe, Skalierung, Drehung, Spiegeln, Ebene.
+- **Gruppieren** (Strg+G) und **Gruppierung aufheben** (Strg+Umschalt+G): Beim Aufheben bleibt jede
+  Außenkontur mit ihren Löchern zusammen (z. B. ein „O“ oder eine Platte mit Bohrungen). Noch einmal
+  aufheben zerlegt so ein Teil in einzelne Konturen. Danach lassen sich Teile einzeln löschen oder
+  über *Kontextmenü → Ebene zuweisen* einer anderen Ebene (Farbe) zuordnen, auch einer neuen.
+- Rechte Seitenleiste mit Tabs:
+  - **Ebenen**: Parameter einstellen bzw. Preset anwenden. Das Häkchen bestimmt, ob die Ebene ausgegeben wird.
+  - **Verbindung**: Port, Baudrate, Referenzfahrt, Entsperren, Nullpunkt.
+  - **Bewegen**: relativ in 8 Richtungen sowie **absolut** auf eingegebene X/Y-Koordinaten
+    (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
+  - **Konsole**: Maschinenmeldungen und eigene Befehle.
+- Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause* und *Stopp*.
 - **Ansicht → Werkzeugweg-Vorschau** (Strg+P) zeigt, was der Laser tatsächlich fährt.
-- Unten: Port wählen → *Verbinden*. Erkennt das Programm eine andere Firmware als im Profil eingestellt,
+- Erkennt das Programm beim Verbinden eine andere Firmware als im Profil eingestellt,
   fragt es, ob es umstellen soll.
 
 ### Reihenfolge
@@ -146,4 +158,4 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 - Keine Schnittspaltkorrektur (Kerf-Offset) und keine Haltestege (Tabs).
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.
-- Keine Rückgängig-Funktion.
+- Keine Rückgängig-Funktion. Gruppieren lässt sich mit „Gruppierung aufheben“ umkehren, Löschen nicht.
