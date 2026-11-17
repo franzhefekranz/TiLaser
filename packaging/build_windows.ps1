@@ -3,7 +3,7 @@
 #   powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
 # Voraussetzungen: Python 3.10+, Inno Setup 6 (iscc.exe im PATH oder Standardpfad)
 param(
-    [switch]$SkipInstall,     # pip-Installation überspringen
+    [switch]$SkipInstall,     # pip-Installation ueberspringen
     [switch]$SkipInstaller    # kein Inno-Setup-Installer
 )
 $ErrorActionPreference = "Stop"
@@ -31,7 +31,7 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller fehlgeschlagen" }
 $Release = Join-Path $Root "dist\release"
 New-Item -ItemType Directory -Force $Release | Out-Null
 
-# 3) Portable ZIP: portable.txt sorgt dafür, dass Einstellungen im Ordner "daten" neben der EXE landen
+# 3) Portable ZIP: portable.txt sorgt dafuer, dass Einstellungen im Ordner "daten" neben der EXE landen
 $Portable = Join-Path $Root "dist\TiLaser-portable"
 Remove-Item -Recurse -Force $Portable -ErrorAction SilentlyContinue
 Copy-Item -Recurse dist\TiLaser $Portable
@@ -56,7 +56,7 @@ if (-not $SkipInstaller) {
             if (Test-Path $p) { $Iscc = $p; break }
         }
     }
-    if (-not $Iscc) { throw "Inno Setup (ISCC.exe) nicht gefunden – https://jrsoftware.org/isdl.php" }
+    if (-not $Iscc) { throw "Inno Setup (ISCC.exe) nicht gefunden - https://jrsoftware.org/isdl.php" }
     & $Iscc "/DMyAppVersion=$Version" packaging\windows\tilaser.iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup fehlgeschlagen" }
     Write-Host "Installer: $Release\TiLaser-$Version-Setup.exe" -ForegroundColor Green

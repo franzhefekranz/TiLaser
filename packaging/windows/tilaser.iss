@@ -1,4 +1,4 @@
-; Inno-Setup-Skript für TiLaser
+﻿; Inno-Setup-Skript für TiLaser
 ; Voraussetzung: PyInstaller-Build in dist\TiLaser (packaging\build_windows.ps1)
 ; Aufruf:  iscc /DMyAppVersion=0.1.0 packaging\windows\tilaser.iss
 

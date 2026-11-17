@@ -28,7 +28,7 @@ jobs:
           }
       - name: Bauen
         shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
+        run: pwsh -NoProfile -File packaging/build_windows.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: TiLaser-windows
