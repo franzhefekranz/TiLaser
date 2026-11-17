@@ -102,7 +102,7 @@ def prepare(md_text: str) -> tuple[str, int]:
 def main(out_pdf: str):
     from tilaser import __version__
     if not shutil.which("pandoc") or not shutil.which("xelatex"):
-        sys.exit("pandoc und xelatex werden benötigt (Linux: sudo apt install pandoc texlive-xetex "
+        sys.exit("pandoc und xelatex werden benötigt (Linux: sudo apt install pandoc texlive-xetex texlive-fonts-recommended "
                  "texlive-latex-extra texlive-lang-german)")
     out_pdf = os.path.abspath(out_pdf)
     with open(SRC, encoding="utf-8") as f:
