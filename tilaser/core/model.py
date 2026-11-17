@@ -10,9 +10,9 @@ from . import geometry as g
 
 MODES = ("cut", "fill", "raster")
 MODE_LABELS = {"cut": "Schneiden / Linie", "fill": "Füllen (Schraffur)", "raster": "Rasterbild"}
-DITHER_MODES = ("floyd", "threshold", "grayscale", "atkinson")
-DITHER_LABELS = {"floyd": "Floyd-Steinberg", "threshold": "Schwellwert",
-                 "grayscale": "Graustufen (Leistung)", "atkinson": "Atkinson"}
+DITHER_MODES = ("floyd", "jarvis", "stucki", "atkinson", "threshold", "grayscale")
+DITHER_LABELS = {"floyd": "Floyd-Steinberg", "jarvis": "Jarvis", "stucki": "Stucki", "atkinson": "Atkinson",
+                 "threshold": "Schwellwert", "grayscale": "Graustufen (Leistung)"}
 
 PALETTE = ["#000000", "#e53935", "#1e88e5", "#43a047", "#fb8c00", "#8e24aa",
            "#00acc1", "#6d4c41", "#d81b60", "#7cb342", "#3949ab", "#fdd835"]
@@ -42,6 +42,15 @@ class Layer:
     inner_first: bool = True
     air: bool = False
     output: bool = True
+    # Schneiden
+    kerf: float = 0.0             # mm Schnittbreite (Ausgleich: außen +k/2, Löcher -k/2)
+    tabs: int = 0                 # Haltestege je Kontur
+    tab_width: float = 0.5        # mm
+    tabs_outer_only: bool = True
+    # Bild
+    brightness: float = 0.0       # -100..100
+    contrast: float = 0.0         # -100..100
+    gamma: float = 1.0
 
     def to_dict(self):
         return dict(self.__dict__)

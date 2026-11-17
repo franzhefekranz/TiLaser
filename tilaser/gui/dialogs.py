@@ -5,7 +5,7 @@ import os
 
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
                              QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton,
-                             QSpinBox, QVBoxLayout)
+                             QSpinBox, QVBoxLayout, QWidget)
 
 from ..core.gcode import DIALECT_DEFAULTS, DIALECTS, MachineProfile
 from ..core.model import Project
@@ -84,6 +84,17 @@ class MachineDialog(QDialog):
         f.addRow("Rahmen: Geschwindigkeit", self.frame_speed)
         f.addRow("Air Assist an", self.air_on)
         f.addRow("Air Assist aus", self.air_off)
+        self.rotary = QCheckBox("Rotationsachse (Rolle) statt Y-Achse")
+        self.rotary.setChecked(prof.rotary)
+        self.rot_mm = dspin(0.1, 10000, 3, 1, " mm")
+        self.rot_mm.setValue(prof.rotary_mm_per_rev)
+        self.rot_mm.setToolTip("Y-Weg, den die Steuerung für genau eine Umdrehung der Antriebsrolle fährt.\n"
+                               "Ermitteln: Markierung auf die Rolle, z. B. 'G91 G0 Y40' senden und Umdrehung prüfen.")
+        self.rot_d = dspin(1, 500, 2, 0.5, " mm")
+        self.rot_d.setValue(prof.rotary_roller_d)
+        f.addRow("", self.rotary)
+        f.addRow("Y-Weg je Rollenumdrehung", self.rot_mm)
+        f.addRow("Rollendurchmesser", self.rot_d)
         f.addRow("G-Code Anfang", self.header)
         f.addRow("G-Code Ende", self.footer)
         lay.addLayout(f)
@@ -143,6 +154,9 @@ class MachineDialog(QDialog):
         p.frame_speed = self.frame_speed.value()
         p.air_on, p.air_off = self.air_on.text().strip(), self.air_off.text().strip()
         p.header, p.footer = self.header.toPlainText(), self.footer.toPlainText()
+        p.rotary = self.rotary.isChecked()
+        p.rotary_mm_per_rev = self.rot_mm.value()
+        p.rotary_roller_d = self.rot_d.value()
         if getattr(self, "baud_from_template", None):
             p.baud = int(self.baud_from_template)
 
@@ -238,3 +252,199 @@ class GcodeDialog(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
+
+
+def _ok_cancel(dlg, lay):
+    bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+    bb.accepted.connect(dlg.accept)
+    bb.rejected.connect(dlg.reject)
+    lay.addWidget(bb)
+    return bb
+
+
+class ArrayDialog(QDialog):
+    """Raster- oder Kreis-Array der Auswahl."""
+
+    def __init__(self, sel_bbox, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Array erstellen")
+        lay = QVBoxLayout(self)
+        self.kind = QComboBox()
+        self.kind.addItem("Raster (Zeilen × Spalten)", "grid")
+        self.kind.addItem("Kreis", "circle")
+        lay.addWidget(self.kind)
+        self.grid_box = QWidget()
+        f = QFormLayout(self.grid_box)
+        self.cols = QSpinBox()
+        self.cols.setRange(1, 500)
+        self.cols.setValue(3)
+        self.rows = QSpinBox()
+        self.rows.setRange(1, 500)
+        self.rows.setValue(2)
+        self.dx = dspin(-1000, 1000, 2, 0.5, " mm")
+        self.dx.setValue(2)
+        self.dy = dspin(-1000, 1000, 2, 0.5, " mm")
+        self.dy.setValue(2)
+        self.gap = QComboBox()
+        self.gap.addItem("Abstand zwischen den Objekten", True)
+        self.gap.addItem("Rastermaß (Mitte zu Mitte)", False)
+        f.addRow("Spalten", self.cols)
+        f.addRow("Zeilen", self.rows)
+        f.addRow("Abstand X", self.dx)
+        f.addRow("Abstand Y", self.dy)
+        f.addRow("Bedeutung", self.gap)
+        lay.addWidget(self.grid_box)
+        self.circ_box = QWidget()
+        c = QFormLayout(self.circ_box)
+        self.count = QSpinBox()
+        self.count.setRange(2, 500)
+        self.count.setValue(6)
+        cx, cy = (sel_bbox[0] + sel_bbox[2]) / 2, (sel_bbox[1] + sel_bbox[3]) / 2
+        self.cx = dspin(-5000, 5000, 2, 1, " mm")
+        self.cx.setValue(cx)
+        self.cy = dspin(-5000, 5000, 2, 1, " mm")
+        self.cy.setValue(cy - max(20.0, (sel_bbox[3] - sel_bbox[1]) * 1.5))
+        self.angle = dspin(-360, 360, 1, 15, " °")
+        self.angle.setValue(360)
+        self.rotate = QCheckBox("Kopien mitdrehen")
+        self.rotate.setChecked(True)
+        c.addRow("Anzahl (inkl. Original)", self.count)
+        c.addRow("Mittelpunkt X", self.cx)
+        c.addRow("Mittelpunkt Y", self.cy)
+        c.addRow("Gesamtwinkel", self.angle)
+        c.addRow("", self.rotate)
+        lay.addWidget(self.circ_box)
+        _ok_cancel(self, lay)
+        self.kind.currentIndexChanged.connect(self._vis)
+        self._vis()
+
+    def _vis(self):
+        grid = self.kind.currentData() == "grid"
+        self.grid_box.setVisible(grid)
+        self.circ_box.setVisible(not grid)
+
+
+class TraceDialog(QDialog):
+    """Bild nachzeichnen: Einstellungen für Schwellwert und Glättung."""
+
+    def __init__(self, project, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Bild nachzeichnen")
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.threshold = QSpinBox()
+        self.threshold.setRange(1, 254)
+        self.threshold.setValue(128)
+        self.threshold.setToolTip("Pixel dunkler als dieser Wert werden zur Fläche")
+        self.invert = QCheckBox("Invertieren (helle Bereiche nachzeichnen)")
+        self.smooth = dspin(0, 10, 1, 0.1, " px")
+        self.smooth.setValue(0.8)
+        self.smooth.setToolTip("Vereinfachung: größer = weniger Punkte, glattere Kanten")
+        self.min_area = dspin(0, 10000, 0, 5, " px²")
+        self.min_area.setValue(10)
+        self.min_area.setToolTip("Kleinere Flecken werden ignoriert")
+        self.bright = dspin(-100, 100, 0, 5, "")
+        self.contrast = dspin(-100, 100, 0, 5, "")
+        self.layer = QComboBox()
+        for l in project.layers:
+            if l.mode != "raster":
+                self.layer.addItem(color_icon(l.color), l.name, l.id)
+        self.layer.addItem("Neue Ebene: Schneiden / Kontur", "__cut__")
+        self.layer.addItem("Neue Ebene: Füllen (gravieren)", "__fill__")
+        self.layer.setCurrentIndex(self.layer.count() - 2)
+        self.keep = QCheckBox("Bild behalten")
+        self.keep.setChecked(False)
+        f.addRow("Schwellwert", self.threshold)
+        f.addRow("", self.invert)
+        f.addRow("Glättung", self.smooth)
+        f.addRow("Mindestgröße", self.min_area)
+        f.addRow("Helligkeit", self.bright)
+        f.addRow("Kontrast", self.contrast)
+        f.addRow("Ebene", self.layer)
+        f.addRow("", self.keep)
+        lay.addLayout(f)
+        _ok_cancel(self, lay)
+
+
+class MaterialTestDialog(QDialog):
+    """Materialtest: Leistung × Geschwindigkeit."""
+
+    def __init__(self, profile, parent=None):
+        super().__init__(parent)
+        from ..core.materialtest import MaterialTest
+        self.setWindowTitle("Materialtest")
+        t = MaterialTest()
+        lay = QVBoxLayout(self)
+        lay.addWidget(QLabel("Jedes Feld wird mit eigener Leistung (Spalten) und Geschwindigkeit (Zeilen) gelasert.\n"
+                             "Position = linke untere Ecke des Testrasters (inkl. Beschriftung)."))
+        f = QFormLayout()
+        self.mode = QComboBox()
+        self.mode.addItem("Gravieren (Fläche füllen)", "fill")
+        self.mode.addItem("Schneiden (Kontur)", "cut")
+        self.p_min = dspin(0, 100, 1, 5, " %")
+        self.p_min.setValue(t.power_min)
+        self.p_max = dspin(0, 100, 1, 5, " %")
+        self.p_max.setValue(t.power_max)
+        self.cols = QSpinBox()
+        self.cols.setRange(1, 20)
+        self.cols.setValue(t.cols)
+        self.s_min = dspin(1, 100000, 0, 100, " mm/min")
+        self.s_min.setValue(t.speed_min)
+        self.s_max = dspin(1, 100000, 0, 100, " mm/min")
+        self.s_max.setValue(t.speed_max)
+        self.rows = QSpinBox()
+        self.rows.setRange(1, 20)
+        self.rows.setValue(t.rows)
+        self.cell = dspin(1, 100, 1, 1, " mm")
+        self.cell.setValue(t.cell)
+        self.gap = dspin(0, 50, 1, 0.5, " mm")
+        self.gap.setValue(t.gap)
+        self.interval = dspin(0.01, 2, 3, 0.01, " mm")
+        self.interval.setValue(t.interval)
+        self.passes = QSpinBox()
+        self.passes.setRange(1, 50)
+        self.x = dspin(-1000, 5000, 1, 5, " mm")
+        self.x.setValue(t.x)
+        self.y = dspin(-1000, 5000, 1, 5, " mm")
+        self.y.setValue(t.y)
+        self.labels = QCheckBox("Beschriften")
+        self.labels.setChecked(True)
+        self.l_power = dspin(0, 100, 1, 5, " %")
+        self.l_power.setValue(t.label_power)
+        self.l_speed = dspin(1, 100000, 0, 100, " mm/min")
+        self.l_speed.setValue(t.label_speed)
+        for label, w in (("Modus", self.mode), ("Leistung von", self.p_min), ("Leistung bis", self.p_max),
+                         ("Spalten", self.cols), ("Geschwindigkeit von", self.s_min),
+                         ("Geschwindigkeit bis", self.s_max), ("Zeilen", self.rows), ("Feldgröße", self.cell),
+                         ("Feldabstand", self.gap), ("Zeilenabstand (Gravur)", self.interval),
+                         ("Durchgänge", self.passes), ("Position X", self.x), ("Position Y", self.y),
+                         ("", self.labels), ("Beschriftung Leistung", self.l_power),
+                         ("Beschriftung Geschw.", self.l_speed)):
+            f.addRow(label, w)
+        lay.addLayout(f)
+        self.info = QLabel("")
+        lay.addWidget(self.info)
+        bb = QDialogButtonBox()
+        self.btn_preview = bb.addButton("Vorschau", QDialogButtonBox.ButtonRole.ActionRole)
+        self.btn_export = bb.addButton("Exportieren…", QDialogButtonBox.ButtonRole.ActionRole)
+        self.btn_send = bb.addButton("An Laser senden", QDialogButtonBox.ButtonRole.AcceptRole)
+        bb.addButton(QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        self.action = None
+        self.btn_preview.clicked.connect(lambda: self._done("preview"))
+        self.btn_export.clicked.connect(lambda: self._done("export"))
+        self.btn_send.clicked.connect(lambda: self._done("send"))
+
+    def _done(self, action):
+        self.action = action
+        self.accept()
+
+    def test(self):
+        from ..core.materialtest import MaterialTest
+        return MaterialTest(mode=self.mode.currentData(), power_min=self.p_min.value(), power_max=self.p_max.value(),
+                            cols=self.cols.value(), speed_min=self.s_min.value(), speed_max=self.s_max.value(),
+                            rows=self.rows.value(), cell=self.cell.value(), gap=self.gap.value(),
+                            interval=self.interval.value(), passes=self.passes.value(), x=self.x.value(),
+                            y=self.y.value(), labels=self.labels.isChecked(), label_power=self.l_power.value(),
+                            label_speed=self.l_speed.value())

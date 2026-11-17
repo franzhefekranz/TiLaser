@@ -20,6 +20,50 @@ except ImportError:          # pyserial optional – ohne kann nur exportiert we
 GRBL_RX_BUFFER = 127
 
 
+class TcpTransport:
+    """TCP/Telnet-Verbindung mit derselben Schnittstelle wie serial.Serial (read/write/close)."""
+
+    def __init__(self, host: str, port: int, timeout: float = 5.0):
+        import socket
+        self.sock = socket.create_connection((host, port), timeout=timeout)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.settimeout(0.02)
+
+    def read(self, n: int) -> bytes:
+        import socket
+        try:
+            data = self.sock.recv(n)
+        except (socket.timeout, BlockingIOError):
+            return b""
+        if data == b"":
+            raise ConnectionError("Verbindung vom Gerät geschlossen")
+        # Telnet-Steuersequenzen (IAC) herausfiltern
+        if b"\xff" in data:
+            out, i = bytearray(), 0
+            while i < len(data):
+                if data[i] == 0xFF and i + 2 < len(data):
+                    i += 3
+                    continue
+                out.append(data[i])
+                i += 1
+            data = bytes(out)
+        return data
+
+    def write(self, data: bytes):
+        self.sock.sendall(data)
+        return len(data)
+
+    def reset_input_buffer(self):
+        while self.read(4096):
+            pass
+
+    def close(self):
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+
 def list_ports() -> list[tuple[str, str]]:
     if serial is None:
         return []
@@ -81,6 +125,8 @@ class LaserConnection:
         self._wco: list = []
         self._lock = threading.Lock()
         self.errors = 0
+        self.last_job: list[str] = []          # für 'Fortsetzen'
+        self.last_acked = 0
 
     # ------------------------------------------------------------ Verbindung
     @property
@@ -91,6 +137,14 @@ class LaserConnection:
         if serial is None:
             raise RuntimeError("pyserial ist nicht installiert (pip install pyserial).")
         self.ser = serial.Serial(port, baud, timeout=0.02, write_timeout=2)
+        self._start(protocol_hint)
+
+    def connect_tcp(self, host: str, port: int = 23, protocol_hint: str | None = None):
+        """Netzwerkverbindung (z. B. ESP32 mit FluidNC/grblHAL: Telnet-Port 23)."""
+        self.ser = TcpTransport(host, port)
+        self._start(protocol_hint)
+
+    def _start(self, protocol_hint):
         self.running = True
         self.protocol = protocol_hint or "grbl"
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -151,6 +205,8 @@ class LaserConnection:
 
     def stop(self):
         with self._lock:
+            if self._job:
+                self.last_job, self.last_acked = list(self._job), self._job_acked
             self._job_active = False
             self._paused = False
             self._job = []
@@ -241,6 +297,8 @@ class LaserConnection:
                 # Senden
                 self._fill_buffer()
             except Exception as e:     # Kabel gezogen o. Ä.
+                if self._job_active:
+                    self.last_job, self.last_acked = list(self._job), self._job_acked
                 self.on_log(f"!! Verbindungsfehler: {e}")
                 self.running = False
                 self._job_active = False
@@ -280,6 +338,7 @@ class LaserConnection:
             st = parse_grbl_status(line, self._wco)
             self.on_status(st)
             if st["state"].startswith("Alarm") and self._job_active:
+                self.last_job, self.last_acked = list(self._job), self._job_acked
                 self.on_log("!! Alarm – Auftrag abgebrochen")
                 self._job_active = False
                 self.on_state("alarm")
@@ -304,6 +363,7 @@ class LaserConnection:
         if line.startswith("ALARM"):
             self._pending.clear()
             if self._job_active:
+                self.last_job, self.last_acked = list(self._job), self._job_acked
                 self._job_active = False
                 self.on_state("alarm")
         if line.lower().startswith("grbl") and self._pending:
