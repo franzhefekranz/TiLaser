@@ -2,8 +2,9 @@
 
 Verfahren (Raster-Nesting):
 - Jedes Teil wird in ein Belegungsraster umgewandelt (Zellgröße ≈ 0,3–2 mm, konservativ:
-  jede berührte Zelle zählt). Löcher bleiben frei, kleine Teile können also in Löcher
-  größerer Teile gesetzt werden.
+  jede berührte Zelle zählt). Alles, was die Konturen umschließen, ist Material. Frei bleiben
+  nur echte Aussparungen (geschlossene, durchgeschnittene Innenkonturen); kleine Teile können
+  dort hineingesetzt werden.
 - Der Mindestabstand wird durch Aufweiten der Teilmaske um den Abstand berücksichtigt.
 - Für jede erlaubte Drehung werden mit einer FFT-Korrelation alle kollisionsfreien
   Positionen auf einmal bestimmt; gewählt wird die Lage mit der niedrigsten Oberkante,
@@ -46,51 +47,108 @@ class NestResult:
 
 
 # --------------------------------------------------------------------------- Rasterisierung
-def _world_polys(it: Item, extra_rot: float) -> list[g.Polyline]:
+def _world_polys(it: Item, extra_rot: float, project: Project | None = None) -> list[tuple[g.Polyline, bool]]:
+    """Weltkonturen des Teils bei zusätzlicher Drehung. Zweiter Wert: Kontur wird durchgeschnitten
+    (nur solche Konturen können Löcher bilden; Gravuren und ausgeblendete Ebenen nicht)."""
     r0 = it.rotation
     it.rotation = r0 + extra_rot
     try:
         if it.kind == "raster":
             c = g.apply_matrix(it.matrix(), it.local_corners())
-            return [g.Polyline(c, True)]
-        return it.world_paths()
+            return [(g.Polyline(c, True), False)]
+        m = it.matrix()
+        out = []
+        for vp in it.paths:
+            cut = True
+            if project is not None:
+                layer = project.layer(vp.layer_id)
+                cut = layer is not None and layer.mode == "cut" and getattr(layer, "output", True)
+            out.append((vp.poly.transformed(m), cut))
+        return out
     finally:
         it.rotation = r0
 
 
-def rasterize(polys: list[g.Polyline], cell: float, fill_holes: bool = False):
-    """Konservative Belegungsmaske. Rückgabe: (Maske[Zeile=y, Spalte=x], x0, y0)."""
-    pts = np.vstack([p.pts for p in polys if len(p.pts)])
+def _scan_fill(poly: g.Polyline, x0, y0, cell, rows, cols):
+    """Innenfläche einer geschlossenen Kontur: (berührt = irgendeine Abtastlinie innen,
+    voll = alle drei Abtastlinien vollständig innen)."""
+    A = poly.pts
+    B = np.roll(A, -1, axis=0)
+    keep = np.abs(A[:, 1] - B[:, 1]) > 1e-12
+    A, B = A[keep], B[keep]
+    touch = np.zeros((rows, cols), bool)
+    full = np.ones((rows, cols), bool)
+    if not len(A):
+        return touch, np.zeros((rows, cols), bool)
+    lo, hi = np.minimum(A[:, 1], B[:, 1]), np.maximum(A[:, 1], B[:, 1])
+    slope = (B[:, 0] - A[:, 0]) / (B[:, 1] - A[:, 1])
+    for f in (0.02, 0.5, 0.98):
+        line = np.zeros((rows, cols), bool)
+        inner = np.zeros((rows, cols), bool)
+        for j in range(rows):
+            yy = y0 + (j + f) * cell
+            sel = (lo <= yy) & (hi > yy)
+            if not sel.any():
+                continue
+            xs = np.sort(A[sel, 0] + (yy - A[sel, 1]) * slope[sel])
+            for a, b in xs[: len(xs) // 2 * 2].reshape(-1, 2):
+                ca = int(math.floor((a - x0) / cell))
+                cb = int(math.floor((b - x0) / cell))
+                line[j, max(0, ca):min(cols, cb + 1)] = True
+                ia, ib = int(math.ceil((a - x0) / cell)), int(math.floor((b - x0) / cell))
+                if ib > ia:
+                    inner[j, max(0, ia):min(cols, ib)] = True
+        touch |= line
+        full &= inner
+    return touch, full
+
+
+def _outside(barrier: np.ndarray) -> np.ndarray:
+    """Alle freien Zellen, die vom Rand aus erreichbar sind (Flutfüllung, 4er-Nachbarschaft).
+
+    Abwechselnd zeilen- und spaltenweise: Ein erreichtes Feld macht seinen ganzen freien
+    Abschnitt in der Zeile bzw. Spalte erreichbar – das konvergiert nach wenigen Durchläufen."""
+    free = ~np.pad(barrier, 1)
+    reach = np.zeros_like(free)
+    reach[0, :] = reach[-1, :] = True
+    reach[:, 0] = reach[:, -1] = True
+    reach &= free
+
+    def spread(r, f):
+        n = f.shape[1] + 1
+        ids = np.cumsum(~f, axis=1) + np.arange(f.shape[0])[:, None] * n
+        hit = np.zeros(int(ids.max()) + 1, bool)
+        hit[ids[r]] = True
+        return hit[ids] & f
+
+    while True:
+        nxt = spread(reach, free)
+        nxt = spread(nxt.T, free.T).T
+        if np.array_equal(nxt, reach):
+            break
+        reach = nxt
+    return reach[1:-1, 1:-1]
+
+
+def rasterize(polys, cell: float, fill_holes: bool = False, join_tol: float | None = None):
+    """Konservative Belegungsmaske. Rückgabe: (Maske[Zeile=y, Spalte=x], x0, y0).
+
+    ``polys``: Polylinien oder (Polylinie, schneidet)-Paare. Alles, was von den Konturen umschlossen
+    wird, gilt als Material – auch bei offenen Pfaden (z. B. DXF-Linien), doppelten Konturen oder
+    Gravuren im Teil. Frei bleiben nur echte Löcher: geschlossene, durchgeschnittene Innenkonturen
+    (ungerade Verschachtelungstiefe), sofern ``fill_holes`` False ist.
+    """
+    pairs = [(p, True) if isinstance(p, g.Polyline) else (p[0], bool(p[1])) for p in polys]
+    pairs = [(p, c) for p, c in pairs if len(p.pts)]
+    pts = np.vstack([p.pts for p, _ in pairs])
     x0, y0 = pts.min(axis=0)
     x1, y1 = pts.max(axis=0)
     cols = max(1, int(math.floor((x1 - x0) / cell)) + 1)
     rows = max(1, int(math.floor((y1 - y0) / cell)) + 1)
-    mask = np.zeros((rows, cols), bool)
-    # Flächen (Even-Odd) zeilenweise mit drei Abtastlinien je Zelle
-    closed = [p for p in polys if p.closed and len(p.pts) >= 3]
-    if fill_holes and closed:                    # nur Außenkonturen füllen
-        depth = g.nesting_depth(closed)
-        closed = [p for p, d in zip(closed, depth) if d % 2 == 0]
-    if closed:
-        A = np.vstack([p.pts for p in closed])
-        B = np.vstack([np.roll(p.pts, -1, axis=0) for p in closed])
-        keep = np.abs(A[:, 1] - B[:, 1]) > 1e-12
-        A, B = A[keep], B[keep]
-        lo, hi = np.minimum(A[:, 1], B[:, 1]), np.maximum(A[:, 1], B[:, 1])
-        slope = (B[:, 0] - A[:, 0]) / (B[:, 1] - A[:, 1])
-        for j in range(rows):
-            for f in (0.02, 0.5, 0.98):
-                yy = y0 + (j + f) * cell
-                sel = (lo <= yy) & (hi > yy)
-                if not sel.any():
-                    continue
-                xs = np.sort(A[sel, 0] + (yy - A[sel, 1]) * slope[sel])
-                for a, b in xs[: len(xs) // 2 * 2].reshape(-1, 2):
-                    ca = int(math.floor((a - x0) / cell))
-                    cb = int(math.floor((b - x0) / cell))
-                    mask[j, max(0, ca):min(cols, cb + 1)] = True
+
     # Konturen (auch offene Linien) entlang abtasten
-    for p in polys:
+    outline = np.zeros((rows, cols), bool)
+    for p, _ in pairs:
         lp = p.loop_pts()
         for a, b in zip(lp[:-1], lp[1:]):
             n = max(2, int(math.ceil(np.hypot(*(b - a)) / (cell / 3))) + 1)
@@ -98,7 +156,36 @@ def rasterize(polys: list[g.Polyline], cell: float, fill_holes: bool = False):
             q = a + (b - a) * t
             ci = np.clip(((q[:, 0] - x0) / cell).astype(int), 0, cols - 1)
             ri = np.clip(((q[:, 1] - y0) / cell).astype(int), 0, rows - 1)
-            mask[ri, ci] = True
+            outline[ri, ci] = True
+
+    # Alles Umschlossene ist Material
+    mask = ~_outside(outline)
+
+    if not fill_holes:
+        # Durchgeschnittene Konturen: offene Stücke mit fast gleichen Enden zu Schleifen verbinden
+        tol = join_tol if join_tol is not None else max(0.05, cell / 2)
+        cut = [p for p, c in pairs if c]
+        cut = g.join_paths(cut, tol=tol, close=True)
+        closed, seen = [], set()
+        for p in cut:                            # doppelte Konturen nur einmal
+            if not p.closed or len(p.pts) < 3:
+                continue
+            k = (len(p.pts), *np.round(p.pts.min(axis=0), 2), *np.round(p.pts.max(axis=0), 2),
+                 *np.round(p.pts.mean(axis=0), 2))
+            if k not in seen:
+                seen.add(k)
+                closed.append(p)
+        if closed:
+            depth = g.nesting_depth(closed)
+            for i in sorted(range(len(closed)), key=lambda k: depth[k]):   # von außen nach innen
+                if depth[i] == 0:
+                    continue
+                touch, full = _scan_fill(closed[i], x0, y0, cell, rows, cols)
+                if depth[i] % 2 == 1:
+                    mask &= ~full                # Aussparung
+                else:
+                    mask |= touch                # Insel in einer Aussparung
+    mask |= outline
     return mask, float(x0), float(y0)
 
 
@@ -200,7 +287,7 @@ def nest(project: Project, items: list[Item], s: NestSettings, progress=None, th
     for it in items:
         shapes[id(it)] = {}
         for rot in s.rotations:
-            mask, x0, y0 = rasterize(_world_polys(it, rot), cell, fill_holes=not s.use_holes)
+            mask, x0, y0 = rasterize(_world_polys(it, rot, project), cell, fill_holes=not s.use_holes)
             shapes[id(it)][rot] = (mask, dilate(mask, r), x0, y0)
 
     def order(kind):
