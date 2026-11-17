@@ -62,6 +62,11 @@ class MachineProfile:
     camera_opacity: float = 0.75
     camera_k1: float = 0.0            # radiale Verzeichnung (0 = keine Korrektur)
     camera_count: int = 4             # Anzahl Passmarken (4 oder 9)
+    camera_live_auto: bool = False    # Live-Kamera bei Auftragsstart einschalten
+    camera_live_record: bool = False  # jeden Auftrag als Video aufnehmen
+    camera_live_bg: bool = False      # entzerrtes Live-Bild als Hintergrund
+    camera_live_rot: int = 0          # Drehung der Live-Anzeige (0/90/180/270)
+    camera_media_dir: str = ""        # Ordner für Fotos/Videos ('' = Bilder/TiLaser)
 
     @property
     def y_scale(self) -> float:

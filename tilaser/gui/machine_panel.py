@@ -32,6 +32,8 @@ class MachinePanel(QWidget):
     frameRequested = pyqtSignal()
     firmwareDetected = pyqtSignal(str)
     profileChanged = pyqtSignal()
+    jobStarted = pyqtSignal()
+    jobEnded = pyqtSignal(str)
 
     def __init__(self, profile: MachineProfile, parent=None):
         super().__init__(parent)
@@ -374,6 +376,7 @@ class MachinePanel(QWidget):
     def run_job(self, lines: list[str]):
         self.conn.start_job(lines)
         self.job_start = time.time()
+        self.jobStarted.emit()
 
     def _pause(self):
         if not self.conn.job_active:
@@ -443,6 +446,8 @@ class MachinePanel(QWidget):
                 self.conn.ser = None
         if s in ("done", "stopped", "alarm"):
             self.btn_pause.setText("⏸ Pause")
+        if s in ("done", "stopped", "alarm", "error", "disconnected"):
+            self.jobEnded.emit(s)
         self._update_buttons()
 
     def _firmware(self, fw, text):

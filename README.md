@@ -86,6 +86,8 @@ ein GitHub-Release an.
   - **Bewegen**: relativ in 8 Richtungen sowie **absolut** auf eingegebene X/Y-Koordinaten
     (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
   - **Konsole**: Maschinenmeldungen und eigene Befehle.
+  - **Kamera**: Live-Bild der Webcam zum Beobachten, Foto/Video, großes Fenster, automatischer Start und
+    Videoaufnahme bei jedem Auftrag.
 - Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause*, *Stopp*, außerdem
   **Ursprung** (*Absolut* oder *Aktuelle Position* mit 9-Punkt-Anker), **Nur Auswahl** und **Fortsetzen…**
   (abgebrochenen Auftrag ab einer Zeile weiterlaufen lassen).

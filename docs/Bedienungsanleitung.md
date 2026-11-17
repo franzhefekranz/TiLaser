@@ -123,7 +123,7 @@ python main.py
 | **Objektleiste** (darunter) | Eigenschaften des ausgewählten Objekts |
 | **Zeichenwerkzeuge** (links) | Auswählen, Rechteck, Ellipse, Polygon/Stern, Linie, Knoten |
 | **Arbeitsfläche** (Mitte) | Bett mit 10-mm-Raster, Nullpunkt links unten (rote Ecke) |
-| **Seitenleiste** (rechts) | Tabs *Ebenen*, *Verbindung*, *Bewegen*, *Konsole* |
+| **Seitenleiste** (rechts) | Tabs *Ebenen*, *Verbindung*, *Bewegen*, *Konsole*, *Kamera* |
 | **Auftragsleiste** (rechts unten) | Status, Position, Rahmen, Start, Pause, Stopp, Ursprung, Nur Auswahl, Fortsetzen |
 | **Statusleiste** (unten) | Mausposition in mm, Auftragsgröße, geschätzte Dauer, Zeilenzahl |
 
@@ -562,8 +562,41 @@ daneben wählbar.
 
 ## 14. Kamera
 
-Eine fest über dem Bett montierte Kamera zeigt das Werkstück direkt unter den Objekten – so lassen sich
-Gravuren genau auf vorhandene Teile setzen.
+Eine Webcam über dem Bett hat in TiLaser zwei Aufgaben: Sie zeigt **live**, was der Laser gerade macht
+(Abschnitt *Live-Kamera*), und sie legt – einmal ausgerichtet – ein entzerrtes Bild des Werkstücks unter die
+Arbeitsfläche, damit Gravuren genau auf vorhandene Teile gesetzt werden können (Abschnitt *Ausrichten*).
+Beides nutzt dieselbe Kamera.
+
+### Live-Kamera
+
+Der Tab **Kamera** in der Seitenleiste (oder *Maschine → Kamera → Live-Kamera*, Strg+Shift+K) zeigt das
+Live-Bild.
+
+![Tab Kamera mit Live-Bild während einer Videoaufnahme](screenshots/30_kamera_live.png)
+
+| Element | Funktion |
+|---|---|
+| Kameraliste, ⟳ | Webcam wählen; ⟳ sucht neu angeschlossene Kameras |
+| ▶ Einschalten / ■ Ausschalten | Live-Bild starten oder beenden |
+| Foto speichern | Aktuelles Bild als JPG speichern |
+| ● Video aufnehmen | Video (MP4) starten; oben links im Bild läuft „● REC“ mit der Aufnahmedauer |
+| Großes Fenster | Live-Bild in einem eigenen Fenster, z. B. auf einem zweiten Bildschirm. Auch per Doppelklick aufs Bild. Im Fenster schaltet F11 oder ein Doppelklick auf Vollbild, Esc beendet das Vollbild |
+| Drehen 90° | Dreht nur die Anzeige (für hochkant oder kopfüber montierte Kameras) |
+| Bei Auftragsstart automatisch einschalten | Die Kamera geht beim Start eines Auftrags an, und der Tab *Kamera* wird angezeigt |
+| Jeden Auftrag als Video aufnehmen | Beim Auftragsstart beginnt eine Aufnahme `Auftrag_<Datum>_<Uhrzeit>.mp4`; sie endet 3 s nach dem Auftragsende (auch bei Stopp oder Alarm) |
+| Live-Bild als Hintergrund | Legt alle 2 s das entzerrte Live-Bild unter die Arbeitsfläche, so sieht man den Fortschritt direkt an den Objekten. Nur nach dem Ausrichten möglich |
+| Speicherort, Ordner… | Ordner für Fotos und Videos (Standard: `Bilder/TiLaser`) |
+
+Alle Einstellungen werden im Maschinenprofil gespeichert.
+
+> **Tipp:** Die Live-Kamera ersetzt nicht die Aufsicht am Gerät. Der Laser darf nie unbeaufsichtigt laufen –
+> das Bild hilft beim Beobachten aus einem Meter Entfernung oder durch die Schutzhaube, nicht aus dem
+> Nebenzimmer.
+
+Läuft das Live-Bild, verwenden *Kamera ausrichten* und *Kamerabild aktualisieren* direkt das aktuelle Bild,
+statt die Kamera ein zweites Mal zu öffnen.
+
+### Ausrichten
 
 1. *Maschine → Kamera → Kamera wählen*: USB-Kamera oder **„Bild aus Datei“** (z. B. ein Handyfoto, das immer
    von derselben Stelle aufgenommen wird).
@@ -624,6 +657,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | Strg+0 | Alles zeigen | | Strg+L / Strg+R | 90° links / rechts drehen |
 | Strg+Shift+F | Am Raster fangen | | Strg+Shift+A | Array |
 | F5 | Kamerabild aktualisieren | | Strg+Shift+N | Nesting |
+| Strg+Shift+K | Live-Kamera | | | |
 | V R E P L N | Zeichenwerkzeuge | | Strg+Shift+←/→/↑/↓ | Links/rechts/oben/unten ausrichten |
 | Esc | Zurück zum Auswählen | | Strg+Shift+U / D / I | Vereinigen / Abziehen / Schnittmenge |
 | Alt+T | Bild nachzeichnen | | Alt+O / Alt+J | Offset / Pfade verbinden |
@@ -649,6 +683,8 @@ Im Knotenmodus: Entf, C, L, S, B (siehe [Knotenbearbeitung](#knotenbearbeitung))
 | Boolesche Operationen melden „pyclipper benötigt“ | Nur bei Start aus dem Quellcode: `pip install pyclipper`. In den fertigen Paketen enthalten. |
 | Nesting platziert nicht alle Teile | Grundfläche vergrößern, Mindest- oder Randabstand verringern, mehr Drehungen erlauben, *Gründlich* einschalten. |
 | Kamerabild verschoben | Kamera wurde bewegt: neu ausrichten. |
+| Live-Kamera: „Keine Kamera gefunden“ | Webcam anschließen und ⟳ klicken. Linux: Benutzer in Gruppe `video`. Windows: unter *Datenschutz → Kamera* den Zugriff für Desktop-Apps erlauben. Eine Kamera kann nur von einem Programm gleichzeitig benutzt werden – andere Video-Programme schließen. |
+| Live-Kamera: Videoaufnahme schlägt fehl | Ist der Speicherort beschreibbar? Bei Start aus dem Quellcode mit einer Qt-Version vor 6.5 benötigt Linux zusätzlich die GStreamer-Plugins. |
 
 ---
 
