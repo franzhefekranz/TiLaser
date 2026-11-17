@@ -1,0 +1,41 @@
+/* Bedienungsanleitung im Browser – passend zur Projektseite */
+:root { --alu: #e4e7eb; --alu-hell: #f2f4f6; --alu-dunkel: #c4c9d0; --laser: #3d63ff; --laser-tief: #2445d6;
+        --schiefer: #232a33; --text: #2e3742; --leise: #5a6573; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+       font-size: 1.05rem; line-height: 1.62; color: var(--text); background: var(--alu-hell);
+       display: grid; grid-template-columns: 19rem minmax(0, 1fr); }
+a { color: var(--laser-tief); text-underline-offset: 0.18em; }
+:focus-visible { outline: 3px solid var(--laser); outline-offset: 2px; }
+#TOC { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--alu); padding: 1.4rem 1.2rem;
+       border-right: 1px solid var(--alu-dunkel); font-size: 0.92rem; }
+#TOC::before { content: "Inhalt"; display: block; font-weight: 750; color: var(--schiefer); margin-bottom: 0.6rem; }
+#TOC ul { list-style: none; padding-left: 0; margin: 0; }
+#TOC ul ul { padding-left: 0.9rem; margin: 0.15rem 0 0.4rem 0; }
+#TOC li { margin: 0.2rem 0; }
+#TOC a { color: var(--text); text-decoration: none; }
+#TOC a:hover { color: var(--laser-tief); text-decoration: underline; }
+.zurueck { display: block; margin-bottom: 1rem; font-weight: 650; }
+main.inhalt { padding: 2.2rem 3rem 5rem 3rem; max-width: 56rem; }
+h1 { font-size: 2.4rem; letter-spacing: -0.03em; line-height: 1.1; color: var(--schiefer); margin-top: 0; }
+h2 { font-size: 1.75rem; letter-spacing: -0.015em; color: var(--schiefer); margin-top: 3.2rem;
+     padding-top: 1.2rem; border-top: 2px solid var(--alu-dunkel); }
+h3 { font-size: 1.25rem; color: var(--schiefer); margin-top: 2rem; }
+img { max-width: 100%; height: auto; border-radius: 5px; border: 1px solid var(--alu-dunkel); display: block; }
+figure { margin: 1.2rem 0; }
+figcaption { font-size: 0.88rem; color: var(--leise); margin-top: 0.4rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; margin: 1rem 0 1.4rem 0; background: white; }
+th { text-align: left; background: var(--schiefer); color: white; padding: 0.5rem 0.7rem; font-weight: 600; }
+td { padding: 0.45rem 0.7rem; border-bottom: 1px solid var(--alu); vertical-align: top; }
+code { font-family: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", Consolas, monospace; font-size: 0.88em;
+       background: var(--alu); padding: 0.1em 0.35em; border-radius: 3px; }
+pre { background: var(--schiefer); color: #e9edf2; padding: 0.9rem 1.1rem; border-radius: 5px; overflow-x: auto; }
+pre code { background: none; color: inherit; padding: 0; }
+blockquote { margin: 1rem 0; padding: 0.6rem 1rem; background: white; border-left: 4px solid #d32f2f; }
+.platzhalter { border: 2px dashed var(--alu-dunkel); border-radius: 5px; padding: 1.6rem; text-align: center;
+               color: var(--leise); background: white; }
+@media (max-width: 900px) {
+  body { display: block; }
+  #TOC { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--alu-dunkel); }
+  main.inhalt { padding: 1.5rem 1.2rem 4rem 1.2rem; }
+}

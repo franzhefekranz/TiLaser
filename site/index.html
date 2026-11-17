@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TiLaser – Laserschneiden und Gravieren mit G-Code-Lasern</title>
+<meta name="description" content="TiLaser ist ein freies Programm zum Laserschneiden und Gravieren für GRBL-, Marlin- und Smoothieware-Laser: SVG, DXF, PDF und Bilder importieren, gestalten, Teile anordnen und direkt lasern.">
+<link rel="icon" type="image/png" href="tilaser.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+
+<header class="kopf">
+  <a class="marke" href="./"><img src="tilaser.png" alt="" width="28" height="28"><span>TiLaser</span></a>
+  <nav aria-label="Hauptnavigation">
+    <a href="#ablauf">Funktionen</a>
+    <a href="#download">Download</a>
+    <a href="#anleitung">Anleitung</a>
+    <a href="https://github.com/franzhefekranz/TiLaser">GitHub</a>
+  </nav>
+</header>
+
+<main id="inhalt">
+  <section class="hero">
+    <div class="hero-text">
+      <h1>Zeichnen, anordnen, lasern.</h1>
+      <p class="lead">TiLaser ist ein freies Programm zum Schneiden und Gravieren mit Diodenlasern und anderen
+        G-Code-Lasern. Es liest deine Entwürfe, bereitet sie für das Material vor und steuert den Laser direkt
+        über USB oder das Netzwerk.</p>
+      <div class="aktionen">
+        <a class="knopf primaer" href="#download">TiLaser herunterladen</a>
+        <a class="knopf" href="anleitung.html">Anleitung lesen</a>
+      </div>
+      <p class="fakten">Für Windows und Linux, auch Raspberry Pi. Frei unter der GPL-3.0, ohne Konto und ohne Abo.</p>
+    </div>
+    <figure class="platte" aria-hidden="false">
+      {{HERO_SVG}}
+      <figcaption>Der Schriftzug auf der Platte ist eine echte Schnittkontur aus TiLaser – mit Haltestegen, damit die
+        Buchstaben nicht aus der Platte fallen.</figcaption>
+    </figure>
+  </section>
+
+  <section id="ablauf" class="ablauf">
+    <h2>Vom Entwurf zum fertigen Teil</h2>
+    <ol class="schritte">
+      <li>
+        <h3>Importieren</h3>
+        <p>Entwürfe aus Inkscape, Illustrator, CAD oder vom Handy übernehmen.</p>
+        <ul>
+          <li>SVG, DXF, PDF und Illustrator, EPS über Ghostscript</li>
+          <li>Kurven bleiben Kurven, Text in PDFs wird zu Konturen</li>
+          <li>Fotos und Logos als Rasterbild – oder per Nachzeichnen als Vektor</li>
+        </ul>
+      </li>
+      <li>
+        <h3>Gestalten</h3>
+        <p>Teile zeichnen, kombinieren und platzsparend auf die Platte legen.</p>
+        <ul>
+          <li>Rechteck, Ellipse, Polygon, Linie und Knotenbearbeitung mit Bézier-Anfassern</li>
+          <li>Vereinigen, Abziehen, Offset, Text auf Pfad, Arrays</li>
+          <li>Nesting mit Mindestabstand – auch in die Löcher größerer Teile</li>
+          <li>Kamerabild unter der Arbeitsfläche zum genauen Platzieren</li>
+        </ul>
+      </li>
+      <li>
+        <h3>Lasern</h3>
+        <p>Jede Farbe wird zu einer Ebene mit eigenen Parametern.</p>
+        <ul>
+          <li>Schneiden, Flächen füllen, Fotos mit Dithering oder Graustufen</li>
+          <li>Kerf-Ausgleich für passgenaue Steckverbindungen, Haltestege</li>
+          <li>Materialtest, Vorschau mit Simulation, Rahmen fahren</li>
+          <li>Pause, Stopp und Fortsetzen nach einem Abbruch</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  {{GALLERY}}
+
+  <section class="maschinen">
+    <h2>Welche Laser?</h2>
+    <div class="spalten">
+      <p>TiLaser spricht <strong>GRBL 1.1 und FluidNC</strong>, <strong>Marlin</strong> und
+        <strong>Smoothieware</strong> und erkennt die Firmware beim Verbinden selbst. Die Verbindung läuft über
+        USB oder über das Netzwerk (Telnet), eine Rotationsachse für Becher und Flaschen wird unterstützt.</p>
+      <p>Für den <strong>AlgoLaser DIY KIT MK2 (20 W)</strong> gibt es ein fertiges Maschinenprofil und Material-Presets
+        aus der Parametertabelle des Herstellers. Für andere Laser genügen Firmware, Arbeitsbereich und der
+        Wert für 100 % Leistung.</p>
+    </div>
+  </section>
+
+  <section id="download" class="download">
+    <h2>Download</h2>
+    <p class="release" id="release-info">Die Pakete liegen auf der
+      <a href="https://github.com/franzhefekranz/TiLaser/releases/latest">Release-Seite bei GitHub</a>.</p>
+    <table class="pakete">
+      <thead><tr><th scope="col">System</th><th scope="col">Paket</th><th scope="col">Hinweis</th></tr></thead>
+      <tbody>
+        <tr data-muster="-Setup\.exe$"><td>Windows</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">Installer (.exe)</a></td><td>Startmenü, optional Desktop-Symbol</td></tr>
+        <tr data-muster="portable-win64\.zip$"><td>Windows</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">Portabel (.zip)</a></td><td>Entpacken und starten, z. B. vom USB-Stick</td></tr>
+        <tr data-muster="x86_64\.AppImage$"><td>Linux PC</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">AppImage</a></td><td>Ausführbar machen und starten</td></tr>
+        <tr data-muster="_amd64\.deb$"><td>Debian, Ubuntu, Mint</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">deb-Paket (amd64)</a></td><td><code>sudo apt install ./tilaser_….deb</code></td></tr>
+        <tr data-muster="aarch64\.AppImage$"><td>Linux ARM64</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">AppImage (aarch64)</a></td><td>Raspberry Pi 4/5 mit 64-Bit-System</td></tr>
+        <tr data-muster="_arm64\.deb$"><td>Raspberry Pi OS</td><td><a href="https://github.com/franzhefekranz/TiLaser/releases/latest">deb-Paket (arm64)</a></td><td>ab Raspberry Pi OS Trixie</td></tr>
+      </tbody>
+    </table>
+    <p class="hinweis">Unter Linux braucht dein Benutzer Zugriff auf den USB-Port:
+      <code>sudo usermod -aG dialout $USER</code>, danach ab- und wieder anmelden.</p>
+  </section>
+
+  <section id="anleitung" class="anleitung">
+    <h2>Anleitung</h2>
+    <p>Die Bedienungsanleitung erklärt jede Funktion mit Screenshots – vom ersten Verbinden bis zum Nesting.</p>
+    <ul class="formate">
+      <li><a href="anleitung.html">Im Browser lesen</a></li>
+      <li><a href="TiLaser-Bedienungsanleitung.pdf">Als PDF herunterladen</a></li>
+      <li><a href="https://github.com/franzhefekranz/TiLaser/wiki">Im Wiki nachschlagen</a></li>
+    </ul>
+    <aside class="sicherheit">
+      <h3>Bevor du lasert</h3>
+      <p>Diodenlaser ab etwa 5 W können Augen dauerhaft schädigen und Brände auslösen. Trag eine Schutzbrille
+        für die Wellenlänge deines Lasers, lass ihn nie unbeaufsichtigt laufen und laser kein PVC oder Kunstleder.</p>
+    </aside>
+  </section>
+</main>
+
+<footer class="fuss">
+  <p>TiLaser ist freie Software unter der <a href="https://github.com/franzhefekranz/TiLaser/blob/main/LICENSE">GPL-3.0</a>.</p>
+  <p><a href="https://github.com/franzhefekranz/TiLaser">Quellcode</a> <a href="https://github.com/franzhefekranz/TiLaser/issues">Fehler melden</a></p>
+</footer>
+<script src="script.js"></script>
+</body>
+</html>
