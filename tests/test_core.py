@@ -954,14 +954,6 @@ def test_sender_stream():
     assert stats and stats[-1]["WPos"][0] == 0.0
 
 
-if __name__ == "__main__":
-    for name, fn in list(globals().items()):
-        if name.startswith("test_"):
-            fn()
-            print("OK ", name)
-    print("Ausgaben in", TMP)
-
-
 def _overlap_area(a, b, cell=0.25):
     """Grobe Überlappung zweier Teile (gefüllte Außenkonturen) über ein Punktraster."""
     from tilaser.core.geometry import points_in_polygon
@@ -1022,3 +1014,25 @@ def test_nesting_no_parts_inside_material():
     k = pr2.add_vector_import("k", [ImportedPath(shapes.rectangle(20, 20), "#000000", "#000000")])
     res2 = nest(pr2, [ring, k], NestSettings(0, 0, 66, 66, spacing=2, margin=1, rotations=(0,)), thorough=False)
     assert len(res2.placed) == 2
+
+
+def test_profile_live_camera_fields():
+    from tilaser.core.gcode import MachineProfile
+    p = MachineProfile()
+    assert not p.camera_live_auto and not p.camera_live_record and not p.camera_live_bg
+    p.camera_live_auto, p.camera_live_rot, p.camera_media_dir = True, 90, "/tmp/x"
+    q = MachineProfile.from_dict(p.to_dict())
+    assert q.camera_live_auto and q.camera_live_rot == 90 and q.camera_media_dir == "/tmp/x"
+    # alte Profile ohne die neuen Felder laden weiterhin
+    d = p.to_dict()
+    for k in ("camera_live_auto", "camera_live_record", "camera_live_bg", "camera_live_rot", "camera_media_dir"):
+        d.pop(k)
+    assert MachineProfile.from_dict(d).camera_live_rot == 0
+
+
+if __name__ == "__main__":
+    for name, fn in list(globals().items()):
+        if name.startswith("test_"):
+            fn()
+            print("OK ", name)
+    print("Ausgaben in", TMP)

@@ -28,6 +28,7 @@ from .canvas import LaserCanvas
 from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog,
                       OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
+from .camera_live import CameraPanel, LiveCamera
 from ..core.eps_import import import_eps
 from ..core.pdf_import import PdfError, import_pdf
 from ..core.text_import import text_on_path
@@ -84,6 +85,9 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.machine.w_connection, "Verbindung")
         self.tabs.addTab(self.machine.w_jog, "Bewegen")
         self.tabs.addTab(self.machine.w_console, "Konsole")
+        self.live_cam = LiveCamera(self)
+        self.camera_panel = CameraPanel(self.live_cam, self.profile)
+        self.tabs.addTab(self.camera_panel, "Kamera")
         side = QWidget()
         sv = QVBoxLayout(side)
         sv.setContentsMargins(0, 0, 0, 0)
@@ -126,6 +130,14 @@ class MainWindow(QMainWindow):
         self.canvas.toolChanged.connect(self._on_tool_changed)
         self._grabber = None
         self._camera_img = None
+        self._live_bg_timer = QTimer(self)
+        self._live_bg_timer.setInterval(2000)
+        self._live_bg_timer.timeout.connect(self._live_background)
+        self._live_bg_timer.start()
+        self.camera_panel.profileChanged.connect(lambda: storage.save_machine(self.profile))
+        self.camera_panel.backgroundToggled.connect(self._live_bg_toggled)
+        self.machine.jobStarted.connect(self._on_job_started)
+        self.machine.jobEnded.connect(lambda _s: self.camera_panel.job_finished())
         self.layers.layersChanged.connect(self._on_layers_changed)
         self.objects.changed.connect(self._on_object_changed)
         self.objects.action.connect(self._on_object_action)
@@ -300,6 +312,11 @@ class MainWindow(QMainWindow):
         self.a_cam_show = self._act("Kamerabild anzeigen", self._camera_toggle)
         self.a_cam_show.setCheckable(True)
         cm.addAction(self.a_cam_show)
+        cm.addSeparator()
+        cm.addAction(self._act("Live-Kamera", self._camera_tab, "Ctrl+Shift+K",
+                               "Webcam-Live-Bild im Tab „Kamera“ zeigen und einschalten"))
+        cm.addAction(self._act("Großes Kamerafenster", self.camera_panel.open_window, None,
+                               "Live-Bild in einem eigenen Fenster, z. B. auf dem zweiten Bildschirm"))
 
         h = mb.addMenu("&Hilfe")
         h.addAction(self._act("Über TiLaser", self.about))
@@ -1497,6 +1514,11 @@ class MainWindow(QMainWindow):
         storage.save_machine(self.profile)
 
     def _grab(self, callback):
+        if self.live_cam.running:                       # Live-Kamera läuft: aktuelles Bild verwenden
+            img = self.live_cam.latest_array()
+            if img is not None:
+                callback(img)
+                return
         dev = self.profile.camera_device
         if dev == "__file__" or not camera_devices():
             p, _ = QFileDialog.getOpenFileName(self, "Kamerabild", self.last_dir,
@@ -1559,17 +1581,44 @@ class MainWindow(QMainWindow):
             return
         self._grab(self._show_camera)
 
-    def _show_camera(self, img):
+    def _show_camera(self, img, quiet=False):
         H = np.array(self.profile.camera_h, float).reshape(3, 3)
         try:
             rect = cam.rectify(img, H, self.profile.bed_w, self.profile.bed_h, 2.0, self.profile.camera_k1)
         except Exception as e:
-            QMessageBox.warning(self, "Kamera", f"Entzerrung fehlgeschlagen: {e}")
+            if not quiet:
+                QMessageBox.warning(self, "Kamera", f"Entzerrung fehlgeschlagen: {e}")
             return
         self._camera_img = rect
         self.canvas.set_background(rect, self.profile.bed_w, self.profile.bed_h, self.profile.camera_opacity)
         self.a_cam_show.setChecked(True)
-        self.statusBar().clearMessage()
+        if not quiet:
+            self.statusBar().clearMessage()
+
+    # ------------------------------------------------------------ Live-Kamera
+    def _camera_tab(self):
+        self.sidebar.show()
+        self.tabs.setCurrentWidget(self.camera_panel)
+        if self.live_cam.cam is None:
+            self.camera_panel.start()
+
+    def _on_job_started(self):
+        if self.camera_panel.job_started():
+            self.tabs.setCurrentWidget(self.camera_panel)
+
+    def _live_bg_toggled(self, on):
+        if on and len(self.profile.camera_h) != 9:
+            self.statusBar().showMessage("Für das Live-Hintergrundbild die Kamera zuerst ausrichten "
+                                         "(Maschine → Kamera → Kamera ausrichten).", 8000)
+        elif on:
+            self._live_background()
+
+    def _live_background(self):
+        if not (self.profile.camera_live_bg and self.live_cam.running and len(self.profile.camera_h) == 9):
+            return
+        img = self.live_cam.latest_array()
+        if img is not None:
+            self._show_camera(img, quiet=True)
 
     def _camera_toggle(self):
         if self.a_cam_show.isChecked():
@@ -1590,5 +1639,6 @@ class MainWindow(QMainWindow):
         if self.machine.conn.job_active:
             self.machine.conn.stop()
         self.machine.shutdown()
+        self.camera_panel.shutdown()
         storage.save_machine(self.profile)
         e.accept()
