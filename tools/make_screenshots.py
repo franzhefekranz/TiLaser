@@ -2,6 +2,8 @@
 
 Läuft ohne Bildschirm (Qt-Plattform 'offscreen'), z. B. im GitHub-Workflow 'Screenshots':
     QT_QPA_PLATFORM=offscreen python tools/make_screenshots.py docs/screenshots
+Englische Oberfläche (für docs/Manual_en.md):
+    TILASER_LANG=en QT_QPA_PLATFORM=offscreen python tools/make_screenshots.py docs/screenshots/en
 """
 from __future__ import annotations
 
@@ -24,6 +26,9 @@ os.makedirs(OUT, exist_ok=True)
 
 app = QApplication(sys.argv)
 app.setStyle("Fusion")
+LANG = os.environ.get("TILASER_LANG", "de")
+from tilaser.gui import i18n_qt                              # noqa: E402
+i18n_qt.install(LANG)
 
 # Meldungsfenster würden ohne Bildschirm blockieren
 QMessageBox.information = staticmethod(lambda *a, **k: QMessageBox.StandardButton.Ok)
@@ -50,6 +55,7 @@ def pump(n=8):
 
 
 def shot(widget, name, title=""):
+    i18n_qt.translate_tree(widget)
     pump()
     path = os.path.join(OUT, f"{name}.png")
     widget.grab().save(path)
@@ -284,7 +290,7 @@ from tilaser.gui import icons as ic                            # noqa: E402
 
 DOC_ICONS = ["new", "open", "save", "import", "text", "fit", "toolpath", "play", "laser", "group", "ungroup",
              "center", "origin", "duplicate", "delete", "select", "rect", "ellipse", "polygon", "line", "node"]
-for n in DOC_ICONS:
+for n in (DOC_ICONS if LANG == "de" else []):          # Symbole sind sprachunabhängig
     img = QImage(40, 40, QImage.Format.Format_ARGB32)
     img.fill(QColor(0, 0, 0, 0))
     p = QPainter(img)

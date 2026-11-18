@@ -1,6 +1,7 @@
 """Übersichtsbilder der Muster und Generatoren für die Anleitung (nur Pillow, ohne Qt).
 
     python tools/make_muster.py            # schreibt docs/screenshots/muster_*.png
+    python tools/make_muster.py en         # englische Beschriftung -> docs/screenshots/en/muster_*.png
 """
 from __future__ import annotations
 
@@ -14,12 +15,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from tilaser.core import geometry as g                      # noqa: E402
+from tilaser.core import i18n                               # noqa: E402
+from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
 from tilaser.core.joints import finger_joint                # noqa: E402
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
-OUT = os.path.join(ROOT, "docs", "screenshots")
+LANG = sys.argv[1] if len(sys.argv) > 1 else "de"
+OUT = os.path.join(ROOT, "docs", "screenshots", *([] if LANG == "de" else [LANG]))
 HOLZ, BRAND, SCHNITT, TEXT = (226, 205, 166), (74, 44, 23), (200, 30, 30), (46, 55, 66)
 
 
@@ -54,7 +58,7 @@ def tile(polys, region, label, fill=True, size=(300, 230), sc=2.2, ox=0.0, oy=0.
     for r in region:
         pts = tr(r.pts)
         d.line(pts + [pts[0]], fill=TEXT, width=1)
-    d.text((size[0] / 2, size[1] - 14), label, fill=TEXT, font=_font(17), anchor="mm")
+    d.text((size[0] / 2, size[1] - 14), _t(label), fill=TEXT, font=_font(17), anchor="mm")
     return im
 
 
@@ -68,6 +72,7 @@ def sheet(tiles, cols, name):
 
 
 def main():
+    i18n.set_language(LANG)
     os.makedirs(OUT, exist_ok=True)
     disc = [g.Polyline(g.circle_points(0, 0, 45), True)]
     sheet([tile(pt.engrave_pattern(disc, k, 10, 1.2), disc, label) for k, label in pt.ENGRAVE_PATTERNS.items()],

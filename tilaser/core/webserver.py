@@ -166,6 +166,8 @@ def _make_handler(srv: WebServer):
                 self.wfile.write(body)
 
         def _json(self, code, obj, extra=None):
+            if isinstance(obj.get("error"), str):
+                obj = dict(obj, error=localized(obj["error"]))
             self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), extra=extra)
 
         def _body(self) -> dict:
@@ -180,7 +182,7 @@ def _make_handler(srv: WebServer):
         def do_GET(self):
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
-                self._send(200, PAGE.encode("utf-8"), "text/html; charset=utf-8",
+                self._send(200, localized(PAGE).encode("utf-8"), "text/html; charset=utf-8",
                            {"Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'; "
                                                        "script-src 'self' 'unsafe-inline'; img-src 'self'"})
                 return
@@ -201,7 +203,7 @@ def _make_handler(srv: WebServer):
                     return
                 self._send(200, data, "image/jpeg")
                 return
-            self._send(404, b"Nicht gefunden", "text/plain; charset=utf-8")
+            self._send(404, localized("Nicht gefunden").encode("utf-8"), "text/plain; charset=utf-8")
 
         def do_POST(self):
             path = urlparse(self.path).path
@@ -242,6 +244,30 @@ def _make_handler(srv: WebServer):
 
 
 # --------------------------------------------------------------------------- Seite
+# Deutsche Texte der Seite, die beim Ausliefern übersetzt werden (siehe core/i18n.py)
+WEB_PHRASES = ["PIN aus TiLaser", "Maschine → Weboberfläche", "Anmelden", "🔥 Mögliche Flamme erkannt!",
+               "Gesehen", "Kein Kamerabild", "Pause", "Stopp", "Auftrag starten", "Konsole",
+               "Laser nie unbeaufsichtigt lassen. Diese Seite ersetzt nicht den Blick auf die Maschine.",
+               "Tastatur: Leertaste = Pause/Fortsetzen, Esc = Stopp.", "Anmeldung gesperrt – bitte 5 Minuten warten.",
+               "Fehler", "aktualisiert ", "keine Verbindung zu TiLaser", "Fortsetzen", "noch ",
+               "Auftrag wirklich stoppen?", "Auftrag jetzt starten? Nur wenn jemand am Laser ist!", "Kamerabild",
+               "Falsche PIN.", "Ungültige Anfrage", "Unbekannter Befehl", "Nicht gefunden",
+               "Starten aus der Ferne ist in TiLaser nicht erlaubt."]
+
+
+def localized(text: str) -> str:
+    """Seite bzw. Meldung in der Sprache der Oberfläche."""
+    from .i18n import current
+    t = current()
+    if not t.active:
+        return text
+    for ph in sorted(WEB_PHRASES, key=len, reverse=True):
+        if ph in text:
+            text = text.replace(ph, t.tr(ph.strip()) + (" " if ph.endswith(" ") else ""))
+    return (text.replace('lang="de"', f'lang="{t.code}"')
+            .replace('toLocaleTimeString("de-DE")', "toLocaleTimeString()"))
+
+
 PAGE = r"""<!DOCTYPE html>
 <html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

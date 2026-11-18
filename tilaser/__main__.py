@@ -19,7 +19,12 @@ def main():
     if os.path.exists(icon):
         app.setWindowIcon(QIcon(icon))
     app.setDesktopFileName("tilaser")
+    from .core import i18n, storage
+    from .gui import i18n_qt
+    lang = os.environ.get("TILASER_LANG") or getattr(storage.load_machine(), "language", "") or i18n.system_language()
+    i18n_qt.install(lang)
     w = MainWindow()
+    i18n_qt.translate_tree(w)
     w.show()
     files = [a for a in sys.argv[1:] if not a.startswith("-")]
     if files:

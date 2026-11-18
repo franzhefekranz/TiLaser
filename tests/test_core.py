@@ -1661,6 +1661,48 @@ def test_job_log(tmp_path=None):
     assert open(f, "rb").read(3) == b"\xef\xbb\xbf"                    # BOM für Excel
 
 
+def test_translations():
+    """Sprachdatei vollständig, Platzhalter stimmen, Muster und zusammengesetzte Texte werden übersetzt."""
+    import importlib.util
+    import json as _json
+    import re as _re
+    from tilaser.core import i18n
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("i18n_extract", os.path.join(ROOT, "tools", "i18n_extract.py"))
+    ex = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ex)
+    keys = ex.collect()
+    en = _json.load(open(os.path.join(ROOT, "tilaser", "data", "lang", "en.json"), encoding="utf-8"))
+    missing = [k for k in keys if not en.get(k)]
+    assert not missing, f"{len(missing)} Texte ohne englische Übersetzung, z. B. {missing[:3]} – " \
+                        "python tools/i18n_extract.py --missing en"
+    for k, v in en.items():
+        if k.startswith("_") or not v:
+            continue
+        assert sorted(_re.findall(r"\{\d+\}", k)) == sorted(_re.findall(r"\{\d+\}", v)), k
+    t = i18n.Translator("en")
+    assert t.tr("&Datei") == "&File"
+    assert t.tr("Projekt öffnen (Ctrl+O)") == "Open project (Ctrl+O)"
+    assert t.tr("-- Auftrag fertig in 3:20 (geschätzt 3:00)") == "-- Job finished in 3:20 (estimated 3:00)"
+    assert t.tr("12 Objekte") == "12 objects"
+    assert t.tr("⏸ Pause") == "⏸ Pause" and t.tr("Läuft") == "Running"
+    assert i18n.Translator("de").tr("Läuft") == "Läuft"
+    d = tempfile.mkdtemp()
+    old = i18n.USER_DIR
+    try:                                            # eigene Sprache: fehlende Texte fallen auf Englisch zurück
+        i18n.USER_DIR = d
+        with open(os.path.join(d, "fr.json"), "w", encoding="utf-8") as f:
+            _json.dump({"_name": "Français", "Läuft": "En cours"}, f)
+        fr = i18n.Translator("fr")
+        assert fr.tr("Läuft") == "En cours" and fr.tr("Bereit") == "Ready"
+        assert i18n.available()["fr"] == "Français"
+        path = i18n.make_template("nl", "Nederlands", keys[:5])
+        tpl = _json.load(open(path, encoding="utf-8"))
+        assert tpl["_name"] == "Nederlands" and all(k in tpl for k in keys[:5])
+    finally:
+        i18n.USER_DIR = old
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

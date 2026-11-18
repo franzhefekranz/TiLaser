@@ -1,6 +1,7 @@
 """Erzeugt docs/TiLaser-Bedienungsanleitung.pdf aus docs/Bedienungsanleitung.md.
 
-    python tools/make_pdf.py [ausgabe.pdf]
+    python tools/make_pdf.py [ausgabe.pdf] [de|en]
+    python tools/make_pdf.py docs/TiLaser-Manual.pdf en      # englische Anleitung aus docs/Manual_en.md
 
 Benötigt: pandoc und XeLaTeX (TeX Live mit KOMA-Script; für deutsche Silbentrennung
 zusätzlich das Paket texlive-lang-german). Fehlende Screenshots werden als Platzhalter gesetzt.
@@ -19,12 +20,23 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 SRC = os.path.join(ROOT, "docs", "Bedienungsanleitung.md")
 SHOTS = os.path.join(ROOT, "docs", "screenshots")
+DOCS = os.path.join(ROOT, "docs")
+LANG = {
+    "de": {"src": "Bedienungsanleitung.md", "title": "Bedienungsanleitung", "toc": "Inhalt",
+           "sub": "Laserschneiden und -gravieren mit G-Code-Lasern", "version": "Version", "date": "Stand",
+           "figure": "Abbildung", "table": "Tabelle", "lang": "de-DE", "ph": "Screenshot „{}“",
+           "datefmt": "%d.%m.%Y"},
+    "en": {"src": "Manual_en.md", "title": "User Manual", "toc": "Contents",
+           "sub": "Laser cutting and engraving with G-code lasers", "version": "Version", "date": "Date",
+           "figure": "Figure", "table": "Table", "lang": "en-US", "ph": "Screenshot “{}”",
+           "datefmt": "%Y-%m-%d"},
+}
 
 HEADER = r"""
 \usepackage{scrlayer-scrpage}
 \pagestyle{scrheadings}
 \clearpairofpagestyles
-\ihead{\small\color{gray}TiLaser – Bedienungsanleitung}
+\ihead{\small\color{gray}TiLaser – DOCTITLE}
 \ohead{\small\color{gray}\leftmark}
 \cfoot{\small\pagemark}
 \automark{chapter}
@@ -44,7 +56,7 @@ HEADER = r"""
 \renewenvironment{quote}{\begin{tcolorbox}[colback=tlred!5,colframe=tlred!70,boxrule=0pt,leftrule=3pt,
   arc=0pt,left=2mm,right=2mm,top=1mm,bottom=1mm]}{\end{tcolorbox}}
 \setlength{\emergencystretch}{3em}
-\AtBeginDocument{\renewcommand{\figurename}{Abbildung}\renewcommand{\tablename}{Tabelle}}
+\AtBeginDocument{\renewcommand{\figurename}{FIGNAME}\renewcommand{\tablename}{TABNAME}}
 \usepackage{chngcntr}
 \counterwithout{figure}{chapter}
 """
@@ -55,13 +67,13 @@ TITLE = r"""
 \vspace*{5cm}
 {\fontsize{44}{50}\selectfont\bfseries\color{tldark} TiLaser\par}
 \vspace{0.6cm}
-{\LARGE Bedienungsanleitung\par}
+{\LARGE DOCTITLE\par}
 \vspace{0.8cm}
 {\color{tlred}\rule{4cm}{1.5mm}\par}
 \vspace{0.8cm}
-{\large Laserschneiden und -gravieren mit G-Code-Lasern\par}
+{\large SUBTITLE\par}
 \vfill
-{\small\color{gray} Version VERSION \quad·\quad Stand DATUM\\[2pt] github.com/franzhefekranz/TiLaser\par}
+{\small\color{gray} VLABEL VERSION \quad·\quad DLABEL DATUM\\[2pt] github.com/franzhefekranz/TiLaser\par}
 \end{titlepage}
 """
 
@@ -73,10 +85,11 @@ def kpse(name: str) -> bool:
         return False
 
 
-def prepare(md_text: str) -> tuple[str, int]:
-    md_text = re.sub(r"(?ms)^## Inhalt\n.*?(?=^---\n)", "", md_text)       # Inhaltsverzeichnis macht LaTeX
+def prepare(md_text: str, L: dict | None = None) -> tuple[str, int]:
+    L = L or LANG["de"]
+    md_text = re.sub(r"(?ms)^## (Inhalt|Contents)\n.*?(?=^---\n)", "", md_text)   # Inhaltsverzeichnis macht LaTeX
     md_text = re.sub(r"(?m)^# .*\n", "", md_text, count=1)                  # Titel steht auf dem Deckblatt
-    md_text = re.sub(r"(?ms)^> Die Screenshots werden.*?\n\n", "", md_text)
+    md_text = re.sub(r"(?ms)^> (Die Screenshots werden|The screenshots are).*?\n\n", "", md_text)
     md_text = re.sub(r"(?m)^---\s*$", "", md_text)                          # Trennlinien zwischen Kapiteln
     md_text = md_text.replace("⏸ ", "")                                      # Zeichen fehlt in DejaVu Sans
     missing = 0
@@ -84,7 +97,9 @@ def prepare(md_text: str) -> tuple[str, int]:
     def img(m):
         nonlocal missing
         alt, path = m.group(1), m.group(2)
-        src = os.path.join(SHOTS, os.path.basename(path))
+        src = os.path.join(DOCS, path)
+        if not os.path.exists(src):                           # fehlt die übersetzte Aufnahme: deutsche nehmen
+            src = os.path.join(SHOTS, os.path.basename(path))
         if os.path.exists(src) and os.path.basename(src).startswith("icon_"):
             return f"![]({src}){{height=5mm}}"                  # Symbol in der Tabelle, ohne Bildunterschrift
         if os.path.exists(src):
@@ -96,30 +111,34 @@ def prepare(md_text: str) -> tuple[str, int]:
             k = min(1.0, 170 / w_mm, 115 / h_mm)
             return f"![{alt}]({src}){{width={w_mm * k:.0f}mm}}"
         missing += 1
-        return f"```{{=latex}}\n\\begin{{platzhalter}}\\color{{gray}}Screenshot „{alt}“\\end{{platzhalter}}\n```"
+        ph = L["ph"].format(alt)
+        return f"```{{=latex}}\n\\begin{{platzhalter}}\\color{{gray}}{ph}\\end{{platzhalter}}\n```"
 
     return re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", img, md_text), missing
 
 
-def main(out_pdf: str):
+def main(out_pdf: str, lang: str = "de"):
+    L = LANG[lang]
     from tilaser import __version__
     if not shutil.which("pandoc") or not shutil.which("xelatex"):
         sys.exit("pandoc und xelatex werden benötigt (Linux: sudo apt install pandoc texlive-xetex texlive-fonts-recommended "
                  "texlive-latex-extra texlive-lang-german)")
     out_pdf = os.path.abspath(out_pdf)
-    with open(SRC, encoding="utf-8") as f:
-        md_text, missing = prepare(f.read())
+    with open(os.path.join(DOCS, L["src"]), encoding="utf-8") as f:
+        md_text, missing = prepare(f.read(), L)
     with tempfile.TemporaryDirectory() as td:
         src = os.path.join(td, "anleitung.md")
         with open(src, "w", encoding="utf-8") as f:
             f.write(md_text)
         hdr = os.path.join(td, "header.tex")
         with open(hdr, "w", encoding="utf-8") as f:
-            f.write(HEADER)
+            f.write(HEADER.replace("DOCTITLE", L["title"]).replace("FIGNAME", L["figure"])
+                    .replace("TABNAME", L["table"]))
         title = os.path.join(td, "title.tex")
         with open(title, "w", encoding="utf-8") as f:
-            f.write(TITLE.replace("VERSION", __version__)
-                    .replace("DATUM", datetime.date.today().strftime("%d.%m.%Y")))
+            f.write(TITLE.replace("VERSION", __version__).replace("DOCTITLE", L["title"])
+                    .replace("SUBTITLE", L["sub"]).replace("VLABEL", L["version"]).replace("DLABEL", L["date"])
+                    .replace("DATUM", datetime.date.today().strftime(L["datefmt"])))
         cmd = ["pandoc", src, "-f", "markdown+gfm_auto_identifiers+pipe_tables+raw_attribute",
                "-o", out_pdf, "--pdf-engine=xelatex", "--toc", "--toc-depth=2",
                "--top-level-division=chapter", "--shift-heading-level-by=-1",
@@ -128,8 +147,10 @@ def main(out_pdf: str):
                "-V", "geometry=margin=20mm,top=22mm,bottom=22mm", "-V", "fontsize=10pt",
                "-V", "mainfont=DejaVu Sans", "-V", "monofont=DejaVu Sans Mono",
                "-V", "colorlinks=true", "-V", "linkcolor=tldark", "-V", "urlcolor=blue",
-               "-V", "toc-title=Inhalt", "-V", "title-meta=TiLaser – Bedienungsanleitung", "-V", "author-meta=TiLaser"]
-        if kpse("ngerman.ldf") or kpse("babel-german.sty"):
+               "-V", f"toc-title={L['toc']}", "-V", f"title-meta=TiLaser – {L['title']}", "-V", "author-meta=TiLaser"]
+        if lang != "de":
+            cmd += ["-V", f"lang={L['lang']}"]
+        elif kpse("ngerman.ldf") or kpse("babel-german.sty"):
             cmd += ["-V", "lang=de-DE"]
         r = subprocess.run(cmd, capture_output=True, text=True, cwd=td)
         if r.returncode != 0:
@@ -138,4 +159,5 @@ def main(out_pdf: str):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "docs", "TiLaser-Bedienungsanleitung.pdf"))
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "docs", "TiLaser-Bedienungsanleitung.pdf"),
+         sys.argv[2] if len(sys.argv) > 2 else "de")

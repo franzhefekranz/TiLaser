@@ -31,6 +31,7 @@ from .dialogs import (ArrayDialog, BarcodeDialog, BoxDialog, ParamDialog, Camera
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from .camera_live import CameraPanel, LiveCamera
 from ..core import vartext as vt
+from ..core.i18n import tr as i18n_tr
 from ..core.eps_import import import_eps
 from ..core.lbrn_export import export_lbrn
 from ..core.lbrn_import import load_lbrn
@@ -338,6 +339,7 @@ class MainWindow(QMainWindow):
                                "Felder mit unterschiedlichem Zeilenabstand gravieren"))
 
         v = mb.addMenu("&Ansicht")
+        self._build_language_menu(v)
         self.a_fit = self._act("Alles zeigen", self.canvas.zoom_fit, "Ctrl+0")
         self.a_preview = self._act("Werkzeugweg-Vorschau", self.toggle_preview, "Ctrl+P",
                                    "Erzeugt den G-Code und zeigt Brenn- und Leerwege")
@@ -2445,6 +2447,58 @@ class MainWindow(QMainWindow):
                 cp._flame_stop()
                 self.machine._log("-- Flammenwächter für diesen Auftrag ausgeschaltet.")
 
+    # ------------------------------------------------------------ Sprache
+    def _build_language_menu(self, parent_menu):
+        from ..core import i18n
+        lm = parent_menu.addMenu("Sprache / Language")
+        grp = QActionGroup(self)
+        cur = i18n.current().code
+        for code, name in i18n.available().items():
+            a = QAction(name, self)
+            a.setCheckable(True)
+            a.setChecked(code == cur)
+            a.triggered.connect(lambda _c=False, c=code: self._set_language(c))
+            grp.addAction(a)
+            lm.addAction(a)
+        lm.addSeparator()
+        lm.addAction(self._act("Eigene Übersetzung anlegen / bearbeiten…", self._edit_translation, None,
+                               "Sprachdatei mit allen Texten anlegen, die man in einem Texteditor übersetzen kann"))
+        parent_menu.addSeparator()
+
+    def _set_language(self, code):
+        from ..core import i18n
+        if code == i18n.current().code:
+            return
+        self.profile.language = code
+        storage.save_machine(self.profile)
+        QMessageBox.information(self, "Sprache / Language",
+                                "Die neue Sprache gilt nach einem Neustart von TiLaser.\n"
+                                "The new language takes effect after restarting TiLaser.")
+
+    def _edit_translation(self):
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+        from ..core import i18n
+        code, ok = QInputDialog.getText(self, "Eigene Übersetzung",
+                                        "Sprachcode (zwei Buchstaben, z. B. fr, nl, it, pl):",
+                                        text=i18n.current().code if i18n.current().active else "")
+        code = (code or "").strip().lower()
+        if not ok or not code:
+            return
+        if code == "de":
+            QMessageBox.information(self, "Eigene Übersetzung", "Deutsch ist die Ausgangssprache und braucht keine Datei.")
+            return
+        names = {"en": "English", "fr": "Français", "nl": "Nederlands", "it": "Italiano", "es": "Español",
+                 "pl": "Polski", "cs": "Čeština", "da": "Dansk", "sv": "Svenska", "pt": "Português"}
+        path = i18n.make_template(code, names.get(code, code), i18n.all_keys())
+        QMessageBox.information(self, "Eigene Übersetzung",
+                                f"Die Sprachdatei liegt hier:\n{path}\n\n"
+                                "Mit einem Texteditor öffnen und jeweils den rechten Text übersetzen "
+                                "(links steht der deutsche Text, vorbelegt ist Englisch). Platzhalter in "
+                                "geschweiften Klammern beibehalten. Danach unter Ansicht → Sprache die Sprache wählen und TiLaser neu starten.\n\n"
+                                "Texte, die noch fehlen, sammelt TiLaser beim Beenden in fehlend_<code>.json im selben Ordner.")
+        QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(path)))
+
     # ------------------------------------------------------------ Weboberfläche
     def web_settings(self):
         from .dialogs import WebDialog
@@ -2482,7 +2536,7 @@ class MainWindow(QMainWindow):
         st = {"state": m.lbl_state.text() or "–", "machine": m.machine_state, "connected": bool(conn.connected),
               "job_active": bool(conn.job_active), "pos": f"X {pos[0]:.1f}  Y {pos[1]:.1f}" if pos else "",
               "progress": 0.0, "time": "", "remaining": "", "project": os.path.basename(self.__dict__.get("project_path") or ""),
-              "flame_alarm": self._flame_alarm, "flame_did": self._flame_did,
+              "flame_alarm": self._flame_alarm, "flame_did": i18n_tr(self._flame_did),
               "flame_watch": self.camera_panel.flame_watching(),
               "can_start": bool(self.profile.web_allow_start and m.is_ready() and self.project.items)}
         try:
@@ -2600,5 +2654,10 @@ class MainWindow(QMainWindow):
         self.camera_panel.shutdown()
         if self.web is not None:
             self.web.stop()
+        try:
+            from ..core import i18n
+            i18n.current().save_missing()
+        except OSError:
+            pass
         storage.save_machine(self.profile)
         e.accept()

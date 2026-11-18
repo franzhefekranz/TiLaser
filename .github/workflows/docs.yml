@@ -10,10 +10,10 @@ on:
   push:
     branches: [main]
     paths: ["tilaser/**", "tools/**", "beispiele/**", "site/**", "docs/Bedienungsanleitung.md",
-            ".github/workflows/docs.yml"]
+            "docs/Manual_en.md", ".github/workflows/docs.yml"]
   pull_request:
     paths: ["tilaser/**", "tools/**", "beispiele/**", "site/**", "docs/Bedienungsanleitung.md",
-            ".github/workflows/docs.yml"]
+            "docs/Manual_en.md", ".github/workflows/docs.yml"]
   workflow_dispatch:
 
 permissions:
@@ -42,8 +42,15 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python tools/make_screenshots.py docs/screenshots
+      - name: Screenshots (englische Oberfläche)
+        env:
+          QT_QPA_PLATFORM: offscreen
+          TILASER_LANG: en
+        run: python tools/make_screenshots.py docs/screenshots/en
       - name: PDF erzeugen
         run: python tools/make_pdf.py docs/TiLaser-Bedienungsanleitung.pdf
+      - name: PDF erzeugen (englisch)
+        run: python tools/make_pdf.py docs/TiLaser-Manual.pdf en
       - name: Wiki-Seiten erzeugen
         run: python tools/make_wiki.py build/wiki
       - name: Projektseite erzeugen
@@ -53,7 +60,9 @@ jobs:
           name: dokumentation
           path: |
             docs/screenshots/*.png
+            docs/screenshots/en/*.png
             docs/TiLaser-Bedienungsanleitung.pdf
+            docs/TiLaser-Manual.pdf
             build/wiki
             build/site
       - name: Projektseite für GitHub Pages bereitstellen (nur main)
@@ -66,7 +75,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/screenshots docs/TiLaser-Bedienungsanleitung.pdf
+          git add docs/screenshots docs/TiLaser-Bedienungsanleitung.pdf docs/TiLaser-Manual.pdf
           if git diff --cached --quiet; then
             echo "Keine Änderungen."
           else

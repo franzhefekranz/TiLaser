@@ -92,6 +92,7 @@ class MachineProfile:
     job_power_w: float = 0.0          # Leistungsaufnahme (Laser + Absaugung + Luft) in W
     job_kwh_price: float = 0.0        # Strompreis je kWh
     job_currency: str = "€"
+    language: str = ""                # Sprache der Oberfläche ("" = Systemsprache)
 
     @property
     def y_scale(self) -> float:
