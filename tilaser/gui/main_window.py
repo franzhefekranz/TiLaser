@@ -1265,7 +1265,9 @@ class MainWindow(QMainWindow):
                     "Quellcode: <a href='https://github.com/franzhefekranz/TiLaser'>"
                     "github.com/franzhefekranz/TiLaser</a><br>"
                     "Enthält Python, PyQt6 (GPL-3.0), Qt 6 (LGPL-3.0), FFmpeg (LGPL), NumPy, Pillow, fontTools, "
-                    "pyserial und pyclipper – Einzelheiten unter <i>Lizenzen…</i>.")
+                    "pyserial und pyclipper – Einzelheiten unter <i>Lizenzen…</i>.<br><br>"
+                    "<small>LightBurn ist eine Marke der LightBurn Software LLC. TiLaser ist ein "
+                    "unabhängiges Projekt und steht in keiner Verbindung zu LightBurn Software.</small>")
         b_lic = box.addButton("Lizenzen…", QMessageBox.ButtonRole.ActionRole)
         box.addButton(QMessageBox.StandardButton.Ok)
         box.exec()

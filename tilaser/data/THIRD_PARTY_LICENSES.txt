@@ -47,3 +47,12 @@ Weitere Hinweise
   ISO/IEC 18004. Sein Aufbau orientiert sich an der QR-Code-Bibliothek von
   Project Nayuki (MIT-Lizenz, https://www.nayuki.io/page/qr-code-generator-library).
 * Die Code-128-Muster stammen aus der Norm ISO/IEC 15417.
+
+Markenhinweis
+-------------
+LightBurn ist eine Marke der LightBurn Software LLC. TiLaser ist ein
+unabhängiges Projekt und steht in keiner Verbindung zu LightBurn Software; es
+wird von ihr weder unterstützt noch geprüft. TiLaser enthält keinen Code von
+LightBurn; das Lesen und Schreiben von .lbrn2/.lbrn dient allein dem
+Datenaustausch. Alle anderen genannten Produktnamen sind Marken ihrer
+jeweiligen Inhaber.

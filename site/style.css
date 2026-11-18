@@ -146,6 +146,7 @@ h3 { font-size: 1.25rem; color: var(--schiefer); margin: 0 0 0.4rem 0; }
         font-size: 0.92rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
         border-top: 1px solid var(--alu-dunkel); }
 .fuss p { margin: 0; }
+.fuss .marke { margin-top: .6rem; font-size: .8rem; max-width: 60rem; }
 .fuss a + a { margin-left: 1.2rem; }
 
 /* ------------------------------------------------------------ Laser-Animation */

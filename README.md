@@ -249,3 +249,7 @@ TiLaser ist freie Software unter der GNU General Public License Version 3 ([LICE
 Die Programmpakete enthalten Python, PyQt6 (GPL-3.0), Qt 6 (LGPL-3.0), FFmpeg (LGPL), NumPy, Pillow,
 fontTools, pyserial und pyclipper. Übersicht: [THIRD_PARTY_LICENSES.txt](tilaser/data/THIRD_PARTY_LICENSES.txt);
 die vollständigen Lizenztexte liegen in den Paketen im Ordner `licenses` (in TiLaser unter *Hilfe → Lizenzen…*).
+
+### Markenhinweis
+
+LightBurn ist eine Marke der LightBurn Software LLC. TiLaser ist ein unabhängiges Projekt und steht in keiner Verbindung zu LightBurn Software; es wird von ihr weder unterstützt noch geprüft. TiLaser enthält keinen Code von LightBurn. Das Lesen und Schreiben von `.lbrn2`/`.lbrn` dient allein der Austauschbarkeit von Dateien. Alle anderen genannten Produktnamen sind Marken ihrer jeweiligen Inhaber.
