@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout, 
                              QPlainTextEdit, QProgressBar, QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
 from ..core import sender
-from ..core.gcode import MachineProfile
+from ..core.gcode import MachineProfile, line_times
 
 
 class _Bridge(QObject):
@@ -49,6 +49,10 @@ class MachinePanel(QWidget):
         self.bridge.state.connect(self._state)
         self.bridge.firmware.connect(self._firmware)
         self.job_start = 0.0
+        self._cum = None            # geschätzte Zeit je Zeile (kumuliert)
+        self._done = 0
+        self._paused_total = 0.0
+        self._pause_t0 = None
         self.machine_state = "disconnected"
 
         # Das Panel selbst wird nicht angezeigt; das Hauptfenster verteilt die Bereiche auf Tabs:
@@ -389,9 +393,54 @@ class MachinePanel(QWidget):
             self.cmd.clear()
 
     def run_job(self, lines: list[str]):
+        clean = [c for c in (sender.clean_line(l) for l in lines) if c]
+        try:
+            self._cum = line_times(clean, self.profile)
+        except Exception:
+            self._cum = None
+        self._done, self._paused_total, self._pause_t0 = 0, 0.0, None
         self.conn.start_job(lines)
         self.job_start = time.time()
         self.jobStarted.emit()
+        self._update_time()
+
+    # ------------------------------------------------------------ Laufzeit
+    @staticmethod
+    def _fmt(s: float) -> str:
+        s = int(round(max(0.0, s)))
+        h, rem = divmod(s, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+    def _active_time(self) -> float:
+        """Laufzeit seit dem Start ohne Pausen."""
+        now = time.time()
+        paused = self._paused_total + (now - self._pause_t0 if self._pause_t0 else 0.0)
+        return max(0.0, now - self.job_start - paused)
+
+    def time_estimate(self) -> tuple[float, float, float] | None:
+        """(bisherige Laufzeit, erwartete Gesamtzeit, Restzeit) in Sekunden – oder None."""
+        if self._cum is None or not len(self._cum):
+            return None
+        total_est = float(self._cum[-1])
+        elapsed = self._active_time()
+        done_est = float(self._cum[min(self._done, len(self._cum)) - 1]) if self._done > 0 else 0.0
+        k = 1.0
+        if done_est >= max(5.0, 0.03 * total_est) and elapsed > 0:
+            k = min(4.0, max(0.5, elapsed / done_est))      # Maschine schneller/langsamer als geschätzt
+        remaining = max(0.0, (total_est - done_est) * k)
+        return elapsed, elapsed + remaining, remaining
+
+    def _update_time(self):
+        est = self.time_estimate() if self.conn.job_active else None
+        if est is None:
+            self.progress.setFormat("%p %")
+            return
+        elapsed, total, remaining = est
+        self.lbl_time.setText(f"{self._fmt(elapsed)} / ~{self._fmt(total)}")
+        self.lbl_time.setToolTip("Bisherige Laufzeit / erwartete Gesamtzeit (Minuten:Sekunden).\n"
+                                 "Die Schätzung wird während des Laserns an das tatsächliche Tempo angepasst.")
+        self.progress.setFormat(f"%p %  ·  noch ~{self._fmt(remaining)}")
 
     def _pause(self):
         if not self.conn.job_active:
@@ -436,6 +485,7 @@ class MachinePanel(QWidget):
             self.lbl_pos.setText(f"X {pos[0]:.2f}  Y {pos[1]:.2f}")
 
     def _progress(self, done, total):
+        self._done = done
         self.progress.setMaximum(max(1, total))
         self.progress.setValue(done)
 
@@ -444,10 +494,18 @@ class MachinePanel(QWidget):
         labels = {"idle": "Bereit", "running": "Läuft", "paused": "Pausiert", "done": "Fertig",
                   "stopped": "Gestoppt", "alarm": "ALARM", "error": "Verbindungsfehler", "disconnected": "Getrennt"}
         self.lbl_state.setText(labels.get(s, s))
+        if s == "paused" and self._pause_t0 is None:
+            self._pause_t0 = time.time()
+        elif s != "paused" and self._pause_t0 is not None:
+            self._paused_total += time.time() - self._pause_t0
+            self._pause_t0 = None
         if s == "done":
-            dur = time.time() - self.job_start
-            self._log(f"-- Auftrag fertig in {int(dur // 60)}:{int(dur % 60):02d} min"
+            dur = self._active_time()
+            est = f" (geschätzt {self._fmt(self._cum[-1])})" if self._cum is not None and len(self._cum) else ""
+            self._log(f"-- Auftrag fertig in {self._fmt(dur)}{est}"
                       + (f", {self.conn.errors} Fehlermeldung(en)" if self.conn.errors else ""))
+            self.lbl_time.setText(f"Fertig {self._fmt(dur)}")
+            self.progress.setFormat("%p %")
         if s in ("disconnected", "error"):
             self.btn_connect.setText("Verbinden")
             self.lbl_fw.setText("Firmware: –")
@@ -478,8 +536,7 @@ class MachinePanel(QWidget):
 
     def _tick(self):
         if self.conn.job_active:
-            dur = time.time() - self.job_start
-            self.lbl_time.setText(f"Laufzeit {int(dur // 60)}:{int(dur % 60):02d}")
+            self._update_time()
         self._update_buttons()
 
     def _update_buttons(self):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -479,6 +480,50 @@ def frame_gcode(bbox, prof: MachineProfile, hull=None) -> list[str]:
         for x, y in corners[1:]:
             lines.append(f"G1 X{fmt(x)} Y{fmt(y)} F{fmt(prof.frame_speed, 0)}")
     return lines
+
+
+# --------------------------------------------------------------------------- Zeitschätzung je Zeile
+_WORD = re.compile(r"([A-Z])\s*([-+]?\d*\.?\d+)")
+
+
+def line_times(lines: list[str], prof: MachineProfile) -> np.ndarray:
+    """Geschätzte Laufzeit bis einschließlich jeder Zeile (kumuliert, Sekunden).
+
+    Erwartet bereinigte Zeilen (ohne Kommentare), wie sie an die Maschine gehen. Rechnet Weg/Vorschub
+    ohne Beschleunigung; die Anzeige während des Laserns gleicht das mit der tatsächlichen Laufzeit ab."""
+    x = y = z = 0.0
+    feed = prof.travel_speed
+    mode = 0
+    absolute = True
+    out = np.zeros(len(lines))
+    t = 0.0
+    for i, raw in enumerate(lines):
+        ln = raw.upper()
+        words = _WORD.findall(ln)
+        gs = [float(v) for k, v in words if k == "G"]
+        for gv in gs:
+            if gv in (0, 1, 2, 3):
+                mode = int(gv)
+            elif gv == 90:
+                absolute = True
+            elif gv == 91:
+                absolute = False
+        vals = {k: float(v) for k, v in words if k in "XYZFP"}
+        if "F" in vals and vals["F"] > 0:
+            feed = vals["F"]
+        if 4 in gs and "P" in vals:
+            t += vals["P"] if prof.dialect == "grbl" else vals["P"] / 1000.0
+        elif any(k in vals for k in "XYZ"):
+            nx = (vals.get("X", x) if absolute else x + vals.get("X", 0.0))
+            ny = (vals.get("Y", y) if absolute else y + vals.get("Y", 0.0))
+            nz = (vals.get("Z", z) if absolute else z + vals.get("Z", 0.0))
+            dist = math.sqrt((nx - x) ** 2 + (ny - y) ** 2 + (nz - z) ** 2)
+            speed = prof.travel_speed if mode == 0 else feed
+            if speed > 0:
+                t += dist / speed * 60.0
+            x, y, z = nx, ny, nz
+        out[i] = t
+    return out
 
 
 # --------------------------------------------------------------------------- Fortsetzen
