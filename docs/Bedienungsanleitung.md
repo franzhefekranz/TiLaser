@@ -721,6 +721,36 @@ werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werde
 
 ---
 
+
+### Weboberfläche (Handy, Tablet, PC)
+
+Unter *Maschine → Weboberfläche…* lässt sich TiLaser über den Browser eines anderen Geräts im selben Netz
+beobachten und bedienen – z. B. vom Handy, wenn TiLaser auf dem Raspberry Pi am Laser läuft, oder vom
+Arbeitsplatz-PC aus der Nachbarecke. TiLaser selbst muss dafür laufen.
+
+| Einstellung | Wirkung |
+|---|---|
+| Weboberfläche einschalten | Startet den Webserver (bleibt auch nach einem Neustart von TiLaser an) |
+| Port | Standard 8080 |
+| PIN | Wird im Browser abgefragt. Die Anmeldung gilt bis zu 24 Stunden, endet aber, wenn TiLaser neu startet oder dieser Dialog mit OK geschlossen wird. Nach 10 falschen Eingaben ist die Anmeldung 5 Minuten gesperrt. Leer = ohne Anmeldung (nicht empfohlen) |
+| Aufträge aus der Ferne starten erlauben | Zeigt einen Knopf *Auftrag starten*, der das aktuell geöffnete Projekt mit den Einstellungen der Auftragsleiste startet. Standardmäßig aus |
+
+Der Dialog zeigt die Adresse (z. B. `http://192.168.1.20:8080/`) und einen QR-Code, den man mit der
+Handykamera scannt. Die Seite zeigt:
+
+- Zustand, Position, Fortschritt als „abbrennenden“ Holzstreifen, Laufzeit und Restzeit
+- das Live-Kamerabild (etwa ein Bild pro Sekunde, wenn die Kamera in TiLaser läuft)
+- Knöpfe **Pause/Fortsetzen** und **Stopp** (mit Rückfrage), optional *Auftrag starten*
+- die letzten Zeilen der Konsole
+- eine rote Meldung mit Ton und Vibration, wenn der [Flammenwächter](#flammenwächter) auslöst
+
+Auf dem Handy steht alles untereinander, auf dem PC (ab etwa 900 Pixel Breite) ist das Kamerabild groß
+links und die Bedienung rechts; dort gilt außerdem **Leertaste** = Pause/Fortsetzen und **Esc** = Stopp.
+
+> Nur im eigenen Netz verwenden und **keine Portfreigabe im Router** einrichten. Unter Windows fragt die
+> Firewall beim ersten Start, ob TiLaser im privaten Netz erreichbar sein darf – das mit *Zulassen*
+> bestätigen. Auch mit Weboberfläche gilt: den Laser nie unbeaufsichtigt lassen.
+
 ## 13. Vorschau und Simulation
 
 ![Werkzeugweg-Vorschau](screenshots/10_vorschau.png)

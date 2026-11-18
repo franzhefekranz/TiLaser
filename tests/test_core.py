@@ -1512,6 +1512,59 @@ def test_flame_detector():
     assert not any(d.update(frame(blob=(300, 300, 12)), 0.2 * i).triggered for i in range(1, 30))
 
 
+def test_webserver():
+    """Anmeldung per PIN, Status, Befehle in die Warteschlange, Kamerabild, Schutz vor fremden Formularen."""
+    import json as _json
+    import urllib.error
+    import urllib.request
+    from tilaser.core.webserver import WebServer
+
+    srv = WebServer(port=0, pin="123456", host="127.0.0.1")
+    srv.start()
+    base = f"http://127.0.0.1:{srv.port}"
+    cookie = {}
+
+    def req(path, body=None, header=True):
+        r = urllib.request.Request(base + path, method="POST" if body is not None else "GET",
+                                   data=_json.dumps(body).encode() if body is not None else None)
+        if header:
+            r.add_header("X-TiLaser", "1")
+        if body is not None:
+            r.add_header("Content-Type", "application/json")
+        if cookie:
+            r.add_header("Cookie", "tilaser_session=" + cookie["v"])
+        try:
+            with urllib.request.urlopen(r, timeout=5) as resp:
+                return resp.status, resp.read(), resp.headers
+        except urllib.error.HTTPError as e:
+            return e.code, e.read(), e.headers
+    try:
+        code, body, _ = req("/")
+        assert code == 200 and b"TiLaser" in body
+        assert req("/api/status")[0] == 401
+        assert req("/api/cmd", {"cmd": "stop"})[0] == 401
+        assert req("/api/login", {"pin": "000000"})[0] == 403
+        assert req("/api/login", {"pin": "123456"}, header=False)[0] == 403       # fremdes Formular
+        code, _, hdr = req("/api/login", {"pin": "123456"})
+        assert code == 200
+        cookie["v"] = hdr["Set-Cookie"].split(";")[0].split("=", 1)[1]
+        srv.publish({"state": "Läuft", "progress": 42})
+        code, body, _ = req("/api/status")
+        st = _json.loads(body)
+        assert code == 200 and st["state"] == "Läuft" and st["allow_start"] is False
+        assert req("/api/cmd", {"cmd": "pause"})[0] == 200 and srv.commands.get_nowait() == "pause"
+        assert req("/api/cmd", {"cmd": "start"})[0] == 403                        # nicht erlaubt
+        assert req("/api/cmd", {"cmd": "rm -rf"})[0] == 400
+        assert req("/cam.jpg")[0] == 204 and srv.camera_wanted()
+        srv.publish_jpeg(b"\xff\xd8jpeg")
+        code, body, _ = req("/cam.jpg")
+        assert code == 200 and body.startswith(b"\xff\xd8")
+        srv.allow_start = True
+        assert req("/api/cmd", {"cmd": "start"})[0] == 200 and srv.commands.get_nowait() == "start"
+    finally:
+        srv.stop()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

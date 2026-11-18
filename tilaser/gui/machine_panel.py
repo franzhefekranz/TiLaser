@@ -561,6 +561,12 @@ class MachinePanel(QWidget):
             self._pause()
         return True
 
+    def resume_job(self) -> bool:
+        if self.conn.job_active and (self.machine_state == "paused" or self.conn._paused):
+            self._pause()
+            return True
+        return False
+
     def stop_job(self) -> bool:
         active = self.conn.job_active
         self._stop()

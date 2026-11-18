@@ -155,6 +155,14 @@ class MainWindow(QMainWindow):
         self.machine.firmwareDetected.connect(self._on_firmware)
         self.machine.profileChanged.connect(lambda: storage.save_machine(self.profile))
         QTimer.singleShot(800, self.machine.auto_connect)       # letzte Verbindung wiederherstellen
+        self.web = None
+        self._flame_alarm = 0.0
+        self._flame_did = ""
+        self._web_jpeg_t = 0.0
+        self._web_timer = QTimer(self)
+        self._web_timer.setInterval(300)
+        self._web_timer.timeout.connect(self._web_tick)
+        QTimer.singleShot(1000, self._web_apply)
         self.machine.rubber_show.toggled.connect(self._set_rubber_show)
         self.machine.only_sel.toggled.connect(lambda _: self._update_rubber())
         self.layers.set_machine(self.profile.name)
@@ -344,6 +352,8 @@ class MainWindow(QMainWindow):
                                "Einstellungen der GRBL-Steuerung anzeigen und ändern"))
         mm.addAction(self._act("Makros bearbeiten…", self.machine.edit_macros, None,
                                "Eigene G-Code-Knöpfe mit Tastenkürzel"))
+        mm.addAction(self._act("Weboberfläche…", self.web_settings, None,
+                               "Laser vom Handy oder einem anderen Rechner im Netz beobachten und bedienen"))
         self.a_rotary = self._act("Rotationsachse aktiv", self._toggle_rotary)
         self.a_rotary.setCheckable(True)
         self.a_rotary.setChecked(self.profile.rotary)
@@ -2067,6 +2077,10 @@ class MainWindow(QMainWindow):
         elif action == "stop" and self.machine.stop_job():
             did = "Der Auftrag wurde gestoppt."
         self.machine._log(f"!! Flammenwächter: mögliche Flamme erkannt. {did}".rstrip())
+        if not test:
+            import time as _t
+            self._flame_alarm, self._flame_did = _t.time(), did
+            self._web_tick()
         self.tabs.setCurrentWidget(cp)
         self.raise_()
         self.activateWindow()
@@ -2109,6 +2123,124 @@ class MainWindow(QMainWindow):
                 cp._flame_stop()
                 self.machine._log("-- Flammenwächter für diesen Auftrag ausgeschaltet.")
 
+    # ------------------------------------------------------------ Weboberfläche
+    def web_settings(self):
+        from .dialogs import WebDialog
+        dlg = WebDialog(self.profile, self.web, self)
+        if dlg.exec() == WebDialog.DialogCode.Accepted:
+            dlg.apply(self.profile)
+            storage.save_machine(self.profile)
+            self._web_apply(restart=True)
+
+    def _web_apply(self, restart: bool = False):
+        from ..core.webserver import WebServer
+        p = self.profile
+        if self.web is not None and (restart or not p.web_enabled):
+            self.web.stop()
+            self.web = None
+        if p.web_enabled and self.web is None:
+            try:
+                self.web = WebServer(port=p.web_port, pin=p.web_pin, allow_start=p.web_allow_start)
+                self.web.start()
+            except OSError as e:
+                self.web = None
+                self.machine._log(f"!! Weboberfläche konnte nicht starten (Port {p.web_port}): {e}")
+                self.statusBar().showMessage(f"Weboberfläche: Port {p.web_port} ist belegt oder gesperrt.", 10000)
+                return
+            self.machine._log("-- Weboberfläche: " + ", ".join(self.web.urls()))
+        if self.web is not None:
+            self._web_timer.start()
+        else:
+            self._web_timer.stop()
+
+    def _web_status(self) -> dict:
+        m = self.machine
+        conn = m.conn
+        pos = m.__dict__.get("last_pos")
+        st = {"state": m.lbl_state.text() or "–", "machine": m.machine_state, "connected": bool(conn.connected),
+              "job_active": bool(conn.job_active), "pos": f"X {pos[0]:.1f}  Y {pos[1]:.1f}" if pos else "",
+              "progress": 0.0, "time": "", "remaining": "", "project": os.path.basename(self.__dict__.get("project_path") or ""),
+              "flame_alarm": self._flame_alarm, "flame_did": self._flame_did,
+              "flame_watch": self.camera_panel.flame_watching(),
+              "can_start": bool(self.profile.web_allow_start and m.is_ready() and self.project.items)}
+        try:
+            mx = max(1, m.progress.maximum())
+            st["progress"] = 100.0 * m.progress.value() / mx
+        except Exception:
+            pass
+        est = m.time_estimate() if conn.job_active else None
+        if est:
+            st["time"] = f"{m._fmt(est[0])} / ~{m._fmt(est[1])}"
+            st["remaining"] = m._fmt(est[2])
+        elif m.lbl_time.text():
+            st["time"] = m.lbl_time.text()
+        st["log"] = m.console.toPlainText().splitlines()[-20:]
+        return st
+
+    def _web_tick(self):
+        w = self.web
+        if w is None:
+            return
+        while not w.commands.empty():
+            self._web_command(w.commands.get_nowait())
+        try:
+            w.publish(self._web_status())
+        except Exception as e:                    # Anzeige darf den Laser nie stören
+            w.publish({"state": f"Fehler: {e}"})
+        import time as _t
+        if w.camera_wanted() and self.live_cam.image is not None and _t.monotonic() - self._web_jpeg_t > 0.8:
+            self._web_jpeg_t = _t.monotonic()
+            data = self._camera_jpeg()
+            if data:
+                w.publish_jpeg(data)
+
+    def _camera_jpeg(self) -> bytes:
+        from PyQt6.QtCore import QBuffer, QByteArray, QIODevice
+        from PyQt6.QtGui import QTransform
+        img = self.live_cam.image
+        if img is None or img.isNull():
+            return b""
+        if img.width() > 800:
+            img = img.scaledToWidth(800, Qt.TransformationMode.SmoothTransformation)
+        rot = int(getattr(self.profile, "camera_live_rot", 0)) % 360
+        if rot:
+            img = img.transformed(QTransform().rotate(rot))
+        ba = QByteArray()
+        buf = QBuffer(ba)
+        buf.open(QIODevice.OpenModeFlag.WriteOnly)
+        img.save(buf, "JPG", 70)
+        buf.close()
+        return bytes(ba.data())
+
+    def _web_command(self, cmd: str):
+        m = self.machine
+        if cmd == "pause" and m.pause_job():
+            m._log("-- Über die Weboberfläche pausiert.")
+        elif cmd == "resume" and m.resume_job():
+            m._log("-- Über die Weboberfläche fortgesetzt.")
+        elif cmd == "stop":
+            m.stop_job()
+            m._log("-- Über die Weboberfläche gestoppt.")
+        elif cmd == "ack":
+            self._flame_alarm, self._flame_did = 0.0, ""
+        elif cmd == "start" and self.profile.web_allow_start:
+            self._start_job_remote()
+
+    def _start_job_remote(self):
+        m = self.machine
+        if not self.project.items or not m.is_ready():
+            m._log("!! Start über die Weboberfläche abgelehnt: Projekt leer oder Laser nicht bereit.")
+            return
+        try:
+            only, offset = self._job_params()
+            res = self.ensure_result(only, offset)
+        except Exception as e:
+            m._log(f"!! Start über die Weboberfläche fehlgeschlagen: {e}")
+            return
+        m._log(f"-- Auftrag über die Weboberfläche gestartet (ca. {fmt_time(res.time_s)}).")
+        self._var_job = True
+        m.run_job(res.lines)
+
     def _live_bg_toggled(self, on):
         if on and len(self.profile.camera_h) != 9:
             self.statusBar().showMessage("Für das Live-Hintergrundbild die Kamera zuerst ausrichten "
@@ -2143,5 +2275,7 @@ class MainWindow(QMainWindow):
             self.machine.conn.stop()
         self.machine.shutdown()
         self.camera_panel.shutdown()
+        if self.web is not None:
+            self.web.stop()
         storage.save_machine(self.profile)
         e.accept()

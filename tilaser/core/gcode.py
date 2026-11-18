@@ -83,6 +83,10 @@ class MachineProfile:
     flame_sensitivity: int = 5        # 1 (unempfindlich) … 10 (sehr empfindlich)
     flame_hold: float = 2.0           # Sekunden, die eine Stelle dauerhaft brennen muss
     flame_show: bool = True           # erkannte Stellen im Live-Bild markieren
+    web_enabled: bool = False         # Weboberfläche zur Fernbedienung
+    web_port: int = 8080
+    web_pin: str = ""                 # leer = ohne Anmeldung (nicht empfohlen)
+    web_allow_start: bool = False     # Aufträge aus der Ferne starten erlauben
 
     @property
     def y_scale(self) -> float:
