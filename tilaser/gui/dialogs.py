@@ -7,7 +7,7 @@ import re
 import numpy as np
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QGridLayout,
                              QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
                              QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
@@ -1432,3 +1432,177 @@ def _qr_pixmap(text: str, scale: int = 4):
             if v:
                 img.setPixel(x + 4, y + 4, 0xFF000000)
     return QPixmap.fromImage(img.scaled(n * scale, n * scale))
+
+
+class ParamDialog(QDialog):
+    """Einfacher Einstellungsdialog für Generatoren.
+
+    fields: Liste (Schlüssel, Beschriftung, Art, Vorgabe, Zusatz)
+      Art "f": Zusatz = (min, max, Nachkommastellen, Schritt, Einheit)
+      Art "i": Zusatz = (min, max)
+      Art "c": Zusatz = {Wert: Text}
+      Art "b": Häkchen (Beschriftung = Text am Häkchen)
+      Art "layer": Zusatz = (erlaubte Modi, Vorgabe "new_fill" | "new_cut" | Ebenen-ID)
+    Die zuletzt verwendeten Werte werden je Dialogtitel für die Sitzung gemerkt.
+    """
+    _memory: dict = {}
+    NEW_FILL = TextDialog.NEW_FILL
+    NEW_CUT = TextDialog.NEW_CUT
+
+    def __init__(self, title: str, fields, project=None, info: str = "", parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self._title = title
+        mem = ParamDialog._memory.get(title, {})
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.w = {}
+        self._kinds = {}
+        for key, label, kind, default, extra in fields:
+            val = mem.get(key, default) if kind != "layer" else default
+            if kind == "f":
+                lo, hi, dec, step, suf = extra
+                w = dspin(lo, hi, dec, step, suf)
+                w.setValue(float(val))
+            elif kind == "i":
+                w = QSpinBox()
+                w.setRange(*extra)
+                w.setValue(int(val))
+            elif kind == "c":
+                w = QComboBox()
+                for k, txt in extra.items():
+                    w.addItem(txt, k)
+                w.setCurrentIndex(max(0, w.findData(val)))
+            elif kind == "b":
+                w = QCheckBox(label)
+                w.setChecked(bool(val))
+                label = ""
+            elif kind == "layer":
+                modes, pref = extra
+                w = QComboBox()
+                for l in (project.layers if project is not None else []):
+                    if l.mode in modes:
+                        w.addItem(color_icon(l.color), l.name, l.id)
+                w.addItem("Neue Ebene: Füllen (gravieren)", self.NEW_FILL)
+                w.addItem("Neue Ebene: Schneiden / Kontur", self.NEW_CUT)
+                i = w.findData(pref)
+                w.setCurrentIndex(i if i >= 0 else w.count() - 1)
+            else:
+                raise ValueError(kind)
+            self.w[key] = w
+            self._kinds[key] = kind
+            f.addRow(label, w)
+        lay.addLayout(f)
+        if info:
+            lb = QLabel(info)
+            lb.setWordWrap(True)
+            lay.addWidget(lb)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self._ok)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def values(self) -> dict:
+        out = {}
+        for k, w in self.w.items():
+            kind = self._kinds[k]
+            if kind == "f":
+                out[k] = float(w.value())
+            elif kind == "i":
+                out[k] = int(w.value())
+            elif kind in ("c", "layer"):
+                out[k] = w.currentData()
+            elif kind == "b":
+                out[k] = bool(w.isChecked())
+        return out
+
+    def _ok(self):
+        ParamDialog._memory[self._title] = {k: v for k, v in self.values().items() if self._kinds[k] != "layer"}
+        self.accept()
+
+
+class JobLogDialog(QDialog):
+    """Auftragsprotokoll anzeigen, Kostensätze einstellen, exportieren oder leeren."""
+
+    def __init__(self, profile, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+        from ..core import joblog
+        self.setWindowTitle("Auftragsprotokoll")
+        self.resize(980, 560)
+        self.profile = profile
+        lay = QVBoxLayout(self)
+        entries = joblog.read()
+        cols = ["start", "duration_s", "result", "kind", "project", "layers", "source", "flame", "cost"]
+        tab = QTableWidget(len(entries), len(cols))
+        tab.setHorizontalHeaderLabels([joblog.HEADERS[c] for c in cols])
+        tab.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        cur = getattr(profile, "job_currency", "€")
+        for r, e in enumerate(reversed(entries)):
+            for c, key in enumerate(cols):
+                v = getattr(e, key)
+                if key == "duration_s":
+                    s = int(round(v))
+                    v = f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}"
+                elif key == "cost":
+                    v = f"{v:.2f} {cur}".replace(".", ",") if v else ""
+                tab.setItem(r, c, QTableWidgetItem(str(v)))
+        tab.resizeColumnsToContents()
+        lay.addWidget(tab, 1)
+        t = joblog.totals(entries)
+        s = int(t["duration_s"])
+        lay.addWidget(QLabel(f"{t['count']} Aufträge ({t['done']} fertig), Laufzeit gesamt "
+                             f"{s // 3600}:{s // 60 % 60:02d} h, Kosten gesamt "
+                             f"{t['cost']:.2f} {cur}".replace(".", ",")))
+        g = QGridLayout()
+        self.rate = dspin(0, 10000, 2, 1, f" {cur}/h")
+        self.rate.setValue(float(getattr(profile, "job_rate", 0.0)))
+        self.rate.setToolTip("Maschinenstundensatz (Abnutzung, Laserdiode, Arbeitszeit …). 0 = nicht berechnen")
+        self.watt = dspin(0, 5000, 0, 10, " W")
+        self.watt.setValue(float(getattr(profile, "job_power_w", 0.0)))
+        self.watt.setToolTip("Leistungsaufnahme von Laser, Absaugung und Luftpumpe zusammen")
+        self.kwh = dspin(0, 10, 3, 0.01, f" {cur}/kWh")
+        self.kwh.setValue(float(getattr(profile, "job_kwh_price", 0.0)))
+        g.addWidget(QLabel("Stundensatz"), 0, 0)
+        g.addWidget(self.rate, 0, 1)
+        g.addWidget(QLabel("Leistungsaufnahme"), 0, 2)
+        g.addWidget(self.watt, 0, 3)
+        g.addWidget(QLabel("Strompreis"), 0, 4)
+        g.addWidget(self.kwh, 0, 5)
+        lay.addLayout(g)
+        self.enabled = QCheckBox("Aufträge protokollieren")
+        self.enabled.setChecked(bool(getattr(profile, "job_log", True)))
+        lay.addWidget(self.enabled)
+        lay.addWidget(QLabel(f"Datei: {joblog.LOG_FILE}"))
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        b_exp = bb.addButton("Als CSV speichern…", QDialogButtonBox.ButtonRole.ActionRole)
+        b_clr = bb.addButton("Protokoll leeren…", QDialogButtonBox.ButtonRole.ActionRole)
+        b_exp.clicked.connect(self._export)
+        b_clr.clicked.connect(self._clear)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def apply(self, profile):
+        profile.job_rate = float(self.rate.value())
+        profile.job_power_w = float(self.watt.value())
+        profile.job_kwh_price = float(self.kwh.value())
+        profile.job_log = self.enabled.isChecked()
+
+    def _export(self):
+        import shutil
+        from ..core import joblog
+        if not os.path.exists(joblog.LOG_FILE):
+            QMessageBox.information(self, "Auftragsprotokoll", "Noch keine Aufträge protokolliert.")
+            return
+        p, _ = QFileDialog.getSaveFileName(self, "Protokoll speichern", os.path.expanduser("~/auftraege.csv"),
+                                           "CSV (*.csv)")
+        if p:
+            shutil.copyfile(joblog.LOG_FILE, p)
+
+    def _clear(self):
+        from ..core import joblog
+        if QMessageBox.question(self, "Auftragsprotokoll", "Alle protokollierten Aufträge löschen?") \
+                == QMessageBox.StandardButton.Yes:
+            joblog.clear()
+            self.accept()
