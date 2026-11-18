@@ -236,3 +236,10 @@ open("teil.gcode", "w").write(generate(p, prof).text)
 - DXF: Splines werden als Punktfolgen importiert (Kreise, Bögen, Ellipsen und Polylinien-Bögen als echte Kurven).
 - SVG-Texte müssen vorher in Pfade umgewandelt werden (Inkscape: *Objekt in Pfad*). Alternativ den Text in TiLaser einfügen.
 - DXF: TEXT, MTEXT, HATCH und Bemaßungen werden ignoriert. Binär-DXF wird nicht unterstützt.
+
+## Lizenz
+
+TiLaser ist freie Software unter der GNU General Public License Version 3 ([LICENSE](LICENSE)).
+Die Programmpakete enthalten Python, PyQt6 (GPL-3.0), Qt 6 (LGPL-3.0), FFmpeg (LGPL), NumPy, Pillow,
+fontTools, pyserial und pyclipper. Übersicht: [THIRD_PARTY_LICENSES.txt](tilaser/data/THIRD_PARTY_LICENSES.txt);
+die vollständigen Lizenztexte liegen in den Paketen im Ordner `licenses` (in TiLaser unter *Hilfe → Lizenzen…*).

@@ -333,6 +333,7 @@ class MainWindow(QMainWindow):
                                "Live-Bild in einem eigenen Fenster, z. B. auf dem zweiten Bildschirm"))
 
         h = mb.addMenu("&Hilfe")
+        h.addAction(self._act("Lizenzen…", self.show_licenses, None, "Lizenzen von TiLaser und der mitgelieferten Bibliotheken"))
         h.addAction(self._act("Über TiLaser", self.about))
 
         tb = QToolBar("Werkzeuge")
@@ -1046,11 +1047,46 @@ class MainWindow(QMainWindow):
             self._invalidate()
 
     def about(self):
-        QMessageBox.about(self, "Über TiLaser",
-                          f"<b>TiLaser {__version__}</b><br>Schneiden und Gravieren mit G-Code-Lasern "
-                          "(GRBL, Marlin, Smoothieware).<br><br>Import: SVG, DXF, Bilder, Text<br>"
-                          "Bedienung: Mausrad = Zoom, rechte/mittlere Maustaste = Verschieben, "
-                          "Pfeiltasten = Objekt um 1 mm (Shift: 10 mm) bewegen.")
+        box = QMessageBox(self)
+        box.setWindowTitle("Über TiLaser")
+        box.setIconPixmap(self.windowIcon().pixmap(64, 64))
+        box.setText(f"<b>TiLaser {__version__}</b><br>Schneiden und Gravieren mit G-Code-Lasern "
+                    "(GRBL, Marlin, Smoothieware).<br><br>"
+                    "Freie Software unter der GNU GPL Version 3.<br>"
+                    "Quellcode: <a href='https://github.com/franzhefekranz/TiLaser'>"
+                    "github.com/franzhefekranz/TiLaser</a><br>"
+                    "Enthält Python, PyQt6 (GPL-3.0), Qt 6 (LGPL-3.0), FFmpeg (LGPL), NumPy, Pillow, fontTools, "
+                    "pyserial und pyclipper – Einzelheiten unter <i>Lizenzen…</i>.")
+        b_lic = box.addButton("Lizenzen…", QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QMessageBox.StandardButton.Ok)
+        box.exec()
+        if box.clickedButton() is b_lic:
+            self.show_licenses()
+
+    def show_licenses(self):
+        from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout
+        path = os.path.join(os.path.dirname(storage.DEFAULT_PRESETS), "THIRD_PARTY_LICENSES.txt")
+        try:
+            text = open(path, encoding="utf-8").read()
+        except OSError:
+            text = "Lizenzübersicht nicht gefunden."
+        import sys
+        base = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(sys.argv[0]))
+        lic = os.path.join(base, "licenses")
+        if os.path.isdir(lic):
+            text += f"\n\nVollständige Lizenztexte: {lic}"
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Lizenzen")
+        dlg.resize(760, 560)
+        lay = QVBoxLayout(dlg)
+        ed_ = QPlainTextEdit(text)
+        ed_.setReadOnly(True)
+        ed_.setStyleSheet("font-family: Consolas, 'DejaVu Sans Mono', monospace;")
+        lay.addWidget(ed_)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(dlg.reject)
+        lay.addWidget(bb)
+        dlg.exec()
 
     # ------------------------------------------------------------ Rückgängig / Zwischenablage
     def _checkpoint(self, label: str, key: str | None = None):

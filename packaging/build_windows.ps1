@@ -27,6 +27,9 @@ if ($LASTEXITCODE -ne 0) { throw "Tests fehlgeschlagen" }
 Remove-Item -Recurse -Force build, dist\TiLaser -ErrorAction SilentlyContinue
 python -m PyInstaller --noconfirm --clean packaging\tilaser.spec
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller fehlgeschlagen" }
+# Lizenztexte der gebuendelten Bibliotheken (GPL/LGPL-Pflicht beim Weitergeben)
+python tools\collect_licenses.py dist\TiLaser
+if ($LASTEXITCODE -ne 0) { throw "Lizenzen sammeln fehlgeschlagen" }
 
 $Release = Join-Path $Root "dist\release"
 New-Item -ItemType Directory -Force $Release | Out-Null
