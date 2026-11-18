@@ -346,6 +346,23 @@ class Project:
     def item(self, item_id: str) -> Item | None:
         return next((it for it in self.items if it.id == item_id), None)
 
+    def outline_points(self, only_output=True) -> np.ndarray | None:
+        """Alle Punkte der auszugebenden Konturen (Bilder: ihre vier Ecken), für den Gummiband-Rahmen."""
+        pts = []
+        for it in self.items:
+            if it.kind == "raster":
+                layer = self.layer(it.layer_id)
+                if not only_output or (layer and layer.output):
+                    pts.append(g.apply_matrix(it.matrix(), it.local_corners()))
+                continue
+            m = it.matrix()
+            for vp in it.paths:
+                layer = self.layer(vp.layer_id)
+                if only_output and not (layer and layer.output):
+                    continue
+                pts.append(g.apply_matrix(m, vp.poly.pts))
+        return np.vstack(pts) if pts else None
+
     def bbox(self, only_output=True):
         boxes = []
         for it in self.items:

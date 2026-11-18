@@ -501,6 +501,43 @@ class LaserCanvas(QGraphicsView):
             self.scene_.removeItem(self.background)
             self.background = None
 
+    def _outline_item(self, pts, dash=True):
+        path = QPainterPath(QPointF(pts[0][0], -pts[0][1]))
+        for x, y in pts[1:]:
+            path.lineTo(QPointF(x, -y))
+        path.closeSubpath()
+        pen = QPen(QColor(230, 81, 0), 0)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        pen.setWidthF(1.5)
+        item = QGraphicsPathItem(path)
+        item.setPen(pen)
+        item.setZValue(50)
+        item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)     # reine Anzeige, nicht anklickbar
+        self.scene_.addItem(item)
+        return item
+
+    def set_rubber_outline(self, pts):
+        """Gummiband-Linie dauerhaft anzeigen (None = ausblenden). Nur Anzeige – kein Projektobjekt."""
+        old = self.__dict__.get("_rubber_item")
+        if old is not None and old.scene() is not None:
+            self.scene_.removeItem(old)
+        self._rubber_item = self._outline_item(pts) if pts is not None and len(pts) >= 3 else None
+
+    def show_frame_outline(self, pts, seconds: float = 8.0):
+        """Abgefahrenen Gummiband-Rahmen kurz gestrichelt anzeigen."""
+        from PyQt6.QtCore import QTimer
+        old = self.__dict__.get("_frame_item")
+        if old is not None and old.scene() is not None:
+            self.scene_.removeItem(old)
+        item = self._outline_item(pts)
+        self._frame_item = item
+
+        def remove():
+            if item.scene() is not None:
+                self.scene_.removeItem(item)
+        QTimer.singleShot(int(seconds * 1000), remove)
+
     # ------------------------------------------------------------ Werkzeuge
     def set_tool(self, tool: str):
         self._cancel_draw()

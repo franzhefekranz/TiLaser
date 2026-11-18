@@ -1198,6 +1198,30 @@ def test_lightburn_import_export():
     assert bmp.image[0, 0] == 0 and bmp.image[1, 0] == 255 and bmp.image[0, 1] == 255   # aufrecht, Transparenz weiß
 
 
+def test_rubber_band_frame():
+    from tilaser.core import shapes
+    from tilaser.core.gcode import convex_hull
+    from tilaser.core.model import ImportedPath
+    hull = convex_hull([(0, 0), (10, 0), (5, 5), (10, 10), (0, 10), (5, 2)])
+    assert hull == [(0, 0), (10, 0), (10, 10), (0, 10)]                       # Innenpunkte fallen weg
+    pr = Project()
+    pr.add_vector_import("k", [ImportedPath(shapes.ellipse(40, 40), "#000000", "#000000")], center_at=(100, 100))
+    pr.add_vector_import("d", [ImportedPath(g.Polyline(np.array([[0.0, 0], [10, 0], [5, 8]]), True),
+                                            "#000000", "#000000")], center_at=(160, 100))
+    h = convex_hull(pr.outline_points())
+    assert len(h) > 8                                                         # Kreisbogen + Dreieck
+    lines = frame_gcode(pr.bbox(), MachineProfile(), h)
+    moves = [l for l in lines if l.startswith("G1")]
+    assert len(moves) == len(h) and moves[-1].startswith(f"G1 X{h[0][0]:g} Y{h[0][1]:g}")   # geschlossen
+    xs = [float(l.split()[1][1:]) for l in moves]
+    ys = [float(l.split()[2][1:]) for l in moves]
+    bb = pr.bbox()
+    assert min(xs) >= bb[0] - 1e-6 and max(xs) <= bb[2] + 1e-6 and min(ys) >= bb[1] - 1e-6
+    # Ecken des Rechtecks liegen außerhalb der Hülle: die Fahrt berührt sie nicht
+    assert not any(abs(x - bb[0]) < 0.5 and abs(y - bb[1]) < 0.5 for x, y in zip(xs, ys))
+    assert len([l for l in frame_gcode(pr.bbox(), MachineProfile()) if l.startswith("G1")]) == 4
+
+
 def test_lightburn_legacy_lbrn():
     from tilaser.core.lbrn_import import load_lbrn
     # Altes Format (LightBurn 1.0, FormatVersion 0): V-/P-Elemente statt VertList/PrimList, skalierte XForm
