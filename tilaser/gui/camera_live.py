@@ -3,7 +3,7 @@
 * ``LiveCamera``  – besitzt Kamera, Aufnahme-Session, Video-Sink und Recorder (QtMultimedia)
 * ``CameraView``  – zeichnet das aktuelle Bild seitenrichtig skaliert (optional gedreht)
 * ``CameraWindow`` – großes, frei verschiebbares Fenster (z. B. auf einem zweiten Bildschirm)
-* ``CameraPanel`` – Tab „Kamera“ in der Seitenleiste
+* ``CameraPanel`` – Tab „Kamera“ in der Seitenleiste, mit Flammenwächter (``core.flame``)
 
 QtMultimedia wird erst beim Einschalten importiert, damit TiLaser auch ohne Kameraunterstützung startet.
 """
@@ -15,8 +15,10 @@ import time
 import numpy as np
 from PyQt6.QtCore import QObject, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter
-from PyQt6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QPushButton,
-                             QSizePolicy, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QGridLayout, QGroupBox, QHBoxLayout,
+                             QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget)
+
+from ..core.flame import FlameDetector
 
 FILE_DEVICE = "__file__"
 
@@ -198,6 +200,7 @@ class CameraView(QWidget):
         self.image = None
         self.rotation = 0
         self.overlay = ""
+        self.mask = None                   # QImage (rot, halbtransparent) über dem Bild
         self.placeholder = "Kamera aus"
         self.setMinimumSize(200, 150)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -226,6 +229,8 @@ class CameraView(QWidget):
             p.rotate(self.rotation)
             p.scale(s, s)
             p.drawImage(QRectF(-iw / 2, -ih / 2, iw, ih), img)
+            if self.mask is not None:
+                p.drawImage(QRectF(-iw / 2, -ih / 2, iw, ih), self.mask)
             p.restore()
         else:
             p.setPen(QColor(170, 170, 170))
@@ -279,6 +284,7 @@ class CameraPanel(QWidget):
     """Tab „Kamera“: Live-Bild, Kamerawahl, Foto/Video, Automatik."""
     profileChanged = pyqtSignal()
     backgroundToggled = pyqtSignal(bool)
+    flameDetected = pyqtSignal(str)        # Pfad des Beweisfotos ('' wenn nicht gespeichert)
 
     def __init__(self, live: LiveCamera, profile, parent=None):
         super().__init__(parent)
@@ -288,6 +294,11 @@ class CameraPanel(QWidget):
         self._pending_rec = ""             # Aufnahme starten, sobald die Kamera läuft
         self._rec_t0 = 0.0
         self._auto_started = False
+        self.flame = FlameDetector()
+        self._flame_on = False             # Wächter beobachtet gerade (Auftrag oder Test)
+        self._flame_test = False
+        self._flame_t = 0.0
+        self.flame_ratio = 0.0
 
         lay = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -349,6 +360,7 @@ class CameraPanel(QWidget):
         d.addWidget(self.lbl_dir, 1)
         d.addWidget(b_dir)
         lay.addLayout(d)
+        lay.addWidget(self._build_flame_box())
         self.lbl_status = QLabel("")
         self.lbl_status.setWordWrap(True)
         lay.addWidget(self.lbl_status)
@@ -374,6 +386,17 @@ class CameraPanel(QWidget):
             cb.blockSignals(False)
         self.view.rotation = int(getattr(p, "camera_live_rot", 0)) % 360
         self.lbl_dir.setText(self.media_dir())
+        for w in (self.cb_flame, self.cmb_flame, self.sl_flame, self.sp_hold, self.cb_fshow):
+            w.blockSignals(True)
+        self.cb_flame.setChecked(bool(getattr(p, "flame_detect", False)))
+        i = self.cmb_flame.findData(getattr(p, "flame_action", "pause"))
+        self.cmb_flame.setCurrentIndex(max(0, i))
+        self.sl_flame.setValue(int(getattr(p, "flame_sensitivity", 5)))
+        self.sp_hold.setValue(float(getattr(p, "flame_hold", 2.0)))
+        self.cb_fshow.setChecked(bool(getattr(p, "flame_show", True)))
+        for w in (self.cb_flame, self.cmb_flame, self.sl_flame, self.sp_hold, self.cb_fshow):
+            w.blockSignals(False)
+        self._flame_params()
 
     def _set(self, key, val):
         setattr(self.profile, key, val)
@@ -455,15 +478,20 @@ class CameraPanel(QWidget):
     def job_started(self) -> bool:
         """Vom Hauptfenster bei Auftragsstart aufgerufen. True, wenn die Kamera dadurch eingeschaltet wurde."""
         started = False
-        if self.profile.camera_live_auto and self.live.cam is None and self.current_device():
+        want = self.profile.camera_live_auto or getattr(self.profile, "flame_detect", False)
+        if want and self.live.cam is None and self.current_device():
             started = self.start()
             self._auto_started = started
         if self.profile.camera_live_record and self.live.cam is not None and not self.live.recording:
             self._job_rec = True
             self._begin_recording(self._new_path("Auftrag", "mp4"))
+        if getattr(self.profile, "flame_detect", False):
+            self._flame_start()
         return started
 
     def job_finished(self):
+        if not self._flame_test:
+            self._flame_stop()
         if self._job_rec:
             self._job_rec = False
             self._pending_rec = ""
@@ -501,6 +529,8 @@ class CameraPanel(QWidget):
 
     # -- Rückmeldungen
     def _on_frame(self, img):
+        if self._flame_on:
+            self._flame_frame(img)
         self.view.set_image(img)
         if self.window_ is not None:
             self.window_.view.set_image(img)
@@ -582,6 +612,149 @@ class CameraPanel(QWidget):
             self.window_.view.rotation = rot
             self.window_.view.update()
         self._set("camera_live_rot", rot)
+
+    # -- Flammenwächter
+    def _build_flame_box(self):
+        box = QGroupBox("Flammenwächter")
+        v = QVBoxLayout(box)
+        self.cb_flame = QCheckBox("Flammen während des Auftrags erkennen")
+        self.cb_flame.setToolTip("Schaltet bei Auftragsstart die Kamera ein und sucht im Bild nach Flammen, "
+                                 "die an einer Stelle stehen bleiben. Ersetzt keine Aufsicht!")
+        v.addWidget(self.cb_flame)
+        g = QGridLayout()
+        self.cmb_flame = QComboBox()
+        self.cmb_flame.addItem("Nur warnen", "warn")
+        self.cmb_flame.addItem("Auftrag pausieren", "pause")
+        self.cmb_flame.addItem("Auftrag stoppen", "stop")
+        self.sl_flame = QSlider(Qt.Orientation.Horizontal)
+        self.sl_flame.setRange(1, 10)
+        self.sl_flame.setToolTip("Höher = kleinere Flammen lösen aus (aber auch eher Fehlalarme)")
+        self.lbl_sens = QLabel("5")
+        self.sp_hold = QDoubleSpinBox()
+        self.sp_hold.setRange(0.5, 10.0)
+        self.sp_hold.setDecimals(1)
+        self.sp_hold.setSingleStep(0.5)
+        self.sp_hold.setSuffix(" s")
+        self.sp_hold.setToolTip("So lange muss eine Stelle brennen, bevor der Wächter auslöst")
+        g.addWidget(QLabel("Bei Flamme:"), 0, 0)
+        g.addWidget(self.cmb_flame, 0, 1, 1, 2)
+        g.addWidget(QLabel("Empfindlichkeit:"), 1, 0)
+        g.addWidget(self.sl_flame, 1, 1)
+        g.addWidget(self.lbl_sens, 1, 2)
+        g.addWidget(QLabel("Auslösen nach:"), 2, 0)
+        g.addWidget(self.sp_hold, 2, 1, 1, 2)
+        v.addLayout(g)
+        h = QHBoxLayout()
+        self.cb_fshow = QCheckBox("Erkannte Stellen rot zeigen")
+        self.btn_ftest = QPushButton("Testen")
+        self.btn_ftest.setCheckable(True)
+        self.btn_ftest.setToolTip("Wächter ohne Auftrag laufen lassen, z. B. mit einem Feuerzeug vor der Kamera. "
+                                  "Löst nur eine Meldung aus.")
+        h.addWidget(self.cb_fshow, 1)
+        h.addWidget(self.btn_ftest)
+        v.addLayout(h)
+        self.lbl_flame = QLabel("")
+        self.lbl_flame.setWordWrap(True)
+        v.addWidget(self.lbl_flame)
+        self.cb_flame.toggled.connect(self._flame_enabled)
+        self.cmb_flame.currentIndexChanged.connect(lambda _i: self._set("flame_action", self.cmb_flame.currentData()))
+        self.sl_flame.valueChanged.connect(lambda val: (self._set("flame_sensitivity", int(val)), self._flame_params()))
+        self.sp_hold.valueChanged.connect(lambda val: (self._set("flame_hold", float(val)), self._flame_params()))
+        self.cb_fshow.toggled.connect(lambda val: (self._set("flame_show", bool(val)), self._clear_mask()))
+        self.btn_ftest.toggled.connect(self._flame_test_toggled)
+        return box
+
+    def _flame_params(self):
+        self.flame.sensitivity = int(getattr(self.profile, "flame_sensitivity", 5))
+        self.flame.hold_s = float(getattr(self.profile, "flame_hold", 2.0))
+        self.lbl_sens.setText(str(self.flame.sensitivity))
+        for w in (self.cmb_flame, self.sl_flame, self.sp_hold, self.cb_fshow):
+            w.setEnabled(self.cb_flame.isChecked() or self._flame_test)
+
+    def _flame_enabled(self, on):
+        self._set("flame_detect", bool(on))
+        self._flame_params()
+        if not on and not self._flame_test:
+            self._flame_stop()
+
+    def _flame_test_toggled(self, on):
+        self._flame_test = bool(on)
+        self._flame_params()
+        if on:
+            if self.live.cam is None and not self.start():
+                self.btn_ftest.setChecked(False)
+                return
+            self._flame_start()
+        else:
+            self._flame_stop()
+
+    def _flame_start(self):
+        self.flame.reset()
+        self._flame_params()
+        self._flame_on = True
+        self._flame_t = 0.0
+        if self.live.cam is None:
+            self.lbl_flame.setText("⚠ Flammenwächter: keine Kamera – Überwachung nicht möglich!")
+        else:
+            self.lbl_flame.setText("Flammenwächter: startet …")
+
+    def _flame_stop(self):
+        self._flame_on = False
+        self.flame_ratio = 0.0
+        self.lbl_flame.setText("")
+        self._clear_mask()
+
+    def flame_watching(self) -> bool:
+        return self._flame_on and self.live.cam is not None
+
+    def rearm_flame(self):
+        """Nach einer Meldung weiter beobachten (Referenzbild bleibt erhalten)."""
+        self.flame.reset(keep_reference=True)
+        self._flame_on = True
+
+    def _clear_mask(self):
+        for v in (self.view, self.window_.view if self.window_ is not None else None):
+            if v is not None:
+                v.mask = None
+                v.update()
+
+    def _flame_frame(self, img):
+        now = time.monotonic()
+        if now - self._flame_t < 0.2:          # 5 Bilder pro Sekunde reichen
+            return
+        self._flame_t = now
+        arr = qimage_to_array(img)
+        if arr is None:
+            return
+        if self.flame.triggered:
+            return
+        res = self.flame.update(arr, now)
+        self.flame_ratio = res.ratio
+        pct = min(999, int(round(res.ratio * 100)))
+        self.lbl_flame.setText(f"Flammenwächter: beobachtet – {pct} % der Auslöseschwelle"
+                               + (" (Test)" if self._flame_test else ""))
+        if getattr(self.profile, "flame_show", True) and res.mask is not None and res.mask.any():
+            rgba = np.zeros(res.mask.shape + (4,), np.uint8)
+            rgba[res.mask] = (255, 0, 0, 150)
+            h, w = res.mask.shape
+            self._mask_buf = np.ascontiguousarray(rgba)
+            q = QImage(self._mask_buf.data, w, h, 4 * w, QImage.Format.Format_RGBA8888)
+            for v in (self.view, self.window_.view if self.window_ is not None else None):
+                if v is not None:
+                    v.mask = q
+        elif self.view.mask is not None:
+            self._clear_mask()
+        if res.triggered:
+            self._flame_on = False
+            path = ""
+            try:
+                path = self._new_path("Flamme", "jpg")
+                if not self.live.save_photo(path):
+                    path = ""
+            except OSError:
+                path = ""
+            self.lbl_flame.setText("🔥 Flammenwächter hat ausgelöst!" + (f" Foto: {path}" if path else ""))
+            self.flameDetected.emit(path)
 
     def shutdown(self):
         if self.window_ is not None:

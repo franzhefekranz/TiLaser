@@ -87,7 +87,8 @@ ein GitHub-Release an.
     (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
   - **Konsole**: Maschinenmeldungen und eigene Befehle.
   - **Kamera**: Live-Bild der Webcam zum Beobachten, Foto/Video, großes Fenster, automatischer Start und
-    Videoaufnahme bei jedem Auftrag.
+    Videoaufnahme bei jedem Auftrag,
+    **Flammenwächter** (erkennt stehende Flammen im Bild, warnt, pausiert oder stoppt; abschaltbar).
 - Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause*, *Stopp*, außerdem
   **Ursprung** (*Absolut* oder *Aktuelle Position* mit 9-Punkt-Anker), **Nur Auswahl** und **Fortsetzen…**
   (abgebrochenen Auftrag ab einer Zeile weiterlaufen lassen).
@@ -138,6 +139,7 @@ ein GitHub-Release an.
 | GRBL-Einstellungen, Makros | `$$`-Werte anzeigen/ändern/sichern; eigene G-Code-Knöpfe mit Tastenkürzel |
 | Simulation | Werkzeugweg-Vorschau einschalten, dann ▶ bzw. Schieberegler in der Werkzeugleiste |
 | Rotationsachse (Rolle) | *Maschine → Maschineneinstellungen*: Y-Weg je Rollenumdrehung und Rollendurchmesser; ein/aus unter *Maschine → Rotationsachse aktiv* |
+| Weboberfläche | *Maschine → Weboberfläche*: Zustand, Fortschritt, Kamerabild, Pause/Stopp vom Handy oder PC im lokalen Netz, mit PIN und QR-Code |
 | Netzwerk | Tab *Verbindung → Art: Netzwerk (TCP/Telnet)*, z. B. für ESP32-Steuerungen mit FluidNC/grblHAL (Port 23) |
 | Unterebenen | Ebenen-Tab, *Arbeitsgang* → **+**: weiterer Arbeitsgang auf derselben Geometrie (z. B. erst Fläche gravieren, dann Kontur schneiden), jeweils mit eigenen Parametern |
 | Z-Schritt | Pro Arbeitsgang: Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |

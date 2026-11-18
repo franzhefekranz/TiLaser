@@ -1352,3 +1352,83 @@ class MacroDialog(QDialog):
 
     def macros(self) -> list:
         return [m for m in self._macros if m.get("gcode", "").strip() or m.get("name", "").strip()]
+
+
+class WebDialog(QDialog):
+    """Einstellungen der Weboberfläche (Fernbedienung im lokalen Netz)."""
+
+    def __init__(self, profile, server=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Weboberfläche")
+        from ..core.webserver import local_addresses, new_pin
+        self._new_pin = new_pin
+        lay = QVBoxLayout(self)
+        intro = QLabel("Den Laser vom Handy, Tablet oder einem anderen Rechner im selben Netz beobachten: "
+                       "Zustand, Fortschritt, Restzeit, Kamerabild und Konsole, dazu Pause, Fortsetzen und "
+                       "Stopp. TiLaser muss dafür laufen.")
+        intro.setWordWrap(True)
+        lay.addWidget(intro)
+        f = QFormLayout()
+        self.enabled = QCheckBox("Weboberfläche einschalten")
+        self.enabled.setChecked(bool(profile.web_enabled))
+        self.port = QSpinBox()
+        self.port.setRange(1024, 65535)
+        self.port.setValue(int(profile.web_port))
+        pin_row = QHBoxLayout()
+        self.pin = QLineEdit(profile.web_pin or new_pin())
+        self.pin.setMaxLength(12)
+        self.pin.setToolTip("Wird im Browser einmal abgefragt. Leer = ohne Anmeldung (nicht empfohlen).")
+        b_new = QPushButton("Neue PIN")
+        b_new.clicked.connect(lambda: self.pin.setText(new_pin()))
+        pin_row.addWidget(self.pin, 1)
+        pin_row.addWidget(b_new)
+        self.allow_start = QCheckBox("Aufträge aus der Ferne starten erlauben")
+        self.allow_start.setChecked(bool(profile.web_allow_start))
+        self.allow_start.setToolTip("Startet das aktuell geöffnete Projekt mit den Einstellungen der Auftragsleiste. "
+                                    "Nur einschalten, wenn beim Start immer jemand am Laser steht.")
+        f.addRow("", self.enabled)
+        f.addRow("Port", self.port)
+        f.addRow("PIN", pin_row)
+        f.addRow("", self.allow_start)
+        lay.addLayout(f)
+        port = server.port if server is not None else int(profile.web_port)
+        urls = [f"http://{ip}:{port}/" for ip in local_addresses()]
+        state = "läuft" if server is not None and server.running else "aus"
+        self.lbl = QLabel(f"Status: {state}<br>Adresse im Browser: <b>{urls[0]}</b>"
+                          + ("<br>weitere: " + ", ".join(urls[1:]) if len(urls) > 1 else ""))
+        self.lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.lbl.setWordWrap(True)
+        lay.addWidget(self.lbl)
+        qr = QLabel()
+        qr.setPixmap(_qr_pixmap(urls[0], 4))
+        qr.setToolTip("Mit der Handykamera scannen")
+        lay.addWidget(qr, 0, Qt.AlignmentFlag.AlignHCenter)
+        warn = QLabel("Nur im eigenen Netz verwenden und keine Portfreigabe im Router einrichten. "
+                      "Die Weboberfläche ersetzt nicht die Aufsicht am Laser. Unter Windows fragt die Firewall "
+                      "beim ersten Start, ob TiLaser im privaten Netz erreichbar sein darf.")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def apply(self, profile):
+        profile.web_enabled = self.enabled.isChecked()
+        profile.web_port = int(self.port.value())
+        profile.web_pin = re.sub(r"\s+", "", self.pin.text())
+        profile.web_allow_start = self.allow_start.isChecked()
+
+
+def _qr_pixmap(text: str, scale: int = 4):
+    from PyQt6.QtGui import QColor, QImage, QPixmap
+    from ..core.barcode import qr_matrix
+    m = qr_matrix(text, "M")
+    n = len(m) + 8                              # Ruhezone 4 Module
+    img = QImage(n, n, QImage.Format.Format_RGB32)
+    img.fill(QColor(255, 255, 255))
+    for y, row in enumerate(m):
+        for x, v in enumerate(row):
+            if v:
+                img.setPixel(x + 4, y + 4, 0xFF000000)
+    return QPixmap.fromImage(img.scaled(n * scale, n * scale))
