@@ -92,6 +92,11 @@ class MachineDialog(QDialog):
                                  "(Material kühlt zwischen den Durchgängen ab, dafür mehr Leerfahrten)")
         self.per_path.setChecked(prof.passes_per_path)
         f.addRow("Durchgänge", self.per_path)
+        self.no_dupes = QCheckBox("Übereinanderliegende Linien nur einmal schneiden")
+        self.no_dupes.setToolTip("Gemeinsame Kanten bündig liegender Teile (gleiche Ebene) werden nur einmal\n"
+                                 "geschnitten. Gilt nur für den G-Code – die Teile im Projekt bleiben vollständig.")
+        self.no_dupes.setChecked(prof.remove_overlaps)
+        f.addRow("Doppelte Linien", self.no_dupes)
         self.rotary = QCheckBox("Rotationsachse (Rolle) statt Y-Achse")
         self.rotary.setChecked(prof.rotary)
         self.rot_mm = dspin(0.1, 10000, 3, 1, " mm")
@@ -158,6 +163,7 @@ class MachineDialog(QDialog):
         p.rapid_with_feed = self.rapid_f.isChecked()
         p.travel_speed = self.travel.value()
         p.passes_per_path = self.per_path.isChecked()
+        p.remove_overlaps = self.no_dupes.isChecked()
         p.bed_w, p.bed_h = self.bed_w.value(), self.bed_h.value()
         p.frame_power = self.frame_power.value()
         p.frame_speed = self.frame_speed.value()
@@ -677,6 +683,12 @@ class NestDialog(QDialog):
         self.copies.setToolTip("Anzahl je ausgewähltem Objekt. Was nicht passt, wird nicht angelegt.")
         self.holes = QCheckBox("Kleine Teile auch in Löcher größerer Teile setzen")
         self.holes.setChecked(True)
+        self.shared = QCheckBox("Bei Abstand 0 bündig anlegen (gemeinsame Kanten)")
+        self.shared.setChecked(True)
+        self.shared.setToolTip("Teile werden nach links und unten zusammengeschoben, bis sie sich berühren.\n"
+                               "Gemeinsame Kanten schneidet der Laser dann nur einmal (Maschineneinstellung\n"
+                               "„Doppelte Linien“). Die Teile selbst bleiben vollständig – bei größerem Abstand\n"
+                               "sind alle Linien wieder da.")
         self.thorough = QCheckBox("Gründlich (mehrere Strategien, langsamer, meist dichter)")
         self.thorough.setChecked(True)
         self.frame = QCheckBox("Grundfläche als Rahmen einzeichnen (Ebene ohne Ausgabe)")
@@ -690,11 +702,14 @@ class NestDialog(QDialog):
         f.addRow("Drehungen", self.rot)
         f.addRow("Kopien je Objekt", self.copies)
         f.addRow("", self.holes)
+        f.addRow("", self.shared)
         f.addRow("", self.thorough)
         f.addRow("", self.frame)
         lay.addLayout(f)
         _ok_cancel(self, lay)
         self.source.currentIndexChanged.connect(self._src)
+        self.spacing.valueChanged.connect(lambda v: self.shared.setEnabled(v <= 0))
+        self.shared.setEnabled(self.spacing.value() <= 0)
         self._src()
 
     def _src(self):

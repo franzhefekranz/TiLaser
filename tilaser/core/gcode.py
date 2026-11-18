@@ -39,6 +39,7 @@ class MachineProfile:
     travel_speed: float = 6000.0      # mm/min
     passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     frame_rubber: bool = False        # Rahmen als Gummiband (konvexe Hülle) statt Rechteck
+    remove_overlaps: bool = True      # deckungsgleiche Linien einer Ebene nur einmal schneiden
     frame_rubber_show: bool = False   # Gummiband-Linie dauerhaft auf der Arbeitsfläche zeigen (nur Anzeige)
     bed_w: float = 400.0
     bed_h: float = 400.0
@@ -252,6 +253,12 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         paths = apply_kerf(paths, layer.kerf)
     if layer.tabs > 0:
         paths = add_tabs(paths, layer.tabs, layer.tab_width, layer.tabs_outer_only)
+    if w.p.remove_overlaps and len(paths) > 1:
+        # Gemeinsame Kanten nur einmal schneiden – nur in der Ausgabe, das Projekt bleibt unverändert
+        from .overlap import remove_overlaps
+        paths, saved = remove_overlaps(paths)
+        if saved > 0.01:
+            w.comment(f"Doppelte Linien ausgelassen: {saved:.1f} mm")
     s = w.s_val(layer.power)
     passes = max(1, layer.passes)
     if passes > 1 and w.p.passes_per_path:
