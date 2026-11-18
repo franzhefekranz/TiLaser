@@ -2,6 +2,10 @@
 
 Ohne Fremdbibliothek; der Aufbau folgt dem Standard (Reed-Solomon über GF(256), Masken mit
 Strafpunkt-Bewertung). Ergebnis: Liste von Liste von bool (True = dunkles Modul) bzw. Strichbreiten.
+
+Danksagung: Ablauf und Tabellenform des QR-Encoders orientieren sich an der QR-Code-Bibliothek von
+Project Nayuki (Copyright (c) Project Nayuki, MIT-Lizenz, https://www.nayuki.io/page/qr-code-generator-library).
+Die Tabellen (Fehlerkorrektur-Blöcke) sind Werte aus ISO/IEC 18004, die Code-128-Muster aus ISO/IEC 15417.
 """
 from __future__ import annotations
 
