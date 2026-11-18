@@ -32,6 +32,8 @@ class MachinePanel(QWidget):
     frameRequested = pyqtSignal()
     firmwareDetected = pyqtSignal(str)
     profileChanged = pyqtSignal()
+    macrosEdited = pyqtSignal()
+    grblSettingsUpdated = pyqtSignal()
     _tcpReachable = pyqtSignal(str, int, bool)
     jobStarted = pyqtSignal()
     jobEnded = pyqtSignal(str)
@@ -177,7 +179,12 @@ class MachinePanel(QWidget):
         self.abs_x.lineEdit().returnPressed.connect(self._goto_abs)
         self.abs_y.lineEdit().returnPressed.connect(self._goto_abs)
         jv.addWidget(ab)
+        self.macro_box = QGroupBox("Makros")
+        self.macro_grid = QGridLayout(self.macro_box)
+        jv.addWidget(self.macro_box)
         jv.addStretch(1)
+        self.grbl_settings: dict[int, str] = {}
+        self.rebuild_macros()
 
         # --- Konsole
         self.w_console = QWidget()
@@ -458,6 +465,25 @@ class MachinePanel(QWidget):
         else:
             self.send(f"M5\nG90\nG0 X{x:.3f} Y{y:.3f} F{f}")
 
+    def move_to(self, x: float, y: float, ask_outside: bool = True) -> bool:
+        """Laserkopf ohne Laser an eine Position fahren (Weltkoordinaten in mm)."""
+        if not self.conn.connected or self.conn.job_active:
+            QMessageBox.information(self, "Laser positionieren", "Nicht verbunden oder Auftrag läuft.")
+            return False
+        if ask_outside and not (0 <= x <= self.profile.bed_w and 0 <= y <= self.profile.bed_h):
+            if QMessageBox.question(self, "Laser positionieren",
+                                    f"X{x:.1f} Y{y:.1f} liegt außerhalb des Arbeitsbereichs.\nTrotzdem fahren?") \
+                    != QMessageBox.StandardButton.Yes:
+                return False
+        y *= self.profile.y_scale
+        f = self.profile.travel_speed
+        if self._grbl():
+            self.send(f"$J=G90 G21 X{x:.3f} Y{y:.3f} F{f:g}")
+        else:
+            self.send(f"M5\nG90\nG0 X{x:.3f} Y{y:.3f} F{f:g}")
+        self._log(f"-- Laser fährt nach X{x:.2f} Y{y:.2f}")
+        return True
+
     def _send_cmd(self):
         t = self.cmd.text().strip()
         if not t:
@@ -534,9 +560,72 @@ class MachinePanel(QWidget):
             if self._grbl():
                 self._log("-- Soft-Reset gesendet. Ggf. 'Entsperren' ($X) drücken.")
 
+    # ------------------------------------------------------------ Makros
+    def rebuild_macros(self):
+        """Makro-Knöpfe aus dem Maschinenprofil neu aufbauen."""
+        while self.macro_grid.count():
+            w = self.macro_grid.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        self.macro_btns = []
+        for i, mac in enumerate(self.profile.macros):
+            b = QPushButton(mac.get("name") or f"Makro {i + 1}")
+            tip = mac.get("gcode", "").replace("\n", " · ")
+            if mac.get("key"):
+                tip += f"   [{mac['key']}]"
+            b.setToolTip(tip)
+            b.clicked.connect(lambda _=False, k=i: self.run_macro(k))
+            self.macro_grid.addWidget(b, i // 2, i % 2)
+            self.macro_btns.append(b)
+        edit = QPushButton("Bearbeiten…")
+        edit.setToolTip("Eigene G-Code-Knöpfe anlegen, ändern, Tastenkürzel vergeben")
+        edit.clicked.connect(self.edit_macros)
+        n = len(self.profile.macros)
+        self.macro_grid.addWidget(edit, (n + 1) // 2 + (0 if n % 2 == 0 else 0), 0, 1, 2)
+
+    def run_macro(self, k: int):
+        if not (0 <= k < len(self.profile.macros)):
+            return
+        mac = self.profile.macros[k]
+        code = mac.get("gcode", "").strip()
+        if not code:
+            return
+        if self.conn.job_active:
+            QMessageBox.information(self, "Makro", "Während ein Auftrag läuft, sind Makros gesperrt.")
+            return
+        if self.send(code):
+            self._log(f"-- Makro „{mac.get('name', '')}“")
+
+    def edit_macros(self):
+        from .dialogs import MacroDialog
+        dlg = MacroDialog(self.profile.macros, self)
+        if dlg.exec() == MacroDialog.DialogCode.Accepted:
+            self.profile.macros = dlg.macros()
+            self.profileChanged.emit()
+            self.rebuild_macros()
+            self.macrosEdited.emit()
+
+    # ------------------------------------------------------------ GRBL-Einstellungen
+    def edit_grbl_settings(self):
+        if not self.conn.connected or self.profile.dialect != "grbl":
+            QMessageBox.information(self, "GRBL-Einstellungen",
+                                    "Dafür mit einer GRBL-Steuerung verbinden (Tab Verbindung).")
+            return
+        if self.conn.job_active:
+            QMessageBox.information(self, "GRBL-Einstellungen", "Während ein Auftrag läuft nicht möglich.")
+            return
+        from .dialogs import GrblSettingsDialog
+        self.conn.send("$$")
+        dlg = GrblSettingsDialog(self, self)
+        dlg.exec()
+
     # ------------------------------------------------------------ Rückmeldungen
     def _log(self, s: str):
         self.console.appendPlainText(s)
+        ms = re.match(r"<< \$(\d+)=(\S+)", s)
+        if ms:
+            self.grbl_settings[int(ms.group(1))] = ms.group(2)
+            self.grblSettingsUpdated.emit()
         m = re.match(r"<< \$(\d+)=([\d.]+)", s)
         if m:
             key, val = int(m.group(1)), float(m.group(2))

@@ -8,8 +8,9 @@ import numpy as np
 
 from . import geometry as g
 
-MODES = ("cut", "fill", "raster")
-MODE_LABELS = {"cut": "Schneiden / Linie", "fill": "Füllen (Schraffur)", "raster": "Rasterbild"}
+MODES = ("cut", "fill", "offset", "raster")
+MODE_LABELS = {"cut": "Schneiden / Linie", "fill": "Füllen (Schraffur)", "offset": "Offset-Füllung (Konturen)",
+               "raster": "Rasterbild"}
 DITHER_MODES = ("floyd", "jarvis", "stucki", "atkinson", "threshold", "grayscale")
 DITHER_LABELS = {"floyd": "Floyd-Steinberg", "jarvis": "Jarvis", "stucki": "Stucki", "atkinson": "Atkinson",
                  "threshold": "Schwellwert", "grayscale": "Graustufen (Leistung)"}
@@ -111,6 +112,7 @@ class Layer:
     contrast: float = 0.0         # -100..100
     gamma: float = 1.0
     z_step: float = 0.0           # mm Absenkung je Durchgang (0 = aus)
+    z_offset: float = 0.0       # Fokus-Versatz in mm für diese Ebene (+ = höher), braucht eine Z-Achse
     subs: list = field(default_factory=list)   # Unterebenen: weitere Arbeitsgänge (Layer) auf derselben Geometrie
 
     def to_dict(self):
@@ -126,7 +128,7 @@ class Layer:
 
     def add_sub(self, mode: str = "cut") -> "Layer":
         sub = Layer(id=new_id("S"), name=f"{self.name} · {len(self.subs) + 1}", color=self.color, mode=mode)
-        if mode == "fill":
+        if mode in ("fill", "offset"):
             sub.speed, sub.power = 3000.0, 40.0
         self.subs.append(sub)
         return sub
@@ -136,6 +138,7 @@ class Layer:
 class VectorPath:
     poly: g.Polyline
     layer_id: str
+    start_fixed: bool = False     # Startpunkt (erster Knoten) vom Benutzer festgelegt: nicht umsortieren
 
 
 @dataclass
@@ -162,6 +165,7 @@ class Item:
     scale: float = 1.0
     rotation: float = 0.0            # Grad, gegen Uhrzeigersinn
     mirror_x: bool = False
+    var: dict | None = None          # variabler Text / QR-Code / Barcode: {kind, template, …} (siehe vartext)
 
     def matrix(self) -> np.ndarray:
         m = g.translate(self.x, self.y) @ g.rotate(self.rotation) @ g.scale(self.scale)
@@ -190,7 +194,14 @@ class Item:
 
     def world_paths(self, layer_id: str | None = None) -> list[g.Polyline]:
         m = self.matrix()
-        return [vp.poly.transformed(m) for vp in self.paths if layer_id is None or vp.layer_id == layer_id]
+        out = []
+        for vp in self.paths:
+            if layer_id is None or vp.layer_id == layer_id:
+                p = vp.poly.transformed(m)
+                if vp.start_fixed:
+                    p.start_fixed = True
+                out.append(p)
+        return out
 
     def layer_ids(self) -> set[str]:
         if self.kind == "raster":
@@ -203,6 +214,7 @@ class Project:
         self.layers: list[Layer] = []
         self.items: list[Item] = []
         self._key_to_layer: dict[str, str] = {}
+        self.vars = None              # Zustand der Platzhalter (vartext.VarState), wird bei Bedarf angelegt
 
     # ---------------------------------------------------------------- Ebenen
     def layer(self, layer_id: str) -> Layer | None:
@@ -218,11 +230,11 @@ class Project:
             used = {l.color for l in self.layers}
             color = next((c for c in PALETTE if c not in used), PALETTE[len(self.layers) % len(PALETTE)])
         layer = Layer(id=new_id("L"), name=name, color=color, mode=mode)
-        if mode == "fill":
+        if mode in ("fill", "offset"):
             layer.speed, layer.power, layer.interval = 3000.0, 40.0, 0.1
         elif mode == "raster":
             layer.speed, layer.power, layer.interval = 3000.0, 50.0, 0.1
-        if mode in ("fill", "raster"):     # Gravuren vor Schnitten einsortieren
+        if mode in ("fill", "offset", "raster"):     # Gravuren vor Schnitten einsortieren
             idx = next((i for i, l in enumerate(self.layers) if l.mode == "cut"), len(self.layers))
             self.layers.insert(idx, layer)
         else:

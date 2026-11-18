@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QImage, QPainter, QPainterPath, QPen, QTransform
+from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QTransform
 from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem, QGraphicsScene,
                              QGraphicsSimpleTextItem, QGraphicsView)
 
@@ -89,7 +89,7 @@ class ItemGraphic(QGraphicsItem):
             for lid, pp in by_layer.items():
                 layer = self.project.layer(lid)
                 color = layer.color if layer else "#000000"
-                filled = bool(layer and layer.mode in ("fill", "raster"))
+                filled = bool(layer and layer.mode in ("fill", "offset", "raster"))
                 out = bool(layer and layer.output)
                 pp.setFillRule(Qt.FillRule.OddEvenFill)
                 self._paths.append((color, pp, filled, out))
@@ -517,6 +517,33 @@ class LaserCanvas(QGraphicsView):
         self.scene_.addItem(item)
         return item
 
+    def set_order_labels(self, labels):
+        """Nummern der Schnittreihenfolge (x, y, n) anzeigen; leere Liste = ausblenden. Nur Anzeige."""
+        for it in self.__dict__.get("_order_items", []):
+            if it.scene() is not None:
+                self.scene_.removeItem(it)
+        self._order_items = []
+        f = QFont()
+        f.setBold(True)
+        f.setPointSizeF(9)
+        for x, y, n in labels:
+            t = QGraphicsSimpleTextItem(str(n))
+            t.setFont(f)
+            t.setBrush(QBrush(QColor(255, 255, 255)))
+            t.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+            br = t.boundingRect()
+            bg = QGraphicsRectItem(br.adjusted(-4, -1, 4, 1))
+            bg.setBrush(QBrush(QColor(30, 100, 200, 220)))
+            bg.setPen(QPen(Qt.PenStyle.NoPen))
+            bg.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+            bg.setPos(x, -y)
+            bg.setZValue(60)
+            bg.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            t.setParentItem(bg)
+            bg.setTransform(bg.transform().translate(-br.width() / 2, -br.height() / 2))
+            self.scene_.addItem(bg)
+            self._order_items.append(bg)
+
     def set_rubber_outline(self, pts):
         """Gummiband-Linie dauerhaft anzeigen (None = ausblenden). Nur Anzeige – kein Projektobjekt."""
         old = self.__dict__.get("_rubber_item")
@@ -744,7 +771,7 @@ class LaserCanvas(QGraphicsView):
         if pi >= len(it.paths):
             return False
         names = {"curve": "In Kurve umwandeln", "line": "In Linie umwandeln", "smooth": "Knoten glätten",
-                 "delete": "Knoten löschen", "break": "Pfad auftrennen"}
+                 "delete": "Knoten löschen", "break": "Pfad auftrennen", "start": "Startpunkt setzen"}
         self.aboutToModify.emit(names[cmd])
         vp = self._node_detach(pi)
         bez = vp.poly.bez
@@ -784,6 +811,24 @@ class LaserCanvas(QGraphicsView):
                 lout = float(np.hypot(*(bez.hout[vi] - a))) or float(np.hypot(*(nxt - a))) / 3
                 bez.hin[vi] = a - direction * lin
                 bez.hout[vi] = a + direction * lout
+        elif cmd == "start":
+            from ..core.geometry import BezPath, Polyline
+            if bez.closed:                                   # Knoten wird erster Knoten, Richtung bleibt
+                order = [(vi + k) % N for k in range(N)]
+                vp.poly = Polyline.from_bez(BezPath(bez.anchors[order], bez.hin[order], bez.hout[order], True))
+            elif vi == N - 1:                                # offen: am Ende beginnen = umdrehen
+                r = list(range(N - 1, -1, -1))
+                vp.poly = Polyline.from_bez(BezPath(bez.anchors[r], bez.hout[r], bez.hin[r], False))
+            elif vi != 0:
+                n["gi"].rebuild()
+                self._update_nodes()
+                return False                                 # offene Pfade starten nur an einem Ende
+            vp.start_fixed = True
+            n["sel"] = (pi, 0)
+            n["gi"].rebuild()
+            self._update_nodes()
+            self.nodesEdited.emit(it.id)
+            return True
         elif cmd == "break":
             from ..core.geometry import BezPath, Polyline
             from ..core.model import VectorPath
@@ -1067,6 +1112,8 @@ class LaserCanvas(QGraphicsView):
                     gi.setSelected(True)
                 elif gi is None:
                     self.scene_.clearSelection()
+                sp = self.mapToScene(e.position().toPoint())
+                self.last_context_pos = (sp.x(), -sp.y())            # Weltkoordinaten des Rechtsklicks
                 self.contextMenuRequested.emit(e.globalPosition().toPoint())
             return
         super().mouseReleaseEvent(e)
@@ -1146,7 +1193,7 @@ class LaserCanvas(QGraphicsView):
             return
         if self.tool == "node":
             keys = {Qt.Key.Key_Delete: "delete", Qt.Key.Key_Backspace: "delete", Qt.Key.Key_C: "curve",
-                    Qt.Key.Key_L: "line", Qt.Key.Key_S: "smooth", Qt.Key.Key_B: "break"}
+                    Qt.Key.Key_L: "line", Qt.Key.Key_S: "smooth", Qt.Key.Key_B: "break", Qt.Key.Key_A: "start"}
             if e.key() in keys and not (e.modifiers() & Qt.KeyboardModifier.ControlModifier):
                 self.node_command(keys[e.key()])
                 return

@@ -189,6 +189,9 @@ class LayerPanel(QWidget):
         self.f_contrast = dspin(-100, 100, 0, 5, "")
         self.f_gamma = dspin(0.1, 5, 2, 0.1, "")
         self.f_z = dspin(0, 20, 2, 0.1, " mm")
+        self.f_zoff = dspin(-50, 50, 2, 0.1, " mm")
+        self.f_zoff.setToolTip("Fokus-Versatz für diese Ebene: vor der Ebene fährt Z um diesen Wert\n"
+                               "(+ = höher), danach zurück. Nur mit motorisierter Z-Achse.")
         self.f_z.setToolTip("Fokus nach jedem Durchgang um diesen Wert absenken (nur mit motorisierter Z-Achse). 0 = aus")
         self.f_output = QCheckBox("Ausgeben")
 
@@ -205,6 +208,7 @@ class LayerPanel(QWidget):
                               ("tabs_outer", "", self.f_tabs_outer), ("bright", "Helligkeit", self.f_bright),
                               ("contrast", "Kontrast", self.f_contrast), ("gamma", "Gamma", self.f_gamma),
                               ("z", "Z-Schritt je Durchgang", self.f_z),
+                              ("zoff", "Z-Versatz", self.f_zoff),
                               ("air", "", self.f_air), ("output", "", self.f_output)):
             self.form.addRow(label, w)
             self.rows[key] = w
@@ -214,7 +218,7 @@ class LayerPanel(QWidget):
         lay.addStretch(1)
 
         for w in (self.f_power, self.f_min, self.f_speed, self.f_interval, self.f_angle, self.f_overscan,
-                  self.f_kerf, self.f_tab_w, self.f_bright, self.f_contrast, self.f_gamma, self.f_z):
+                  self.f_kerf, self.f_tab_w, self.f_bright, self.f_contrast, self.f_gamma, self.f_z, self.f_zoff):
             w.valueChanged.connect(self._commit)
         self.f_passes.valueChanged.connect(self._commit)
         self.f_tabs.valueChanged.connect(self._commit)
@@ -365,13 +369,14 @@ class LayerPanel(QWidget):
         self.f_contrast.setValue(l.contrast)
         self.f_gamma.setValue(l.gamma)
         self.f_z.setValue(l.z_step)
+        self.f_zoff.setValue(getattr(l, "z_offset", 0.0))
         self._loading = False
         self._update_visibility(l.mode, l.dither)
 
     def _update_visibility(self, mode, dither):
         vis = {
             "min": mode == "raster" and dither == "grayscale",
-            "interval": mode in ("fill", "raster"),
+            "interval": mode in ("fill", "offset", "raster"),
             "angle": mode == "fill", "cross": mode == "fill",
             "dither": mode == "raster", "thresh": mode == "raster" and dither == "threshold",
             "invert": mode == "raster", "overscan": mode == "raster",
@@ -416,6 +421,7 @@ class LayerPanel(QWidget):
         l.contrast = self.f_contrast.value()
         l.gamma = self.f_gamma.value()
         l.z_step = self.f_z.value()
+        l.z_offset = self.f_zoff.value()
         self._update_visibility(l.mode, l.dither)
         visual = (old_mode, old_dither, old_iv, old_th, old_inv) != (l.mode, l.dither, l.interval, l.threshold, l.invert)
         self.refresh(layer.id)
