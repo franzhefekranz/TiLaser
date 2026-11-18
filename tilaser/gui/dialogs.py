@@ -840,6 +840,104 @@ class FocusTestDialog(_TestDialogBase):
                                           y=self.y.value(), labels=self.labels.isChecked()))
 
 
+class BoxDialog(_TestDialogBase):
+    """Box mit Fingerzinken erzeugen."""
+    _last = None
+
+    def __init__(self, profile, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Box-Generator")
+        from ..core.boxgen import BoxSpec
+        b = BoxDialog._last or BoxSpec()
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.measure = QComboBox()
+        self.measure.addItem("Innenmaße", True)
+        self.measure.addItem("Außenmaße", False)
+        self.measure.setCurrentIndex(0 if b.inner else 1)
+        self.width = dspin(10, 2000, 1, 1, " mm")
+        self.width.setValue(b.width)
+        self.depth = dspin(10, 2000, 1, 1, " mm")
+        self.depth.setValue(b.depth)
+        self.height = dspin(5, 2000, 1, 1, " mm")
+        self.height.setValue(b.height)
+        self.thick = dspin(0.5, 30, 2, 0.1, " mm")
+        self.thick.setValue(b.thickness)
+        self.finger = dspin(1, 200, 1, 1, " mm")
+        self.finger.setValue(b.finger)
+        self.kerf = dspin(-1, 2, 3, 0.01, " mm")
+        self.kerf.setValue(b.kerf)
+        self.kerf.setToolTip("Schnittbreite des Lasers. Wird als Kerf der Ebene „Box“ gesetzt. "
+                             "Größerer Wert = strammere Passung.")
+        self.closed = QCheckBox("Mit Deckel")
+        self.closed.setChecked(b.closed)
+        self.power = dspin(0, 100, 1, 5, " %")
+        self.power.setValue(b.power)
+        self.speed = dspin(1, 100000, 0, 50, " mm/min")
+        self.speed.setValue(b.speed)
+        self.passes = QSpinBox()
+        self.passes.setRange(1, 50)
+        self.passes.setValue(b.passes)
+        self.gap = dspin(0, 100, 1, 1, " mm")
+        self.gap.setValue(b.gap)
+        self.x = dspin(-1000, 5000, 1, 5, " mm")
+        self.x.setValue(b.x)
+        self.y = dspin(-1000, 5000, 1, 5, " mm")
+        self.y.setValue(b.y)
+        self.labels = QCheckBox("Teile beschriften (Boden, Vorne, …)")
+        self.labels.setChecked(b.labels)
+        for label, w in (("Maße", self.measure), ("Breite (X)", self.width), ("Tiefe (Y)", self.depth),
+                         ("Höhe (Z)", self.height), ("Materialstärke", self.thick), ("Zinkenbreite", self.finger),
+                         ("Schnittbreite (Kerf)", self.kerf), ("", self.closed), ("Leistung", self.power),
+                         ("Geschwindigkeit", self.speed), ("Durchgänge", self.passes),
+                         ("Abstand der Teile", self.gap), ("Position X", self.x), ("Position Y", self.y),
+                         ("", self.labels)):
+            f.addRow(label, w)
+        lay.addLayout(f)
+        self.info = QLabel()
+        self.info.setWordWrap(True)
+        lay.addWidget(self.info)
+        for w in (self.width, self.depth, self.height, self.thick, self.finger):
+            w.valueChanged.connect(self._update_info)
+        self.measure.currentIndexChanged.connect(self._update_info)
+        self.closed.toggled.connect(self._update_info)
+        self._update_info()
+        self._finish_layout(lay)
+
+    def spec(self):
+        from ..core.boxgen import BoxSpec
+        return BoxSpec(width=self.width.value(), depth=self.depth.value(), height=self.height.value(),
+                       inner=bool(self.measure.currentData()), thickness=self.thick.value(),
+                       finger=self.finger.value(), closed=self.closed.isChecked(), kerf=self.kerf.value(),
+                       gap=self.gap.value(), x=self.x.value(), y=self.y.value(), labels=self.labels.isChecked(),
+                       power=self.power.value(), speed=self.speed.value(), passes=self.passes.value())
+
+    def _update_info(self):
+        s = self.spec()
+        W, D, H = s.outer()
+        try:
+            s.check()
+            msg = (f"Außenmaß {W:g} × {D:g} × {H:g} mm, {6 if s.closed else 5} Teile. "
+                   "Material erst messen: Die Materialstärke muss genau stimmen, sonst passen die Zinken nicht. "
+                   "Für eine Presspassung den Kerf etwas größer als die echte Schnittbreite wählen.")
+        except ValueError as e:
+            msg = f"⚠ {e}"
+        self.info.setText(msg)
+
+    def _done(self, action):
+        try:
+            self.spec().check()
+        except ValueError as e:
+            QMessageBox.warning(self, "Box-Generator", str(e))
+            return
+        BoxDialog._last = self.spec()
+        super()._done(action)
+
+    def project(self):
+        from ..core.boxgen import build_box
+        return build_box(self.spec())
+
+
 class IntervalTestDialog(_TestDialogBase):
     def __init__(self, profile, parent=None):
         super().__init__(parent)

@@ -1429,6 +1429,52 @@ def test_shared_edges():
     assert abs(burn_len(again) - full) < 0.5 and "Doppelte" not in again.text
 
 
+def test_box_generator_fingers_fit():
+    """Jedes Stück Wand genau einmal vorhanden (Voxel-Probe), Hohlraum frei, Volumen stimmt."""
+    from tilaser.core.boxgen import BoxSpec, build_box, panel_outline, panels, polygon_area
+
+    def inside(poly, x, y):
+        c = np.zeros(x.shape, bool)
+        for i in range(len(poly)):
+            (x1, y1), (x2, y2) = poly[i], poly[(i + 1) % len(poly)]
+            m = (y1 > y) != (y2 > y)
+            xi = x1 + (y - y1) * (x2 - x1) / (y2 - y1 if y2 != y1 else 1)
+            c ^= m & (x < xi)
+        return c
+
+    for s in (BoxSpec(width=40, depth=30, height=20, thickness=3, finger=6),
+              BoxSpec(width=40, depth=30, height=20, thickness=3, finger=6, closed=False),
+              BoxSpec(width=25, depth=47, height=33, thickness=4, finger=5, inner=False)):
+        W, D, H = s.outer()
+        t = s.thickness
+        X, Y, Z = np.meshgrid(np.arange(0.2371, W, 0.7), np.arange(0.2371, D, 0.7), np.arange(0.2371, H, 0.7),
+                              indexing="ij")
+        cnt = np.zeros(X.shape, int)
+        vol = 0.0
+        for n, a, b, nb in panels(s):
+            P = panel_outline(n, a, b, nb, t, s.finger)
+            vol += polygon_area(P) * t
+            cnt += {"Boden": lambda: (Z < t) & inside(P, X, Y),
+                    "Deckel": lambda: (Z > H - t) & inside(P, X, Y),
+                    "Vorne": lambda: (Y < t) & inside(P, X, Z),
+                    "Hinten": lambda: (Y > D - t) & inside(P, W - X, Z),
+                    "Links": lambda: (X < t) & inside(P, D - Y, Z),
+                    "Rechts": lambda: (X > W - t) & inside(P, Y, Z)}[n]()
+        top = H - t if s.closed else H + 1
+        cav = (X > t) & (X < W - t) & (Y > t) & (Y < D - t) & (Z > t) & (Z < top)
+        assert (cnt[~cav] == 1).all() and (cnt[cav] == 0).all()
+        inner = (W - 2 * t) * (D - 2 * t) * (top - t if s.closed else H - t)
+        assert abs(vol - (W * D * H - inner)) < 1e-6
+    p = build_box(BoxSpec(width=100, depth=80, height=50, kerf=0.15, labels=False))
+    assert len(p.items) == 6 and p.layers[-1].kerf == 0.15
+    assert abs(BoxSpec(width=100, depth=80, height=50).outer()[2] - 56) < 1e-9
+    try:
+        build_box(BoxSpec(width=5, depth=5, height=5, inner=False))
+        assert False
+    except ValueError:
+        pass
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
