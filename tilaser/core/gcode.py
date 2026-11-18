@@ -60,6 +60,7 @@ class MachineProfile:
     conn_type: str = "serial"         # 'serial' | 'tcp'
     host: str = ""
     tcp_port: int = 23
+    auto_connect: bool = True         # beim Programmstart mit der zuletzt benutzten Verbindung verbinden
     # Kamera
     camera_device: str = ""           # Beschreibung des Geräts oder '__file__'
     camera_h: list = field(default_factory=list)   # 3×3-Homographie Kamerapixel -> Bett-mm (9 Werte)

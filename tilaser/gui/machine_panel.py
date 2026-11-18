@@ -32,6 +32,7 @@ class MachinePanel(QWidget):
     frameRequested = pyqtSignal()
     firmwareDetected = pyqtSignal(str)
     profileChanged = pyqtSignal()
+    _tcpReachable = pyqtSignal(str, int, bool)
     jobStarted = pyqtSignal()
     jobEnded = pyqtSignal(str)
 
@@ -97,6 +98,11 @@ class MachinePanel(QWidget):
         cl.addWidget(self.tcp_port, 4, 1, 1, 2)
         cl.addWidget(self.btn_connect, 5, 0, 1, 3)
         cl.addWidget(self.lbl_fw, 6, 0, 1, 3)
+        self.auto_conn = QCheckBox("Beim Start automatisch verbinden")
+        self.auto_conn.setToolTip("Beim Programmstart mit der zuletzt erfolgreich benutzten Verbindung\n"
+                                  "(Port und Baudrate bzw. Adresse) verbinden, sofern der Laser erreichbar ist.")
+        self.auto_conn.setChecked(bool(getattr(profile, "auto_connect", True)))
+        cl.addWidget(self.auto_conn, 7, 0, 1, 3)
         self.conn_type.setCurrentIndex(1 if profile.conn_type == "tcp" else 0)
         self.conn_type.currentIndexChanged.connect(self._conn_vis)
         self._conn_vis()
@@ -244,6 +250,8 @@ class MachinePanel(QWidget):
 
         self.btn_refresh.clicked.connect(self.refresh_ports)
         self.btn_connect.clicked.connect(self.toggle_connect)
+        self.auto_conn.toggled.connect(self._auto_toggled)
+        self._tcpReachable.connect(self._on_tcp_reachable)
         self.btn_home.clicked.connect(self._home)
         self.btn_home2.clicked.connect(self._home)
         self.btn_take.clicked.connect(self._take_pos)
@@ -319,6 +327,73 @@ class MachinePanel(QWidget):
             return
         self.profile.conn_type = "tcp" if tcp else "serial"
         self.profileChanged.emit()
+        self.lbl_state.setText("Verbinde … (Firmware-Erkennung)")
+        self.btn_connect.setText("Trennen")
+
+    # ------------------------------------------------------------ automatisch verbinden
+    def _auto_toggled(self, on):
+        self.profile.auto_connect = on
+        self.profileChanged.emit()
+
+    def auto_connect(self):
+        """Beim Programmstart: zuletzt benutzte Verbindung wiederherstellen (ohne Fehlerfenster)."""
+        p = self.profile
+        if not p.auto_connect or self.conn.connected:
+            return
+        if p.conn_type == "tcp":
+            if not p.host:
+                return
+            self._log(f"-- Automatisch verbinden: {p.host}:{p.tcp_port} …")
+            self.lbl_state.setText("Suche Laser im Netzwerk …")
+            import threading
+
+            def probe(host=p.host, port=p.tcp_port):
+                import socket
+                try:
+                    socket.create_connection((host, port), timeout=2.0).close()
+                    ok = True
+                except OSError:
+                    ok = False
+                self._tcpReachable.emit(host, port, ok)      # zurück in den GUI-Thread
+            threading.Thread(target=probe, daemon=True).start()
+            return
+        if not p.port:
+            return
+        self.refresh_ports()
+        ports = [self.port.itemText(i) for i in range(self.port.count())]
+        if p.port not in ports:
+            self._log(f"-- Automatisch verbinden: Port {p.port} nicht gefunden (Laser aus oder nicht angesteckt).")
+            self.lbl_state.setText("Getrennt")
+            return
+        self.conn_type.setCurrentIndex(0)
+        self.port.setCurrentText(p.port)
+        self.baud.setCurrentText(str(p.baud))
+        self._log(f"-- Automatisch verbinden: {p.port}, {p.baud} Baud")
+        self._connect_quiet()
+
+    def _on_tcp_reachable(self, host, port, ok):
+        if self.conn.connected:
+            return
+        if not ok:
+            self._log(f"-- Automatisch verbinden: {host}:{port} nicht erreichbar.")
+            self.lbl_state.setText("Getrennt")
+            return
+        self.conn_type.setCurrentIndex(1)
+        self.host.setText(host)
+        self.tcp_port.setValue(port)
+        self._connect_quiet()
+
+    def _connect_quiet(self):
+        hint = "grbl" if self.profile.dialect == "grbl" else "ping"
+        try:
+            if self.conn_type.currentData() == "tcp":
+                self.conn.connect_tcp(self.host.text().strip(), self.tcp_port.value(), hint)
+            else:
+                self.conn.connect(self.port.currentText().strip(), int(self.baud.currentText()), hint)
+        except Exception as e:
+            self._log(f"-- Automatisch verbinden fehlgeschlagen: {e}")
+            self.lbl_state.setText("Getrennt")
+            return
         self.lbl_state.setText("Verbinde … (Firmware-Erkennung)")
         self.btn_connect.setText("Trennen")
 

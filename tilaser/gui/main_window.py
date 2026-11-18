@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         self.machine.frameRequested.connect(self.run_frame)
         self.machine.firmwareDetected.connect(self._on_firmware)
         self.machine.profileChanged.connect(lambda: storage.save_machine(self.profile))
+        QTimer.singleShot(800, self.machine.auto_connect)       # letzte Verbindung wiederherstellen
         self.machine.rubber_show.toggled.connect(self._set_rubber_show)
         self.machine.only_sel.toggled.connect(lambda _: self._update_rubber())
         self.layers.set_machine(self.profile.name)

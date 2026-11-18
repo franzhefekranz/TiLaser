@@ -332,6 +332,17 @@ def test_group_ungroup():
     assert grp.layer_ids() == {new_layer.id}
 
 
+def test_profile_auto_connect():
+    p = MachineProfile()
+    assert p.auto_connect
+    p.conn_type, p.port, p.baud, p.auto_connect = "serial", "COM5", 250000, False
+    q = MachineProfile.from_dict(p.to_dict())
+    assert (q.conn_type, q.port, q.baud, q.auto_connect) == ("serial", "COM5", 250000, False)
+    d = p.to_dict()
+    d.pop("auto_connect")
+    assert MachineProfile.from_dict(d).auto_connect                      # alte Profile: an
+
+
 def test_presets_merge():
     from tilaser.core import storage
     storage.USER_PRESETS = os.path.join(TMP, "presets.json")

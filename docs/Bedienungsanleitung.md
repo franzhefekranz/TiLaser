@@ -561,6 +561,12 @@ Beim Verbinden wartet TiLaser kurz auf die Begrüßung der Steuerung und erkennt
 Smoothieware** selbst. Weicht die erkannte Firmware vom Profil ab, fragt TiLaser, ob umgestellt werden soll.
 Bei GRBL liest TiLaser `$30` (Maximalleistung) aus und warnt bei `$32=0` (Lasermodus aus).
 
+**Automatisch verbinden:** TiLaser merkt sich die zuletzt erfolgreich benutzte Verbindung (Art, Port und Baudrate
+bzw. Adresse und TCP-Port). Ist **Beim Start automatisch verbinden** angehakt (Standard), verbindet TiLaser beim
+Programmstart von selbst damit – aber nur, wenn der Port vorhanden bzw. der Laser im Netzwerk erreichbar ist.
+Ist der Laser aus oder nicht angesteckt, erscheint kein Fehlerfenster, nur ein Hinweis in der Konsole; dann
+einfach später *Verbinden* drücken. Die Netzwerksuche läuft im Hintergrund und hält das Programm nicht auf.
+
 Im Tab *Verbindung* liegen außerdem:
 
 | Schaltfläche | GRBL | Marlin u. a. |
