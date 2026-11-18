@@ -6,6 +6,11 @@ Python 3.10+ mit PyQt6-Oberfläche. Lizenz: GPL-3.0.
 🌐 **[Projektseite](https://franzhefekranz.github.io/TiLaser/)** · 📖 **[Bedienungsanleitung](docs/Bedienungsanleitung.md)**
 ([PDF](docs/TiLaser-Bedienungsanleitung.pdf), [Wiki](https://github.com/franzhefekranz/TiLaser/wiki)) – ausführlich, mit Screenshots.
 
+🇬🇧 **English:** the program can be switched to English under *View → Sprache / Language*.
+User manual: [Manual_en.md](docs/Manual_en.md) ([PDF](docs/TiLaser-Manual.pdf),
+[online](https://franzhefekranz.github.io/TiLaser/manual_en.html)). Further languages can be added by editing one
+text file – see [chapter 21 of the manual](docs/Manual_en.md#21-language-and-translations).
+
 ## Download
 
 Fertige Pakete gibt es unter **Releases** (werden von GitHub Actions bei jedem Tag `v*` gebaut):
@@ -133,6 +138,7 @@ ein GitHub-Release an.
 | Muster in Fläche | *Werkzeuge → Muster in Fläche*: Biegescharnier, Lochmuster/Lüftungsgitter, Gravurmuster (Hahnentritt, Fischgrät, Waben …) |
 | Fingerzinken an Kante | Zwei Teile mit berührenden Kanten verzinken, als Eckverbindung oder ineinandergreifend, optional mit Dogbone-Ecken |
 | Zahnrad, Puzzle, Schablone | *Werkzeuge → Generatoren*: Evolventen-Zahnrad (auch als Paar), Puzzle; *Schablonen-Stege* für Innenteile |
+| Sprachen | Deutsch und Englisch (*Ansicht → Sprache / Language*); weitere Sprachen über eine Textdatei je Sprache (`lang/<code>.json`), siehe Kapitel 21 der Anleitung |
 | Auftragsprotokoll | *Maschine → Auftragsprotokoll*: Dauer, Ergebnis, Ebenen und Kosten jedes Auftrags, CSV |
 | Box-Generator | *Werkzeuge → Generatoren → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |
 | Fokus- und Zeilenabstandstest | *Werkzeuge → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |

@@ -31,6 +31,7 @@ vom ersten Start bis zum fertigen Werkstück.
 18. [Fehlerbehebung](#18-fehlerbehebung)
 19. [Speicherorte und portable Version](#19-speicherorte-und-portable-version)
 20. [Lizenz und Markenhinweis](#20-lizenz-und-markenhinweis)
+21. [Sprache und Übersetzungen](#21-sprache-und-übersetzungen)
 
 ---
 
@@ -92,6 +93,10 @@ Systemvoraussetzungen: x86_64 mit glibc ≥ 2.35 (z. B. Ubuntu 22.04, Debian 12)
 pip install -r requirements.txt
 python main.py
 ```
+
+Die Sprache der Oberfläche stellt man unter *Ansicht → Sprache / Language* ein (siehe
+[Kapitel 21](#21-sprache-und-übersetzungen)). Beim ersten Start gilt die Systemsprache (Deutsch auf deutschen
+Systemen, sonst Englisch). An English manual is available: [Manual_en.md](Manual_en.md).
 
 ---
 
@@ -1018,7 +1023,7 @@ Tastenkürzel bekommen.
 | Rasterbild ruckelt, Laser stockt | Geschwindigkeit verringern oder Zeilenabstand vergrößern – bei feinem Dithering kommt die USB-Verbindung sonst nicht hinterher. |
 | SVG-Text fehlt | Text im Grafikprogramm in Pfade umwandeln oder den Text in TiLaser einfügen. |
 | EPS-Import meldet fehlendes Programm | Ghostscript oder Inkscape installieren, oder die Datei als PDF/SVG speichern. |
-| Boolesche Operationen melden „pyclipper benötigt“ | Nur bei Start aus dem Quellcode: `pip install pyclipper`. In den fertigen Paketen enthalten. |
+| Ausschluss (XOR) meldet „pyclipper benötigt“ | Nur bei Start aus dem Quellcode: `pip install pyclipper`. In den fertigen Paketen enthalten. Vereinigen, Abziehen und Schnittmenge funktionieren auch ohne. |
 | Nesting platziert nicht alle Teile | Grundfläche vergrößern, Mindest- oder Randabstand verringern, mehr Drehungen erlauben, *Gründlich* einschalten. |
 | Kamerabild verschoben | Kamera wurde bewegt: neu ausrichten. |
 | Live-Kamera: „Keine Kamera gefunden“ | Webcam anschließen und ⟳ klicken. Linux: Benutzer in Gruppe `video`. Windows: unter *Datenschutz → Kamera* den Zugriff für Desktop-Apps erlauben. Eine Kamera kann nur von einem Programm gleichzeitig benutzt werden – andere Video-Programme schließen. |
@@ -1033,6 +1038,7 @@ Tastenkürzel bekommen.
 | Maschinenprofil, eigene Presets | Windows: `%USERPROFILE%\.tilaser`, Linux/macOS: `~/.tilaser` |
 | Portable Version | Unterordner `daten` neben `TiLaser.exe` (aktiv, solange `portable.txt` existiert) |
 | Auftragsprotokoll | `auftraege.csv` im selben Ordner wie das Maschinenprofil |
+| Eigene Sprachdateien | Unterordner `lang` im selben Ordner |
 | Eigener Ordner | Umgebungsvariable `TILASER_HOME` |
 | Projekte | Beliebig, Dateiendung `.tlp` |
 
@@ -1041,3 +1047,39 @@ Tastenkürzel bekommen.
 TiLaser ist freie Software unter der GNU General Public License Version 3. Die verwendeten Bibliotheken und ihre Lizenzen stehen unter *Hilfe → Lizenzen…*.
 
 LightBurn ist eine Marke der LightBurn Software LLC. TiLaser ist ein unabhängiges Projekt und steht in keiner Verbindung zu LightBurn Software; es wird von ihr weder unterstützt noch geprüft. Die Unterstützung von `.lbrn2`- und `.lbrn`-Dateien dient allein dem Datenaustausch; TiLaser enthält keinen Code von LightBurn. Alle anderen genannten Produktnamen (z. B. AlgoLaser, GRBL, Inkscape) sind Marken ihrer jeweiligen Inhaber.
+
+---
+
+## 21. Sprache und Übersetzungen
+
+Die Oberfläche gibt es auf **Deutsch** und **Englisch**. Umgestellt wird unter *Ansicht → Sprache / Language*;
+die neue Sprache gilt nach einem Neustart von TiLaser. Beim ersten Start wird die Systemsprache verwendet.
+Für einen einzelnen Start überschreibt die Umgebungsvariable `TILASER_LANG` (z. B. `TILASER_LANG=en`) die
+Einstellung.
+
+**Eine weitere Sprache hinzufügen** geht ohne Programmierkenntnisse, nur mit einem Texteditor:
+
+1. *Ansicht → Sprache / Language → Eigene Übersetzung anlegen / bearbeiten…* und einen Sprachcode eingeben,
+   z. B. `fr`.
+2. TiLaser legt im Einstellungsordner (siehe [Kapitel 19](#19-speicherorte-und-portable-version)) die Datei
+   `lang/fr.json` an und öffnet den Ordner. In jeder Zeile steht links der deutsche Text und rechts die
+   Übersetzung, vorbelegt mit Englisch:
+
+   ```json
+   "Projekt speichern": "Save project",
+   "{0} Objekte ausgewählt": "{0} objects selected",
+   ```
+
+3. Die rechten Texte übersetzen. Platzhalter wie `{0}` (stehen für Zahlen oder Namen), `&` in Menünamen
+   (markiert den unterstrichenen Buchstaben) und `\n` (Zeilenumbruch) beibehalten. `_name` ist der Name im
+   Sprachmenü.
+4. Die Sprache im Menü wählen und TiLaser neu starten.
+
+Noch nicht übersetzte Texte erscheinen auf Englisch (fehlen sie auch dort, auf Deutsch). Beim Beenden schreibt
+TiLaser alle Texte, die ihm ohne Übersetzung begegnet sind, nach `lang/fehlend_<code>.json` – diese in die eigene
+Sprachdatei übernehmen und übersetzen. Eigene Dateien haben Vorrang vor den mitgelieferten; so lassen sich auch
+einzelne englische Texte korrigieren.
+
+Übersetzungen sind willkommen: die Datei als Issue auf GitHub schicken oder per Pull Request nach
+`tilaser/data/lang/<code>.json`. Entwickler sammeln alle Texte mit `python tools/i18n_extract.py`
+(`--missing en` zeigt fehlende Übersetzungen, `--update` trägt neue Texte in alle Sprachdateien ein).

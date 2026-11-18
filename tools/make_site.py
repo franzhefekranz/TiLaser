@@ -34,6 +34,8 @@ def gallery(out: str) -> str:
     for fn in os.listdir(SHOTS):
         if fn.endswith(".png"):
             shutil.copy2(os.path.join(SHOTS, fn), os.path.join(out, "screenshots", fn))
+        elif os.path.isdir(os.path.join(SHOTS, fn)):          # übersetzte Aufnahmen (screenshots/en)
+            shutil.copytree(os.path.join(SHOTS, fn), os.path.join(out, "screenshots", fn), dirs_exist_ok=True)
     items = []
     for name, cap in GALERIE:
         if os.path.exists(os.path.join(SHOTS, name + ".png")):
@@ -48,14 +50,25 @@ def gallery(out: str) -> str:
             f'  <ul class="reihe">{"".join(items)}</ul>\n</section>')
 
 
-def manual_html(out: str):
+MANUALS = {
+    "de": {"src": "Bedienungsanleitung.md", "html": "anleitung.html", "pdf": "TiLaser-Bedienungsanleitung.pdf",
+           "title": "TiLaser – Bedienungsanleitung", "home": "TiLaser-Startseite", "toc": "Inhalt",
+           "dl": "Anleitung als PDF herunterladen", "ph": "Screenshot „{}“ folgt"},
+    "en": {"src": "Manual_en.md", "html": "manual_en.html", "pdf": "TiLaser-Manual.pdf",
+           "title": "TiLaser – User Manual", "home": "TiLaser home page", "toc": "Contents",
+           "dl": "Download the manual as PDF", "ph": "Screenshot “{}” will follow"},
+}
+
+
+def manual_html(out: str, lang: str = "de"):
+    M = MANUALS[lang]
     if not shutil.which("pandoc"):
-        print("pandoc fehlt – anleitung.html wird übersprungen")
+        print(f"pandoc fehlt – {M['html']} wird übersprungen")
         return
-    with open(os.path.join(ROOT, "docs", "Bedienungsanleitung.md"), encoding="utf-8") as f:
+    with open(os.path.join(ROOT, "docs", M["src"]), encoding="utf-8") as f:
         md = f.read()
-    md = re.sub(r"(?ms)^## Inhalt\n.*?(?=^---\n)", "", md)
-    md = re.sub(r"(?ms)^> Die Screenshots werden.*?\n\n", "", md)
+    md = re.sub(r"(?ms)^## (Inhalt|Contents)\n.*?(?=^---\n)", "", md)
+    md = re.sub(r"(?ms)^> (Die Screenshots werden|The screenshots are).*?\n\n", "", md)
     md = re.sub(r"(?m)^---\s*$", "", md)                      # Kapitel haben bereits eine Linie
 
     def img(m):
@@ -63,9 +76,12 @@ def manual_html(out: str):
         fn = os.path.basename(path)
         if fn.startswith("icon_") and os.path.exists(os.path.join(SHOTS, fn)):
             return f"![{alt}](screenshots/{fn}){{.symbol}}"
+        rel = path[len("screenshots/"):] if path.startswith("screenshots/") else fn
+        if os.path.exists(os.path.join(SHOTS, rel)):          # übersetzte Aufnahme, z. B. screenshots/en/…
+            return f"![{alt}](screenshots/{rel})"
         if os.path.exists(os.path.join(SHOTS, fn)):
             return f"![{alt}](screenshots/{fn})"
-        return f'<div class="platzhalter">Screenshot „{html.escape(alt)}“ folgt</div>'
+        return f'<div class="platzhalter">{html.escape(M["ph"].format(alt))}</div>'
 
     md = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", img, md)
     with tempfile.TemporaryDirectory() as td:
@@ -75,16 +91,17 @@ def manual_html(out: str):
             f.write(md)
         with open(tpl, "w", encoding="utf-8") as f:
             f.write("""<!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TiLaser – Bedienungsanleitung</title><link rel="icon" type="image/png" href="tilaser.png">
+<html lang="@LANG@"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@TITLE@</title><link rel="icon" type="image/png" href="tilaser.png">
 <link rel="stylesheet" href="anleitung.css"></head>
-<body><nav id="TOC" aria-label="Inhalt"><a class="zurueck" href="./">TiLaser-Startseite</a>$toc$</nav>
+<body><nav id="TOC" aria-label="@TOCNAME@"><a class="zurueck" href="./">@HOME@</a>$toc$</nav>
 <main class="inhalt">$body$
-<p><a href="TiLaser-Bedienungsanleitung.pdf">Anleitung als PDF herunterladen</a></p></main></body></html>
-""")
+<p><a href="@PDF@">@DL@</a></p></main></body></html>
+""".replace("@LANG@", lang).replace("@TITLE@", M["title"]).replace("@HOME@", M["home"])
+                    .replace("@TOCNAME@", M["toc"]).replace("@PDF@", M["pdf"]).replace("@DL@", M["dl"]))
         subprocess.run(["pandoc", src, "-f", "markdown+gfm_auto_identifiers+pipe_tables", "-t", "html5",
-                        "-M", "title=TiLaser – Bedienungsanleitung",
-                        "--template", tpl, "--toc", "--toc-depth=2", "-o", os.path.join(out, "anleitung.html")],
+                        "-M", f"title={M['title']}",
+                        "--template", tpl, "--toc", "--toc-depth=2", "-o", os.path.join(out, M["html"])],
                        check=True)
 
 
@@ -102,10 +119,11 @@ def main(out: str):
     for fn in ("style.css", "script.js", "anleitung.css"):
         shutil.copy2(os.path.join(SITE, fn), os.path.join(out, fn))
     shutil.copy2(os.path.join(ROOT, "packaging", "icon", "tilaser-256.png"), os.path.join(out, "tilaser.png"))
-    pdf = os.path.join(ROOT, "docs", "TiLaser-Bedienungsanleitung.pdf")
-    if os.path.exists(pdf):
-        shutil.copy2(pdf, os.path.join(out, "TiLaser-Bedienungsanleitung.pdf"))
-    manual_html(out)
+    for lang, M in MANUALS.items():
+        pdf = os.path.join(ROOT, "docs", M["pdf"])
+        if os.path.exists(pdf):
+            shutil.copy2(pdf, os.path.join(out, M["pdf"]))
+        manual_html(out, lang)
     open(os.path.join(out, ".nojekyll"), "w").close()
     print(f"Projektseite erzeugt in {out}")
 

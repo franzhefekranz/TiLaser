@@ -537,6 +537,7 @@ class CameraPanel(QWidget):
 
     def _on_active(self, on):
         if on:
+            self._error_shown = False
             self.lbl_status.setText(f"Live: {self.live.device}")
             if self._pending_rec:
                 path, self._pending_rec = self._pending_rec, ""
@@ -545,7 +546,7 @@ class CameraPanel(QWidget):
             self.view.clear("Kamera aus")
             if self.window_ is not None:
                 self.window_.view.clear("Kamera aus")
-            if not self.lbl_status.text().startswith("Fehler"):
+            if not self.__dict__.get("_error_shown"):
                 self.lbl_status.setText("")
         self._update_buttons()
 
@@ -562,6 +563,7 @@ class CameraPanel(QWidget):
         self._update_buttons()
 
     def _on_error(self, msg):
+        self._error_shown = True
         self.lbl_status.setText(f"Fehler: {msg}")
 
     def _update_overlay(self):

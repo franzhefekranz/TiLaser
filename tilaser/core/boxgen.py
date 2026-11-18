@@ -17,6 +17,7 @@ import numpy as np
 
 from . import geometry as g
 from .model import Item, Project, VectorPath, new_id
+from .i18n import tr
 from .text_import import default_font, text_to_polylines
 
 PRIO = {"Boden": 3, "Deckel": 3, "Vorne": 2, "Hinten": 2, "Links": 1, "Rechts": 1}
@@ -160,11 +161,11 @@ def build_box(spec: BoxSpec) -> Project:
         for name, a, b, nb in pair:
             poly = g.Polyline(panel_outline(name, a, b, nb, t, spec.finger) + [x, y], True)
             cx, cy = x + a / 2, y + b / 2
-            it = Item(id=new_id("I"), name=f"Box {name}", kind="vector", x=cx, y=cy)
+            it = Item(id=new_id("I"), name=f"Box {tr(name)}", kind="vector", x=cx, y=cy)
             it.paths = [VectorPath(poly.transformed(g.translate(-cx, -cy)), cut.id)]
             if font:
                 size = max(3.0, min(8.0, min(a, b) / 6))
-                txt = text_to_polylines(name, font, size)
+                txt = text_to_polylines(tr(name), font, size)
                 if txt:
                     bb = g.bbox(txt)
                     m = g.translate(-(bb[0] + bb[2]) / 2, -(bb[1] + bb[3]) / 2)
