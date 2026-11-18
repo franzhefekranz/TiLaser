@@ -1,4 +1,6 @@
 """Headless-Tests für den Kern (ohne GUI, ohne Laser).  Start:  python -m pytest tests  oder  python tests/test_core.py"""
+import base64
+import io
 import os
 import sys
 import tempfile
@@ -1126,7 +1128,7 @@ LBRN = """<?xml version="1.0" encoding="UTF-8"?>
     <Shape Type="Text" CutIndex="0" Str="Hi" HasBackupPath="1">
         <XForm>1 0 0 1 50 50</XForm>
         <BackupPath Type="Path" CutIndex="0">
-            <XForm>1 0 0 1 0 0</XForm>
+            <XForm>1 0 0 1 50 50</XForm>
             <VertList>V0 0c0x1c1x1V5 0c0x1c1x1V5 5c0x1c1x1</VertList>
             <PrimList>L0 1L1 2L2 0</PrimList>
         </BackupPath>
@@ -1172,6 +1174,28 @@ def test_lightburn_import_export():
     assert [(l.name, l.mode, l.speed, l.power) for l in pr2.layers if l.mode != "raster"] == \
            [(l.name, l.mode, l.speed, l.power) for l in pr.layers if l.mode != "raster"]
     assert 'index Value="2"' in open(out).read()                            # Rot bleibt LightBurn-Ebene 02
+    # Vektor- und Bildeinstellungen mit demselben Index (wie LightBurn 1.7 speichert), Bild mit Transparenz
+    from PIL import Image
+    pic = Image.new("RGBA", (4, 2), (0, 0, 0, 0))
+    pic.putpixel((0, 1), (0, 0, 0, 255))                                    # gespeicherte Zeile 1 = obere Bildzeile
+    buf = io.BytesIO()
+    pic.save(buf, "PNG")
+    data = base64.b64encode(buf.getvalue()).decode()
+    xml = ('<LightBurnProject AppVersion="1.7.08" FormatVersion="1">'
+           '<CutSetting type="Scan"><index Value="0"/><name Value="C00"/><speed Value="100"/></CutSetting>'
+           '<CutSetting_Img type="Image"><index Value="0"/><name Value="C00"/><speed Value="250"/>'
+           '<ditherMode Value="stucki"/></CutSetting_Img>'
+           f'<Shape Type="Bitmap" CutIndex="0" W="40" H="20" Data="{data}"><XForm>1 0 0 1 70 100</XForm></Shape>'
+           '<Shape Type="Rect" CutIndex="0" W="10" H="10"><XForm>1 0 0 1 0 0</XForm></Shape>'
+           '</LightBurnProject>')
+    p3 = os.path.join(TMP, "img.lbrn2")
+    open(p3, "w").write(xml)
+    pr3, _ = load_lbrn(p3)
+    modes = {l.mode: l for l in pr3.layers}
+    assert modes["fill"].speed == 6000 and modes["raster"].speed == 15000 and modes["raster"].dither == "stucki"
+    bmp = next(it for it in pr3.items if it.kind == "raster")
+    assert np.allclose(bmp.world_bbox(), (50, 90, 90, 110))
+    assert bmp.image[0, 0] == 0 and bmp.image[1, 0] == 255 and bmp.image[0, 1] == 255   # aufrecht, Transparenz weiß
 
 
 if __name__ == "__main__":

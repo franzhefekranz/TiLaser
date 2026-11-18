@@ -121,7 +121,12 @@ def export_lbrn(project: Project, path: str) -> list[str]:
     """Schreibt das Projekt als .lbrn2. Rückgabe: Hinweise."""
     used = set().union(*[it.layer_ids() for it in project.items]) if project.items else set()
     layers = [l for l in project.layers if l.id in used]
-    idx, warn = _assign_indices(layers)
+    # Wie LightBurn: Bild-Ebenen (CutSetting_Img) und Vektor-Ebenen haben getrennte Nummern,
+    # ein Bild kann also dieselbe Farbe/Nummer wie eine Vektor-Ebene tragen.
+    idx, warn = _assign_indices([l for l in layers if l.mode != "raster"])
+    idx_r, warn_r = _assign_indices([l for l in layers if l.mode == "raster"])
+    idx.update(idx_r)
+    warn += warn_r
     root = ET.Element("LightBurnProject", AppVersion="1.7.00", FormatVersion="1", MaterialHeight="0",
                       MirrorX="False", MirrorY="False")
     for prio, l in enumerate(layers):

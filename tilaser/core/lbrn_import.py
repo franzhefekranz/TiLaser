@@ -159,7 +159,9 @@ def _legacy_geometry(el):
 
 
 # --------------------------------------------------------------------------- Ebenen
-def _cut_settings(root) -> dict[int, dict]:
+def _cut_settings(root) -> dict[tuple[int, str], dict]:
+    """Ebeneneinstellungen je (Index, Art). Vektor- (CutSetting) und Bildeinstellungen (CutSetting_Img)
+    können denselben Index haben – LightBurn trennt sie nach der Art der Form."""
     out = {}
     for cs in list(root):
         if not cs.tag.startswith("CutSetting"):
@@ -169,7 +171,7 @@ def _cut_settings(root) -> dict[int, dict]:
             if ch is not cs and ch.get("Value") is not None:
                 d.setdefault(ch.tag, ch.get("Value"))
         idx = int(_f(d.get("index"), len(out)))
-        out[idx] = d
+        out[(idx, "raster" if cs.tag == "CutSetting_Img" else "vector")] = d
     return out
 
 
@@ -282,7 +284,8 @@ class _Reader:
         elif t == "Text":
             bp = el.find("BackupPath")
             if bp is not None:
-                for p in self._path(bp, m @ _xform(bp)):
+                # Die Umrisse stehen bereits in Projektkoordinaten (ihre XForm ist die des Textes)
+                for p in self._path(bp, parent_m @ _xform(bp)):
                     out_paths.append((p, cut))
             else:
                 self.texts_without_path += 1
@@ -348,7 +351,12 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
     def layer_for(idx, kind):
         key = (idx, kind)
         if key not in layers:
-            layers[key] = _make_layer(idx, settings.get(idx), kind)
+            cs = settings.get((idx, kind))
+            if cs is None:                                   # nur eine Art vorhanden: die nehmen
+                cs = settings.get((idx, "vector" if kind == "raster" else "raster"))
+                if cs is not None and kind == "raster":
+                    cs = dict(cs, type="Image")
+            layers[key] = _make_layer(idx, cs, kind)
         return layers[key]
 
     for n, el in enumerate(root.findall("Shape")):
@@ -360,7 +368,7 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
             cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
             t = el.get("Type", "Form")
             name = {"Group": "Gruppe", "Path": "Pfad", "Rect": "Rechteck", "Ellipse": "Ellipse",
-                    "Text": f"Text {el.get('Str', '')}".strip(), "Polygon": "Polygon"}.get(t, t)
+                    "Text": f"Text {' '.join(el.get('Str', '').split())}".strip(), "Polygon": "Polygon"}.get(t, t)
             it = Item(id=new_id("I"), name=name, kind="vector", x=cx, y=cy)
             for p, c in paths:
                 it.paths.append(VectorPath(p.transformed(g.translate(-cx, -cy)), layer_for(c, "vector").id))
@@ -379,7 +387,7 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
 
     # Ebenen in LightBurn-Reihenfolge (priority, dann Index)
     def prio(key):
-        cs = settings.get(key[0], {})
+        cs = settings.get(key, settings.get((key[0], "vector"), {}))
         return (_f(cs.get("priority"), key[0]), key[0], key[1])
     pr.layers = [layers[k] for k in sorted(layers, key=prio)]
 
