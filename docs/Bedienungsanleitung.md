@@ -42,6 +42,7 @@ schädigen und Brände auslösen.
 - **Schutzbrille** passend zur Wellenlänge (bei Diodenlasern meist 445–455 nm, OD 5+) tragen – auch für
   alle Personen im Raum.
 - **Nie unbeaufsichtigt** lasern. Ein Feuerlöscher (CO₂ oder Pulver) und eine feuerfeste Unterlage gehören dazu.
+  Der [Flammenwächter](#flammenwächter) kann zusätzlich warnen, ersetzt die Aufsicht aber nicht.
 - **Absaugung** einschalten. Rauch von Holz, Leder und Kunststoffen ist gesundheitsschädlich.
 - **Kein PVC, Vinyl, Kunstleder** oder andere chlorhaltige Materialien lasern (Salzsäure- und Chlorgasbildung).
 - **Stopp** (in der Auftragsleiste) hält die Maschine sofort an. Bei GRBL wird dafür ein Soft-Reset gesendet;
@@ -775,6 +776,43 @@ Alle Einstellungen werden im Maschinenprofil gespeichert.
 
 Läuft das Live-Bild, verwenden *Kamera ausrichten* und *Kamerabild aktualisieren* direkt das aktuelle Bild,
 statt die Kamera ein zweites Mal zu öffnen.
+
+### Flammenwächter
+
+Der Flammenwächter wertet während eines Auftrags das Live-Bild aus und schlägt Alarm, wenn irgendwo eine
+Flamme stehen bleibt. Er ist **standardmäßig aus** und wird im Tab *Kamera* unter **Flammenwächter**
+eingeschaltet.
+
+| Einstellung | Wirkung |
+|---|---|
+| Flammen während des Auftrags erkennen | Ein/aus. Bei Auftragsstart wird die Kamera dann automatisch eingeschaltet |
+| Bei Flamme | *Nur warnen* (Alarmton und Meldung), *Auftrag pausieren* (Standard) oder *Auftrag stoppen* |
+| Empfindlichkeit | 1–10. Höher = schon kleinere Flammen lösen aus, aber eher Fehlalarme |
+| Auslösen nach | So viele Sekunden muss eine Stelle brennen (Standard 2 s) |
+| Erkannte Stellen rot zeigen | Markiert im Live-Bild, was der Wächter für Flamme hält – hilfreich beim Einstellen |
+| Testen | Wächter ohne Auftrag laufen lassen, z. B. mit einem Feuerzeug unter der Kamera. Löst nur eine Meldung aus |
+
+**So funktioniert es:** Gesucht werden helle, gelb-orange Stellen, die deutlich heller sind als im Bild beim
+Auftragsstart. Der glühende Laserpunkt wandert ständig weiter und löst deshalb nicht aus; eine Flamme bleibt
+an einer Stelle. Feste Lichtquellen wie eine orange Kontroll-LED oder ein Kreuzlaser gehören zum
+Anfangsbild und stören nicht.
+
+Löst der Wächter aus, piept TiLaser, speichert ein Foto im Kamera-Speicherort (`Flamme_…jpg`), schreibt
+eine Zeile in die Konsole und zeigt eine Meldung mit drei Möglichkeiten:
+
+- **Auftrag stoppen**
+- **Weiter beobachten** – nach dem Nachsehen; einen pausierten Auftrag mit *Fortsetzen* weiterlaufen lassen
+- **Wächter für diesen Auftrag aus** – bei Fehlalarmen, z. B. durch Sonnenlicht
+
+Ist der Wächter eingeschaltet, aber keine Kamera verfügbar, steht in der Konsole eine Warnung. Der Auftrag
+läuft dann trotzdem.
+
+> **Wichtig:** Der Flammenwächter ist eine zusätzliche Absicherung und **kein Ersatz für die Aufsicht**. Er
+> sieht nur, was die Kamera sieht, und kann eine Flamme unter dem Werkstück oder im Rauch übersehen. Bei
+> GRBL schaltet der Laser bei *Pause* im Lasermodus (`$32=1`) ab; Air Assist läuft weiter.
+
+Tipp zum Einstellen: Einen typischen Auftrag mit *Erkannte Stellen rot zeigen* beobachten. Erscheinen dabei
+schon rote Stellen, die Empfindlichkeit senken oder die Zeit erhöhen.
 
 ### Ausrichten
 

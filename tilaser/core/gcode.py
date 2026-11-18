@@ -78,6 +78,11 @@ class MachineProfile:
     camera_live_bg: bool = False      # entzerrtes Live-Bild als Hintergrund
     camera_live_rot: int = 0          # Drehung der Live-Anzeige (0/90/180/270)
     camera_media_dir: str = ""        # Ordner für Fotos/Videos ('' = Bilder/TiLaser)
+    flame_detect: bool = False        # Flammenwächter während des Auftrags
+    flame_action: str = "pause"       # "warn" | "pause" | "stop"
+    flame_sensitivity: int = 5        # 1 (unempfindlich) … 10 (sehr empfindlich)
+    flame_hold: float = 2.0           # Sekunden, die eine Stelle dauerhaft brennen muss
+    flame_show: bool = True           # erkannte Stellen im Live-Bild markieren
 
     @property
     def y_scale(self) -> float:

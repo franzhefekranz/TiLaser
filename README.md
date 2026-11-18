@@ -87,7 +87,8 @@ ein GitHub-Release an.
     (Werkstückkoordinaten; „Aktuelle Position übernehmen“ füllt die Felder).
   - **Konsole**: Maschinenmeldungen und eigene Befehle.
   - **Kamera**: Live-Bild der Webcam zum Beobachten, Foto/Video, großes Fenster, automatischer Start und
-    Videoaufnahme bei jedem Auftrag.
+    Videoaufnahme bei jedem Auftrag,
+    **Flammenwächter** (erkennt stehende Flammen im Bild, warnt, pausiert oder stoppt; abschaltbar).
 - Darunter ist immer sichtbar: Status, Position, *Rahmen*, *Start*, *Pause*, *Stopp*, außerdem
   **Ursprung** (*Absolut* oder *Aktuelle Position* mit 9-Punkt-Anker), **Nur Auswahl** und **Fortsetzen…**
   (abgebrochenen Auftrag ab einer Zeile weiterlaufen lassen).

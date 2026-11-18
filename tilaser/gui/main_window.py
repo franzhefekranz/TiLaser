@@ -141,6 +141,7 @@ class MainWindow(QMainWindow):
         self.camera_panel.profileChanged.connect(lambda: storage.save_machine(self.profile))
         self.camera_panel.backgroundToggled.connect(self._live_bg_toggled)
         self.machine.jobStarted.connect(self._on_job_started)
+        self.camera_panel.flameDetected.connect(self._on_flame)
         self.machine.jobEnded.connect(lambda _s: self.camera_panel.job_finished())
         self.machine.jobEnded.connect(self._on_job_ended)
         self.machine.macrosEdited.connect(self._bind_macro_keys)
@@ -2052,6 +2053,61 @@ class MainWindow(QMainWindow):
     def _on_job_started(self):
         if self.camera_panel.job_started():
             self.tabs.setCurrentWidget(self.camera_panel)
+        if getattr(self.profile, "flame_detect", False) and not self.camera_panel.flame_watching():
+            self.machine._log("!! Flammenwächter ist eingeschaltet, aber keine Kamera aktiv – keine Überwachung!")
+
+    def _on_flame(self, photo: str):
+        """Flammenwächter hat ausgelöst: je nach Einstellung warnen, pausieren oder stoppen."""
+        cp = self.camera_panel
+        test = cp._flame_test
+        action = "warn" if test else getattr(self.profile, "flame_action", "pause")
+        did = ""
+        if action == "pause" and self.machine.pause_job():
+            did = "Der Auftrag wurde pausiert."
+        elif action == "stop" and self.machine.stop_job():
+            did = "Der Auftrag wurde gestoppt."
+        self.machine._log(f"!! Flammenwächter: mögliche Flamme erkannt. {did}".rstrip())
+        self.tabs.setCurrentWidget(cp)
+        self.raise_()
+        self.activateWindow()
+        beep = QTimer(self)
+        beep.setInterval(700)
+        beep.timeout.connect(QApplication.beep)
+        if not test:
+            QApplication.beep()
+            beep.start()
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Critical)
+        box.setWindowTitle("Flammenwächter")
+        if test:
+            box.setText("Test: Der Flammenwächter hätte jetzt ausgelöst.")
+        else:
+            box.setText("<b>🔥 Mögliche Flamme erkannt!</b><br><br>"
+                        + (did + " " if did else "") + "Sofort nach dem Laser sehen.")
+        info = []
+        if action == "pause" and did:
+            info.append("Ist alles in Ordnung, mit „Fortsetzen“ (Pause-Knopf) weiterlasern.")
+        if photo:
+            info.append(f"Foto: {photo}")
+        box.setInformativeText("\n".join(info))
+        b_stop = None
+        if not test and self.machine.conn.job_active:
+            b_stop = box.addButton("Auftrag stoppen", QMessageBox.ButtonRole.DestructiveRole)
+        b_watch = box.addButton("Weiter beobachten", QMessageBox.ButtonRole.AcceptRole)
+        b_off = box.addButton("Wächter für diesen Auftrag aus", QMessageBox.ButtonRole.RejectRole)
+        box.exec()
+        beep.stop()
+        clicked = box.clickedButton()
+        if b_stop is not None and clicked is b_stop:
+            self.machine.stop_job()
+        elif clicked is b_watch:
+            cp.rearm_flame()
+        elif clicked is b_off:
+            if test:
+                cp.btn_ftest.setChecked(False)
+            else:
+                cp._flame_stop()
+                self.machine._log("-- Flammenwächter für diesen Auftrag ausgeschaltet.")
 
     def _live_bg_toggled(self, on):
         if on and len(self.profile.camera_h) != 9:

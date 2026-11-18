@@ -553,6 +553,19 @@ class MachinePanel(QWidget):
             self.conn.pause()
             self.btn_pause.setText("▶ Fortsetzen")
 
+    def pause_job(self) -> bool:
+        """Auftrag anhalten (nichts tun, wenn er schon pausiert). True, wenn ein Auftrag lief."""
+        if not self.conn.job_active:
+            return False
+        if not (self.machine_state == "paused" or self.conn._paused):
+            self._pause()
+        return True
+
+    def stop_job(self) -> bool:
+        active = self.conn.job_active
+        self._stop()
+        return active
+
     def _stop(self):
         if self.conn.connected:
             self.conn.stop()
