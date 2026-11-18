@@ -291,6 +291,20 @@ def test_frame():
     assert lines.count("G1 X10 Y10 F3000") == 1
 
 
+def test_line_times():
+    from tilaser.core.gcode import line_times
+    from tilaser.core.sender import clean_line
+    prof = MachineProfile()
+    cum = line_times(["G21", "G90", "G0 X60 Y80", "G1 X60 Y0 F600", "G4 P2", "G91", "G1 X30"], prof)
+    t_rapid = 100 / prof.travel_speed * 60
+    assert abs(cum[2] - t_rapid) < 1e-9 and abs(cum[3] - (t_rapid + 8)) < 1e-9          # 80 mm bei 600 mm/min
+    assert abs(cum[4] - (t_rapid + 10)) < 1e-9 and abs(cum[6] - (t_rapid + 13)) < 1e-9   # Pause 2 s, relativ 30 mm
+    pr = make_project()
+    res = generate(pr, prof)
+    clean = [c for c in (clean_line(l) for l in res.lines) if c]
+    assert abs(line_times(clean, prof)[-1] - res.time_s) / res.time_s < 0.05             # passt zur Gesamtschätzung
+
+
 def test_group_ungroup():
     pr = Project()
     sq = lambda x0, y0, w: g.Polyline(np.array([[x0, y0], [x0 + w, y0], [x0 + w, y0 + w], [x0, y0 + w]]), True)
