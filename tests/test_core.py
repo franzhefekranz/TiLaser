@@ -291,6 +291,17 @@ def test_frame():
     assert lines.count("G1 X10 Y10 F3000") == 1
 
 
+def test_profile_auto_connect():
+    p = MachineProfile()
+    assert p.auto_connect
+    p.conn_type, p.port, p.baud, p.auto_connect = "serial", "COM5", 250000, False
+    q = MachineProfile.from_dict(p.to_dict())
+    assert (q.conn_type, q.port, q.baud, q.auto_connect) == ("serial", "COM5", 250000, False)
+    d = p.to_dict()
+    d.pop("auto_connect")
+    assert MachineProfile.from_dict(d).auto_connect                      # alte Profile: an
+
+
 def test_group_ungroup():
     pr = Project()
     sq = lambda x0, y0, w: g.Polyline(np.array([[x0, y0], [x0 + w, y0], [x0 + w, y0 + w], [x0, y0 + w]]), True)
