@@ -129,6 +129,7 @@ ein GitHub-Release an.
 | Bildoptionen | Ebene (Raster): Helligkeit, Kontrast, Gamma; Dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Bild nachzeichnen | *Werkzeuge → Bild nachzeichnen* (Alt+T) bzw. Rechtsklick auf ein Bild |
 | Materialtest | *Werkzeuge → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
+| Box-Generator | *Werkzeuge → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |
 | Fokus- und Zeilenabstandstest | *Werkzeuge → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |
 | Offset-Füllung | Ebenenmodus: Flächen mit Konturlinien von außen nach innen füllen |
 | Variable Texte, QR-Code, Barcode | Platzhalter `{nr}`, `{datum}`, `{Spalte}` aus CSV, zählt nach jedem Auftrag weiter; QR-Code und Code 128 ohne Zusatzprogramm |

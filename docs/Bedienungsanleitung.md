@@ -30,6 +30,7 @@ vom ersten Start bis zum fertigen Werkstück.
 17. [Tastenkürzel](#17-tastenkürzel)
 18. [Fehlerbehebung](#18-fehlerbehebung)
 19. [Speicherorte und portable Version](#19-speicherorte-und-portable-version)
+20. [Lizenz und Markenhinweis](#20-lizenz-und-markenhinweis)
 
 ---
 
@@ -416,6 +417,28 @@ Konturen, z. B. um ein Logo zu schneiden.
 | Mindestgröße | Kleinere Flecken werden ignoriert |
 | Helligkeit / Kontrast | Bild vorher anpassen |
 | Bild behalten | Sonst wird das Bild durch die Konturen ersetzt |
+
+### Box-Generator
+
+*Werkzeuge → Box-Generator…* (Strg+Umschalt+B) erzeugt einen Kasten mit Fingerzinken: Boden, vier
+Wände und optional einen Deckel. Die Teile werden zusammengesteckt und bei Bedarf verleimt.
+
+| Einstellung | Wirkung |
+|---|---|
+| Maße | *Innenmaße* (der Inhalt muss hineinpassen, z. B. eine Platine) oder *Außenmaße* |
+| Breite, Tiefe, Höhe | Größe in X, Y und Z |
+| Materialstärke | Vorher mit dem Messschieber messen. Sperrholz „3 mm“ ist oft 2,7 oder 3,2 mm dick, und schon 0,2 mm Unterschied machen die Zinken zu locker oder zu stramm |
+| Zinkenbreite | Gewünschte Breite; das Programm verteilt eine ungerade Zahl gleich breiter Zinken auf jede Kante |
+| Schnittbreite (Kerf) | Wird als Kerf der neuen Ebene „Box“ eingetragen. Größer = strammer. Für eine Presspassung etwa 0,02–0,05 mm über der gemessenen Schnittbreite (siehe [Kerf ermitteln](#kerf-ermitteln)) |
+| Mit Deckel | Ohne Häkchen entsteht eine oben offene Schale |
+| Leistung, Geschwindigkeit, Durchgänge | Werte für die Ebene „Box“; am einfachsten danach im Ebenen-Tab ein Preset anwenden |
+| Teile beschriften | Graviert „Boden“, „Vorne“ usw. mit wenig Leistung auf die Teile (Ebene „Box-Beschriftung“) |
+
+*Vorschau* zeigt den Werkzeugweg, *Ins Projekt* legt die Teile als einzelne Objekte an. Danach lassen sie sich
+verschieben, mit [Nesting](#8-nesting--teile-automatisch-anordnen) platzsparend anordnen oder um Löcher,
+Lüftungsschlitze und Gravuren ergänzen (z. B. mit *Formen → Abziehen*). Die Zinken bleiben dabei unverändert.
+
+Tipp: Erst eine kleine Probe-Box (z. B. 40 × 30 × 20 mm) schneiden und die Passung prüfen, dann den Kerf anpassen.
 
 ---
 
@@ -819,6 +842,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | V R E P L N | Zeichenwerkzeuge | | Strg+Shift+←/→/↑/↓ | Links/rechts/oben/unten ausrichten |
 | Esc | Zurück zum Auswählen | | Strg+Shift+U / D / I | Vereinigen / Abziehen / Schnittmenge |
 | Alt+T | Bild nachzeichnen | | Alt+O / Alt+J | Offset / Pfade verbinden |
+| Strg+Shift+B | Box-Generator | | | |
 
 Im Knotenmodus: Entf, C, L, S, B, A (siehe [Knotenbearbeitung](#knotenbearbeitung)). Makros können eigene
 Tastenkürzel bekommen.

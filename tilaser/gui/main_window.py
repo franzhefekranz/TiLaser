@@ -26,7 +26,7 @@ from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from . import icons
-from .dialogs import (ArrayDialog, BarcodeDialog, CameraGrabber, VarDialog, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog, FocusTestDialog, IntervalTestDialog,
+from .dialogs import (ArrayDialog, BarcodeDialog, BoxDialog, CameraGrabber, VarDialog, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog, FocusTestDialog, IntervalTestDialog,
                       OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from .camera_live import CameraPanel, LiveCamera
@@ -303,6 +303,9 @@ class MainWindow(QMainWindow):
                                "QR-Code oder Code-128-Barcode als Gravur einfügen (Platzhalter erlaubt)"))
         wz.addAction(self._act("Variable Texte…", self.var_settings, None,
                                "Fortlaufende Nummer und CSV-Datei für Platzhalter wie {nr} oder {Name}"))
+        wz.addAction(self._act("Box-Generator…", self.box_generator, "Ctrl+Shift+B",
+                               "Kasten mit Fingerzinken aus Plattenmaterial erzeugen"))
+        wz.addSeparator()
         wz.addAction(self._act("Fokustest…", self.focus_test, None,
                                "Besten Fokusabstand finden: Rampe auf schrägem Brett oder Linien mit Z-Versatz"))
         wz.addAction(self._act("Zeilenabstandstest…", self.interval_test, None,
@@ -1584,6 +1587,11 @@ class MainWindow(QMainWindow):
         dlg = FocusTestDialog(self.profile, self)
         if dlg.exec() == FocusTestDialog.DialogCode.Accepted and dlg.action:
             self._run_test(dlg.project(), "Fokustest", dlg.action)
+
+    def box_generator(self):
+        dlg = BoxDialog(self.profile, self)
+        if dlg.exec() == BoxDialog.DialogCode.Accepted and dlg.action:
+            self._run_test(dlg.project(), "Box", dlg.action)
 
     def interval_test(self):
         dlg = IntervalTestDialog(self.profile, self)
