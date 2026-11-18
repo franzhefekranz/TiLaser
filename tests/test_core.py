@@ -1198,6 +1198,24 @@ def test_lightburn_import_export():
     assert bmp.image[0, 0] == 0 and bmp.image[1, 0] == 255 and bmp.image[0, 1] == 255   # aufrecht, Transparenz weiß
 
 
+def test_lightburn_legacy_lbrn():
+    from tilaser.core.lbrn_import import load_lbrn
+    # Altes Format (LightBurn 1.0, FormatVersion 0): V-/P-Elemente statt VertList/PrimList, skalierte XForm
+    xml = ('<LightBurnProject AppVersion="1.0.06" FormatVersion="0">'
+           '<CutSetting type="Cut"><index Value="27"/><name Value="C27"/><maxPower Value="100"/>'
+           '<speed Value="5.83333"/><overscan Value="1"/><overscanPercent Value="2.5"/></CutSetting>'
+           '<Shape Type="Path" CutIndex="27"><XForm>0.5 0 0 0.5 100 100</XForm>'
+           '<V vx="0" vy="0"/><V vx="20" vy="0"/><V vx="20" vy="20" c0x="20" c0y="30" c1x="20" c1y="10"/>'
+           '<V vx="0" vy="20"/><P T="L" p0="0" p1="1"/><P T="B" p0="1" p1="2"/><P T="L" p0="2" p1="3"/>'
+           '<P T="L" p0="3" p1="0"/></Shape></LightBurnProject>')
+    p = os.path.join(TMP, "alt.lbrn")
+    open(p, "w").write(xml)
+    pr, warn = load_lbrn(p)
+    assert warn == [] and len(pr.items) == 1 and pr.layers[0].speed == 350 and pr.layers[0].power == 100
+    poly = pr.items[0].world_paths()[0]
+    assert poly.closed and poly.bez is not None and np.allclose(g.bbox([poly]), (100, 100, 110, 110), atol=1e-6)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
