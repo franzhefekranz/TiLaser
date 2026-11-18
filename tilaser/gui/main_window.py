@@ -26,10 +26,11 @@ from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from . import icons
-from .dialogs import (ArrayDialog, CameraGrabber, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog,
+from .dialogs import (ArrayDialog, BarcodeDialog, CameraGrabber, VarDialog, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog, FocusTestDialog, IntervalTestDialog,
                       OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from .camera_live import CameraPanel, LiveCamera
+from ..core import vartext as vt
 from ..core.eps_import import import_eps
 from ..core.lbrn_export import export_lbrn
 from ..core.lbrn_import import load_lbrn
@@ -141,6 +142,10 @@ class MainWindow(QMainWindow):
         self.camera_panel.backgroundToggled.connect(self._live_bg_toggled)
         self.machine.jobStarted.connect(self._on_job_started)
         self.machine.jobEnded.connect(lambda _s: self.camera_panel.job_finished())
+        self.machine.jobEnded.connect(self._on_job_ended)
+        self.machine.macrosEdited.connect(self._bind_macro_keys)
+        self._macro_shortcuts = []
+        self._bind_macro_keys()
         self.layers.layersChanged.connect(self._on_layers_changed)
         self.objects.changed.connect(self._on_object_changed)
         self.objects.action.connect(self._on_object_action)
@@ -254,6 +259,16 @@ class MainWindow(QMainWindow):
         ar.addAction(self.a_nest)
         ar.addAction(self.a_center)
         ar.addAction(self.a_origin)
+        ar.addSeparator()
+        om = ar.addMenu("Schnittreihenfolge")
+        for text, where, sc in (("Zuerst schneiden", "first", "Ctrl+Shift+PgUp"), ("Früher schneiden", "up", "Ctrl+PgUp"),
+                                ("Später schneiden", "down", "Ctrl+PgDown"), ("Zuletzt schneiden", "last", "Ctrl+Shift+PgDown")):
+            om.addAction(self._act(text, lambda _=False, w_=where: self.reorder_selected(w_), sc))
+        om.addSeparator()
+        self.a_show_order = self._act("Reihenfolge anzeigen", lambda: self._update_order_labels(), None,
+                                      "Nummer jedes Objekts in der Schnittreihenfolge auf der Arbeitsfläche zeigen")
+        self.a_show_order.setCheckable(True)
+        om.addAction(self.a_show_order)
 
         fm = mb.addMenu("&Formen")
         self.a_union = self._act("Vereinigen", lambda: self.boolean_op("union"), "Ctrl+Shift+U",
@@ -281,6 +296,15 @@ class MainWindow(QMainWindow):
                                     "Text entlang der ausgewählten Kontur setzen")
         wz.addAction(self.a_textpath)
         wz.addAction(self.a_mattest)
+        wz.addSeparator()
+        wz.addAction(self._act("QR-Code / Barcode einfügen…", self.insert_barcode, "Ctrl+Shift+Q",
+                               "QR-Code oder Code-128-Barcode als Gravur einfügen (Platzhalter erlaubt)"))
+        wz.addAction(self._act("Variable Texte…", self.var_settings, None,
+                               "Fortlaufende Nummer und CSV-Datei für Platzhalter wie {nr} oder {Name}"))
+        wz.addAction(self._act("Fokustest…", self.focus_test, None,
+                               "Besten Fokusabstand finden: Rampe auf schrägem Brett oder Linien mit Z-Versatz"))
+        wz.addAction(self._act("Zeilenabstandstest…", self.interval_test, None,
+                               "Felder mit unterschiedlichem Zeilenabstand gravieren"))
 
         v = mb.addMenu("&Ansicht")
         self.a_fit = self._act("Alles zeigen", self.canvas.zoom_fit, "Ctrl+0")
@@ -310,10 +334,20 @@ class MainWindow(QMainWindow):
 
         mm = mb.addMenu("&Maschine")
         mm.addAction(self._act("Maschineneinstellungen…", self.machine_settings))
+        mm.addAction(self._act("GRBL-Einstellungen ($$)…", self.machine.edit_grbl_settings, None,
+                               "Einstellungen der GRBL-Steuerung anzeigen und ändern"))
+        mm.addAction(self._act("Makros bearbeiten…", self.machine.edit_macros, None,
+                               "Eigene G-Code-Knöpfe mit Tastenkürzel"))
         self.a_rotary = self._act("Rotationsachse aktiv", self._toggle_rotary)
         self.a_rotary.setCheckable(True)
         self.a_rotary.setChecked(self.profile.rotary)
         mm.addAction(self.a_rotary)
+        mm.addSeparator()
+        lm = mm.addMenu("Laser zur Auswahl fahren")
+        self._fill_move_menu(lm)
+        mm.addAction(self._act("Startpunkt auf gewählten Knoten setzen", lambda: self.canvas.node_command("start"),
+                               None, "Im Knoten-Werkzeug (N) einen Knoten anklicken: dort beginnt der Schnitt "
+                                     "dieser Kontur (Taste A)"))
         mm.addSeparator()
         cm = mm.addMenu("Kamera")
         cm.addAction(self._act("Kamera wählen…", self.camera_select))
@@ -624,28 +658,36 @@ class MainWindow(QMainWindow):
         font = dlg.font_path()
         if not text.strip() or not font:
             return
-        try:
-            polys = text_to_polylines(text, font, dlg.size.value(), dlg.spacing.value(), dlg.letter.value(),
-                                      dlg.align.currentData())
-        except Exception as e:
-            QMessageBox.critical(self, "Text", f"Text konnte nicht erzeugt werden:\n{e}")
-            return
-        if not polys:
-            QMessageBox.information(self, "Text", "Die Schrift enthält keine Konturen für diesen Text.")
-            return
-        self._checkpoint("Text einfügen")
+        spec = {"kind": "text", "template": text, "font": font, "size": dlg.size.value(),
+                "spacing": dlg.spacing.value(), "letter": dlg.letter.value(), "align": dlg.align.currentData()}
         target = dlg.layer.currentData()
-        if target == TextDialog.NEW_FILL:
-            layer = self.project.add_layer("Text Gravur", mode="fill")
-        elif target == TextDialog.NEW_CUT:
-            layer = self.project.add_layer("Text Kontur", mode="cut")
+        self._insert_var_item(spec, target, "Text einfügen",
+                              {TextDialog.NEW_FILL: ("Text Gravur", "fill"), TextDialog.NEW_CUT: ("Text Kontur", "cut")})
+
+    def insert_barcode(self):
+        dlg = BarcodeDialog(self.project, self)
+        if dlg.exec() != BarcodeDialog.DialogCode.Accepted or not dlg.content.text().strip():
+            return
+        self._insert_var_item(dlg.spec(), dlg.layer.currentData(), "QR-Code/Barcode einfügen",
+                              {BarcodeDialog.NEW_FILL: ("Code Gravur", "fill")})
+
+    def _insert_var_item(self, spec, target, title, new_layers):
+        st = vt.project_state(self.project)
+        try:
+            probe = vt.make_item(spec, "", 0, 0, st, vt.current_row(st))
+        except Exception as e:
+            QMessageBox.critical(self, title, f"Konnte nicht erzeugt werden:\n{e}")
+            return
+        if not probe.paths:
+            QMessageBox.information(self, title, "Kein Inhalt – für diesen Text gibt es keine Konturen.")
+            return
+        self._checkpoint(title)
+        if target in new_layers:
+            name, mode = new_layers[target]
+            layer = self.project.add_layer(name, mode=mode)
         else:
             layer = self.project.layer(target)
-        bb = g.bbox(polys)
-        cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
-        it = Item(id=new_id("I"), name=f"Text: {text.splitlines()[0][:20]}", kind="vector",
-                  x=self.profile.bed_w / 2, y=self.profile.bed_h / 2)
-        it.paths = [VectorPath(p.transformed(g.translate(-cx, -cy)), layer.id) for p in polys]
+        it = vt.make_item(spec, layer.id, self.profile.bed_w / 2, self.profile.bed_h / 2, st, vt.current_row(st))
         self.project.items.append(it)
         self.canvas.add_item(it)
         self.layers.refresh(layer.id)
@@ -815,6 +857,10 @@ class MainWindow(QMainWindow):
     def _context_menu(self, global_pos):
         items = self._selected_items()
         menu = QMenu(self)
+        if len(items) == 1 and items[0].var:
+            a = menu.addAction("Inhalt ändern…")
+            a.triggered.connect(lambda: self.edit_var_item(items[0]))
+            menu.addSeparator()
         if items:
             menu.addAction(self.a_group)
             menu.addAction(self.a_ungroup)
@@ -842,7 +888,86 @@ class MainWindow(QMainWindow):
             menu.addAction(self.a_text)
             menu.addAction(self.a_all)
             menu.addAction(self.a_fit)
+        pos = self.canvas.__dict__.get("last_context_pos")
+        menu.addSeparator()
+        if pos is not None:
+            a = menu.addAction(f"Laser hierher fahren (X{pos[0]:.1f} Y{pos[1]:.1f})")
+            a.triggered.connect(lambda: self.machine.move_to(*pos))
+        if items:
+            sub = menu.addMenu("Laser zur Auswahl fahren")
+            self._fill_move_menu(sub)
         menu.exec(global_pos)
+
+    def _fill_move_menu(self, menu):
+        for key, label in (("c", "Mitte"), ("bl", "Links unten"), ("tl", "Links oben"), ("tr", "Rechts oben"),
+                           ("br", "Rechts unten")):
+            a = menu.addAction(label)
+            a.triggered.connect(lambda _=False, k=key: self.move_laser_to_selection(k))
+
+    def move_laser_to_selection(self, anchor: str = "c"):
+        items = self._selected_items()
+        if not items:
+            QMessageBox.information(self, "Laser zur Auswahl", "Bitte zuerst Objekte auswählen.")
+            return
+        bbs = np.array([it.world_bbox() for it in items])
+        x0, y0, x1, y1 = bbs[:, 0].min(), bbs[:, 1].min(), bbs[:, 2].max(), bbs[:, 3].max()
+        x = {"c": (x0 + x1) / 2, "bl": x0, "tl": x0, "tr": x1, "br": x1}[anchor]
+        y = {"c": (y0 + y1) / 2, "bl": y0, "tl": y1, "tr": y1, "br": y0}[anchor]
+        self.machine.move_to(float(x), float(y))
+
+    def edit_var_item(self, it):
+        """Text bzw. Inhalt eines Text-, QR- oder Barcode-Objekts ändern (Platzhalter erlaubt)."""
+        old = it.var.get("template", "")
+        if it.var.get("kind") == "text":
+            txt, ok = QInputDialog.getMultiLineText(self, "Inhalt ändern", "Text (Platzhalter erlaubt):", old)
+        else:
+            txt, ok = QInputDialog.getText(self, "Inhalt ändern", "Inhalt (Platzhalter erlaubt):", text=old)
+        if not ok or txt == old or not txt.strip():
+            return
+        self._checkpoint("Inhalt ändern")
+        it.var["template"] = txt
+        st = vt.project_state(self.project)
+        try:
+            vt.refresh_item(it, st, row=vt.current_row(st))
+        except Exception as e:
+            QMessageBox.critical(self, "Inhalt ändern", str(e))
+            it.var["template"] = old
+            vt.refresh_item(it, st, row=vt.current_row(st))
+        self.canvas.refresh_item(it.id)
+        self.objects.refresh()
+        self._invalidate()
+
+    def var_settings(self):
+        st = vt.project_state(self.project)
+        dlg = VarDialog(st, self)
+        if dlg.exec() == VarDialog.DialogCode.Accepted:
+            dlg.apply()
+            self._refresh_var_items()
+
+    def _refresh_var_items(self) -> int:
+        """Objekte mit Platzhaltern neu erzeugen (vor Vorschau, Auftrag und Export)."""
+        try:
+            n = vt.refresh_project(self.project)
+        except Exception as e:
+            self.statusBar().showMessage(f"Variable Texte: {e}", 8000)
+            return 0
+        if n:
+            for it in self.project.items:
+                if it.var and vt.has_placeholders(it.var.get("template", "")):
+                    self.canvas.refresh_item(it.id)
+            self.objects.refresh()
+            self.result = None
+        return n
+
+    def _advance_vars(self):
+        st = vt.project_state(self.project)
+        if st.auto_advance and any(it.var and vt.has_placeholders(it.var.get("template", ""))
+                                   for it in self.project.items):
+            vt.advance(self.project)
+            self._refresh_var_items()
+            self._invalidate()
+            self.statusBar().showMessage(f"Variable Texte: nächste Nummer {st.nr}"
+                                         + (f", CSV-Zeile {st.csv_row + 1}" if st.csv_path else ""), 6000)
 
     def delete_selected(self):
         ids = self.canvas.selected_ids()
@@ -878,7 +1003,49 @@ class MainWindow(QMainWindow):
             return
         self.canvas.set_rubber_outline(self._rubber_hull() if self.profile.frame_rubber_show else None)
 
+    def reorder_selected(self, where: str):
+        """Objekte in der Projektliste verschieben (bestimmt 'Schnittreihenfolge: Objekt für Objekt')."""
+        sel = set(self.canvas.selected_ids())
+        if not sel:
+            return
+        self._checkpoint("Schnittreihenfolge")
+        items = self.project.items
+        chosen = [it for it in items if it.id in sel]
+        rest = [it for it in items if it.id not in sel]
+        if where == "first":
+            items[:] = chosen + rest
+        elif where == "last":
+            items[:] = rest + chosen
+        else:
+            idx = [i for i, it in enumerate(items) if it.id in sel]
+            rng = idx if where == "up" else idx[::-1]
+            for i in rng:
+                j = i - 1 if where == "up" else i + 1
+                if 0 <= j < len(items) and items[j].id not in sel:
+                    items[i], items[j] = items[j], items[i]
+        if self.profile.cut_order != "objects":
+            self.statusBar().showMessage("Hinweis: Die Reihenfolge wirkt, wenn in den Maschineneinstellungen "
+                                         "„Schnittreihenfolge: Objekt für Objekt“ gewählt ist.", 6000)
+        if not self.a_show_order.isChecked():
+            self.a_show_order.setChecked(True)
+        self._invalidate()
+
+    def _update_order_labels(self):
+        if "a_show_order" not in self.__dict__:
+            return
+        labels = []
+        if self.a_show_order.isChecked():
+            n = 0
+            for it in self.project.items:
+                if not any((l := self.project.layer(lid)) and l.output for lid in it.layer_ids()):
+                    continue
+                n += 1
+                b = it.world_bbox()
+                labels.append(((b[0] + b[2]) / 2, (b[1] + b[3]) / 2, n))
+        self.canvas.set_order_labels(labels)
+
     def _invalidate(self):
+        self._update_order_labels()
         self._update_rubber()
         self.result = None
         bb = self.project.bbox()
@@ -892,6 +1059,8 @@ class MainWindow(QMainWindow):
 
     def ensure_result(self, only_ids=None, offset=(0.0, 0.0)):
         key = (tuple(only_ids) if only_ids else None, round(offset[0], 4), round(offset[1], 4))
+        if self.result is None:
+            self._refresh_var_items()
         if self.result is None or self._result_key != key:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
@@ -974,6 +1143,7 @@ class MainWindow(QMainWindow):
         if res.warnings:
             msg += "\n\nHinweise:\n• " + "\n• ".join(res.warnings)
         QMessageBox.information(self, "Export", msg)
+        self._advance_vars()
 
     # ------------------------------------------------------------ Maschine
     def start_job(self):
@@ -996,6 +1166,7 @@ class MainWindow(QMainWindow):
             text += "\n\nHinweise:\n• " + "\n• ".join(res.warnings)
         if QMessageBox.question(self, "Auftrag starten", text) != QMessageBox.StandardButton.Yes:
             return
+        self._var_job = True                     # nach dem Auftrag Platzhalter weiterzählen
         self.machine.run_job(res.lines)
 
     def run_frame(self):
@@ -1341,29 +1512,54 @@ class MainWindow(QMainWindow):
         dlg = MaterialTestDialog(self.profile, self)
         if dlg.exec() != MaterialTestDialog.DialogCode.Accepted or not dlg.action:
             return
-        try:
-            res = generate(build_project(dlg.test()), self.profile)
-        except Exception as e:
-            QMessageBox.critical(self, "Materialtest", str(e))
+        self._run_test(build_project(dlg.test()), "Materialtest", dlg.action)
+
+    def focus_test(self):
+        dlg = FocusTestDialog(self.profile, self)
+        if dlg.exec() == FocusTestDialog.DialogCode.Accepted and dlg.action:
+            self._run_test(dlg.project(), "Fokustest", dlg.action)
+
+    def interval_test(self):
+        dlg = IntervalTestDialog(self.profile, self)
+        if dlg.exec() == IntervalTestDialog.DialogCode.Accepted and dlg.action:
+            self._run_test(dlg.project(), "Zeilenabstandstest", dlg.action)
+
+    def _run_test(self, tp: Project, title: str, action: str):
+        """Test-Projekt anzeigen, ins Projekt übernehmen, exportieren oder an den Laser senden."""
+        if action == "add":
+            self._checkpoint(title)
+            self.project.layers = tp.layers + self.project.layers
+            for it in tp.items:
+                self.project.items.append(it)
+                self.canvas.add_item(it)
+            self.layers.set_project(self.project)
+            self.canvas.select_only([it.id for it in tp.items])
+            self._invalidate()
             return
-        if dlg.action == "preview":
+        try:
+            res = generate(tp, self.profile)
+        except Exception as e:
+            QMessageBox.critical(self, title, str(e))
+            return
+        if action == "preview":
             self.a_preview.setChecked(False)
             self._set_sim_enabled(False)
             self.canvas.clear_simulation()
             self.canvas.show_toolpath(res, True)
-            self.statusBar().showMessage(f"Vorschau Materialtest – {fmt_time(res.time_s)}. "
+            self.statusBar().showMessage(f"Vorschau {title} – {fmt_time(res.time_s)}. "
                                          "Mit Strg+P (Vorschau) wieder zur normalen Ansicht.", 10000)
-        elif dlg.action == "export":
-            p, _ = QFileDialog.getSaveFileName(self, "Materialtest exportieren",
-                                               os.path.join(self.last_dir, "materialtest.gcode"), "G-Code (*.gcode *.nc)")
+        elif action == "export":
+            name = title.lower().replace(" ", "_")
+            p, _ = QFileDialog.getSaveFileName(self, f"{title} exportieren",
+                                               os.path.join(self.last_dir, f"{name}.gcode"), "G-Code (*.gcode *.nc)")
             if p:
                 with open(p, "w", encoding="ascii", errors="replace", newline="\n") as f:
                     f.write(res.text)
-        elif dlg.action == "send":
+        elif action == "send":
             if not self.machine.is_ready():
-                QMessageBox.information(self, "Materialtest", "Laser nicht verbunden oder beschäftigt.")
+                QMessageBox.information(self, title, "Laser nicht verbunden oder beschäftigt.")
                 return
-            if QMessageBox.question(self, "Materialtest", f"Materialtest starten? Dauer ca. {fmt_time(res.time_s)}\n\n"
+            if QMessageBox.question(self, title, f"{title} starten? Dauer ca. {fmt_time(res.time_s)}\n\n"
                                     "⚠ Schutzbrille tragen, Laser nie unbeaufsichtigt lassen!") \
                     == QMessageBox.StandardButton.Yes:
                 self.machine.run_job(res.lines)
@@ -1760,6 +1956,24 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(self.camera_panel)
         if self.live_cam.cam is None:
             self.camera_panel.start()
+
+    def _bind_macro_keys(self):
+        """Tastenkürzel der Makros (fensterweit)."""
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        for sc in self._macro_shortcuts:
+            sc.setEnabled(False)
+            sc.deleteLater()
+        self._macro_shortcuts = []
+        for k, mac in enumerate(self.profile.macros):
+            if mac.get("key"):
+                sc = QShortcut(QKeySequence(mac["key"]), self)
+                sc.activated.connect(lambda i=k: self.machine.run_macro(i))
+                self._macro_shortcuts.append(sc)
+
+    def _on_job_ended(self, state):
+        was = self.__dict__.pop("_var_job", False)
+        if was and state == "done":
+            self._advance_vars()
 
     def _on_job_started(self):
         if self.camera_panel.job_started():

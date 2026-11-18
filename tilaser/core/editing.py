@@ -13,7 +13,9 @@ def clone_item(it: Item, new_ids: bool = True) -> Item:
     """Flache, aber sichere Kopie: Geometrie (Polylinien) und Bilddaten werden geteilt,
     da sie nie an Ort und Stelle verändert werden."""
     c = copy.copy(it)
-    c.paths = [VectorPath(vp.poly, vp.layer_id) for vp in it.paths]
+    c.paths = [VectorPath(vp.poly, vp.layer_id, vp.start_fixed) for vp in it.paths]
+    if it.var is not None:
+        c.var = dict(it.var)
     if new_ids:
         c.id = new_id("I")
     return c
@@ -24,6 +26,10 @@ def snapshot(project: Project) -> Project:
     p.layers = [Layer.from_dict(l.to_dict()) for l in project.layers]
     p.items = [clone_item(it, new_ids=False) for it in project.items]
     p._key_to_layer = dict(project._key_to_layer)
+    st = getattr(project, "vars", None)
+    if st is not None:
+        import copy as _copy
+        p.vars = _copy.copy(st)
     return p
 
 

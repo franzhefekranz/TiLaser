@@ -392,7 +392,8 @@ def order_paths(polys: list[Polyline], start=(0.0, 0.0), inner_first=True) -> li
         while remaining:
             best_i, best_d, best_mode = 0, float("inf"), ("start", 0)
             for i, p in enumerate(remaining):
-                if p.closed:
+                fixed = getattr(p, "start_fixed", False)      # festgelegter Startpunkt: nicht drehen/umkehren
+                if p.closed and not fixed:
                     d2 = np.sum((p.pts - cur) ** 2, axis=1)
                     k = int(np.argmin(d2))
                     if d2[k] < best_d:
@@ -402,7 +403,7 @@ def order_paths(polys: list[Polyline], start=(0.0, 0.0), inner_first=True) -> li
                     de = np.sum((p.pts[-1] - cur) ** 2)
                     if ds < best_d:
                         best_i, best_d, best_mode = i, ds, ("start", 0)
-                    if de < best_d:
+                    if de < best_d and not fixed:
                         best_i, best_d, best_mode = i, de, ("rev", 0)
             p = remaining.pop(best_i)
             if best_mode[0] == "rot":

@@ -129,6 +129,12 @@ ein GitHub-Release an.
 | Bildoptionen | Ebene (Raster): Helligkeit, Kontrast, Gamma; Dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Bild nachzeichnen | *Werkzeuge → Bild nachzeichnen* (Alt+T) bzw. Rechtsklick auf ein Bild |
 | Materialtest | *Werkzeuge → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
+| Fokus- und Zeilenabstandstest | *Werkzeuge → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |
+| Offset-Füllung | Ebenenmodus: Flächen mit Konturlinien von außen nach innen füllen |
+| Variable Texte, QR-Code, Barcode | Platzhalter `{nr}`, `{datum}`, `{Spalte}` aus CSV, zählt nach jedem Auftrag weiter; QR-Code und Code 128 ohne Zusatzprogramm |
+| Laser positionieren | Rechtsklick → *Laser hierher fahren*, *Laser zur Auswahl fahren*, Startpunkt je Kontur (Knoten-Werkzeug, Taste A) |
+| Schnittreihenfolge | Optimiert oder Objekt für Objekt; *Anordnen → Schnittreihenfolge* mit Nummernanzeige |
+| GRBL-Einstellungen, Makros | `$$`-Werte anzeigen/ändern/sichern; eigene G-Code-Knöpfe mit Tastenkürzel |
 | Simulation | Werkzeugweg-Vorschau einschalten, dann ▶ bzw. Schieberegler in der Werkzeugleiste |
 | Rotationsachse (Rolle) | *Maschine → Maschineneinstellungen*: Y-Weg je Rollenumdrehung und Rollendurchmesser; ein/aus unter *Maschine → Rotationsachse aktiv* |
 | Netzwerk | Tab *Verbindung → Art: Netzwerk (TCP/Telnet)*, z. B. für ESP32-Steuerungen mit FluidNC/grblHAL (Port 23) |

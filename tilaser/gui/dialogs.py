@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import os
+import re
 
 import numpy as np
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
-                             QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton,
-                             QSpinBox, QVBoxLayout, QWidget)
+                             QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
+                             QPushButton, QSpinBox, QVBoxLayout, QWidget)
 
 from ..core.gcode import DIALECT_DEFAULTS, DIALECTS, MachineProfile
 from ..core.model import Project
@@ -97,6 +99,14 @@ class MachineDialog(QDialog):
                                  "geschnitten. Gilt nur für den G-Code – die Teile im Projekt bleiben vollständig.")
         self.no_dupes.setChecked(prof.remove_overlaps)
         f.addRow("Doppelte Linien", self.no_dupes)
+        self.cut_order = QComboBox()
+        self.cut_order.addItem("Optimiert (kürzeste Wege)", "optimized")
+        self.cut_order.addItem("Objekt für Objekt (Reihenfolge im Projekt)", "objects")
+        self.cut_order.setToolTip("Optimiert: TiLaser sucht je Ebene den kürzesten Weg über alle Konturen.\n"
+                                  "Objekt für Objekt: in der Reihenfolge aus Anordnen → Schnittreihenfolge;\n"
+                                  "innerhalb eines Objekts weiterhin innen vor außen und kürzeste Wege.")
+        self.cut_order.setCurrentIndex(1 if prof.cut_order == "objects" else 0)
+        f.addRow("Schnittreihenfolge", self.cut_order)
         self.rotary = QCheckBox("Rotationsachse (Rolle) statt Y-Achse")
         self.rotary.setChecked(prof.rotary)
         self.rot_mm = dspin(0.1, 10000, 3, 1, " mm")
@@ -164,6 +174,7 @@ class MachineDialog(QDialog):
         p.travel_speed = self.travel.value()
         p.passes_per_path = self.per_path.isChecked()
         p.remove_overlaps = self.no_dupes.isChecked()
+        p.cut_order = self.cut_order.currentData()
         p.bed_w, p.bed_h = self.bed_w.value(), self.bed_h.value()
         p.frame_power = self.frame_power.value()
         p.frame_speed = self.frame_speed.value()
@@ -227,6 +238,11 @@ class TextDialog(QDialog):
         f.addRow("Ausrichtung", self.align)
         f.addRow("Ebene", self.layer)
         lay.addLayout(f)
+        hint = QLabel("Platzhalter: {nr} fortlaufende Nummer ({nr:03} = 3-stellig), {datum}, {zeit}, "
+                      "{Spaltenname} aus einer CSV-Datei – siehe Werkzeuge → Variable Texte.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: palette(mid);")
+        lay.addWidget(hint)
         if not fonts:
             lay.addWidget(QLabel("Keine Systemschriften gefunden – bitte TTF/OTF-Datei wählen."))
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -726,3 +742,515 @@ class NestDialog(QDialog):
         if vals:
             for w, v in zip((self.x, self.y, self.w, self.h), vals):
                 w.setValue(v)
+
+
+class _TestDialogBase(QDialog):
+    """Gemeinsame Schaltflächen der Einstell-Tests: Vorschau, Exportieren, An Laser senden."""
+
+    def _finish_layout(self, lay):
+        bb = QDialogButtonBox()
+        bb.addButton("Vorschau", QDialogButtonBox.ButtonRole.ActionRole).clicked.connect(lambda: self._done("preview"))
+        bb.addButton("Ins Projekt", QDialogButtonBox.ButtonRole.ActionRole).clicked.connect(lambda: self._done("add"))
+        bb.addButton("Exportieren…", QDialogButtonBox.ButtonRole.ActionRole).clicked.connect(lambda: self._done("export"))
+        bb.addButton("An Laser senden", QDialogButtonBox.ButtonRole.AcceptRole).clicked.connect(lambda: self._done("send"))
+        bb.addButton(QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        self.action = None
+
+    def _done(self, action):
+        self.action = action
+        self.accept()
+
+
+class FocusTestDialog(_TestDialogBase):
+    def __init__(self, profile, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Fokustest")
+        from ..core.lasertests import FocusTest, RampTest
+        ft, rt = FocusTest(), RampTest()
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.kind = QComboBox()
+        self.kind.addItem("Ohne Z-Achse: Rampe (Brett schräg legen)", "ramp")
+        self.kind.addItem("Mit Z-Achse: Linien in verschiedenen Höhen", "z")
+        self.z_min = dspin(-20, 20, 2, 0.25, " mm")
+        self.z_min.setValue(ft.z_min)
+        self.z_max = dspin(-20, 20, 2, 0.25, " mm")
+        self.z_max.setValue(ft.z_max)
+        self.steps = QSpinBox()
+        self.steps.setRange(2, 41)
+        self.steps.setValue(ft.steps)
+        self.line_len = dspin(5, 200, 1, 5, " mm")
+        self.line_len.setValue(ft.line_len)
+        self.length = dspin(20, 1000, 0, 10, " mm")
+        self.length.setValue(rt.length)
+        self.tick = dspin(1, 100, 1, 1, " mm")
+        self.tick.setValue(rt.tick)
+        self.power = dspin(0, 100, 1, 5, " %")
+        self.power.setValue(ft.power)
+        self.speed = dspin(1, 100000, 0, 100, " mm/min")
+        self.speed.setValue(ft.speed)
+        self.x = dspin(-1000, 5000, 1, 5, " mm")
+        self.x.setValue(ft.x)
+        self.y = dspin(-1000, 5000, 1, 5, " mm")
+        self.y.setValue(rt.y)
+        self.labels = QCheckBox("Beschriftung")
+        self.labels.setChecked(True)
+        self._rows = {}
+        for key, label, w in (("kind", "Art", self.kind), ("z", "Z von", self.z_min), ("z", "Z bis", self.z_max),
+                              ("z", "Linien", self.steps), ("z", "Linienlänge", self.line_len),
+                              ("ramp", "Länge", self.length), ("ramp", "Teilstriche alle", self.tick),
+                              ("", "Leistung", self.power), ("", "Geschwindigkeit", self.speed),
+                              ("", "Position X", self.x), ("", "Position Y", self.y), ("", "", self.labels)):
+            f.addRow(label, w)
+            self._rows.setdefault(key, []).append(w)
+        lay.addLayout(f)
+        self.info = QLabel()
+        self.info.setWordWrap(True)
+        lay.addWidget(self.info)
+        self.form = f
+        self.kind.currentIndexChanged.connect(self._vis)
+        self._vis()
+        self._finish_layout(lay)
+
+    def _vis(self):
+        k = self.kind.currentData()
+        for key in ("z", "ramp"):
+            for w in self._rows[key]:
+                self.form.setRowVisible(w, key == k)
+        if k == "ramp":
+            self.info.setText("Ein Ende des Bretts etwa 10 mm unterlegen, sodass die Linie quer über die Schräge "
+                              "läuft, und den Laser auf die Mitte fokussieren. Nach dem Lasern die dünnste Stelle "
+                              "suchen und an der Skala ablesen – dort stimmt der Abstand. Danach den Fokus auf "
+                              "diese Höhe einstellen.")
+        else:
+            self.info.setText("Startet in der aktuellen Höhe; jede Linie wird um ihren Z-Wert versetzt gelasert "
+                              "(negativ = näher am Material). Die schärfste Linie zeigt den besten Versatz.")
+
+    def project(self):
+        from ..core.lasertests import FocusTest, RampTest, build_focus_test, build_ramp_test
+        if self.kind.currentData() == "ramp":
+            return build_ramp_test(RampTest(length=self.length.value(), tick=self.tick.value(),
+                                            power=self.power.value(), speed=self.speed.value(), x=self.x.value(),
+                                            y=self.y.value(), labels=self.labels.isChecked()))
+        return build_focus_test(FocusTest(z_min=self.z_min.value(), z_max=self.z_max.value(),
+                                          steps=self.steps.value(), line_len=self.line_len.value(),
+                                          power=self.power.value(), speed=self.speed.value(), x=self.x.value(),
+                                          y=self.y.value(), labels=self.labels.isChecked()))
+
+
+class IntervalTestDialog(_TestDialogBase):
+    def __init__(self, profile, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Zeilenabstandstest")
+        from ..core.lasertests import IntervalTest
+        t = IntervalTest()
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.iv_min = dspin(0.01, 2, 3, 0.01, " mm")
+        self.iv_min.setValue(t.interval_min)
+        self.iv_max = dspin(0.01, 2, 3, 0.01, " mm")
+        self.iv_max.setValue(t.interval_max)
+        self.count = QSpinBox()
+        self.count.setRange(2, 20)
+        self.count.setValue(t.count)
+        self.cell = dspin(2, 100, 1, 1, " mm")
+        self.cell.setValue(t.cell)
+        self.gap = dspin(0, 50, 1, 0.5, " mm")
+        self.gap.setValue(t.gap)
+        self.power = dspin(0, 100, 1, 5, " %")
+        self.power.setValue(t.power)
+        self.speed = dspin(1, 100000, 0, 100, " mm/min")
+        self.speed.setValue(t.speed)
+        self.angle = dspin(-180, 180, 0, 15, " °")
+        self.x = dspin(-1000, 5000, 1, 5, " mm")
+        self.x.setValue(t.x)
+        self.y = dspin(-1000, 5000, 1, 5, " mm")
+        self.y.setValue(t.y)
+        self.labels = QCheckBox("Beschriftung")
+        self.labels.setChecked(True)
+        for label, w in (("Zeilenabstand von", self.iv_min), ("Zeilenabstand bis", self.iv_max),
+                         ("Felder", self.count), ("Feldgröße", self.cell), ("Feldabstand", self.gap),
+                         ("Leistung", self.power), ("Geschwindigkeit", self.speed), ("Winkel", self.angle),
+                         ("Position X", self.x), ("Position Y", self.y), ("", self.labels)):
+            f.addRow(label, w)
+        lay.addLayout(f)
+        info = QLabel("Gefüllte Quadrate mit steigendem Zeilenabstand. Das Feld, in dem die Linien gerade "
+                      "zu einer gleichmäßigen Fläche verschmelzen, zeigt den passenden Zeilenabstand für "
+                      "dieses Material und diesen Fokus.")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+        self._finish_layout(lay)
+
+    def project(self):
+        from ..core.lasertests import IntervalTest, build_interval_test
+        return build_interval_test(IntervalTest(
+            interval_min=self.iv_min.value(), interval_max=self.iv_max.value(), count=self.count.value(),
+            cell=self.cell.value(), gap=self.gap.value(), power=self.power.value(), speed=self.speed.value(),
+            angle=self.angle.value(), x=self.x.value(), y=self.y.value(), labels=self.labels.isChecked()))
+
+
+
+class BarcodeDialog(QDialog):
+    """QR-Code oder Barcode (Code 128) einfügen; Inhalt darf Platzhalter enthalten."""
+    NEW_FILL = TextDialog.NEW_FILL
+
+    def __init__(self, project: Project, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("QR-Code / Barcode einfügen")
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.kind = QComboBox()
+        self.kind.addItem("QR-Code", "qr")
+        self.kind.addItem("Barcode (Code 128)", "code128")
+        self.content = QLineEdit("https://franzhefekranz.github.io/TiLaser/")
+        self.content.setToolTip("Text oder Adresse. Platzhalter wie {nr}, {datum} oder {Spalte} sind erlaubt.")
+        self.size = dspin(5, 500, 1, 1, " mm")
+        self.size.setValue(25)
+        self.ecl = QComboBox()
+        for k, t in (("L", "L – 7 % (kleinster Code)"), ("M", "M – 15 % (Standard)"), ("Q", "Q – 25 %"),
+                     ("H", "H – 30 % (robust)")):
+            self.ecl.addItem(t, k)
+        self.ecl.setCurrentIndex(1)
+        self.width = dspin(10, 1000, 1, 1, " mm")
+        self.width.setValue(50)
+        self.height = dspin(3, 300, 1, 1, " mm")
+        self.height.setValue(15)
+        self.layer = QComboBox()
+        for l in project.layers:
+            if l.mode in ("fill", "offset"):
+                self.layer.addItem(color_icon(l.color), l.name, l.id)
+        self.layer.addItem("Neue Ebene: Füllen (gravieren)", self.NEW_FILL)
+        self.layer.setCurrentIndex(self.layer.count() - 1)
+        self.form = f
+        for label, w in (("Art", self.kind), ("Inhalt", self.content), ("Kantenlänge", self.size),
+                         ("Fehlerkorrektur", self.ecl), ("Breite", self.width), ("Höhe", self.height),
+                         ("Ebene", self.layer)):
+            f.addRow(label, w)
+        lay.addLayout(f)
+        info = QLabel("Tipp: Für zuverlässiges Scannen einen Zeilenabstand von höchstens einem Viertel der "
+                      "Modulbreite wählen und um den Code einen hellen Rand lassen. Vorher mit dem Handy testen.")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+        self.kind.currentIndexChanged.connect(self._vis)
+        self._vis()
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def _vis(self):
+        qr = self.kind.currentData() == "qr"
+        for w, v in ((self.size, qr), (self.ecl, qr), (self.width, not qr), (self.height, not qr)):
+            self.form.setRowVisible(w, v)
+
+    def spec(self) -> dict:
+        if self.kind.currentData() == "qr":
+            return {"kind": "qr", "template": self.content.text(), "size": self.size.value(),
+                    "ecl": self.ecl.currentData()}
+        return {"kind": "code128", "template": self.content.text(), "width": self.width.value(),
+                "height": self.height.value()}
+
+
+class VarDialog(QDialog):
+    """Werte für die Platzhalter: fortlaufende Nummer und CSV-Datei."""
+
+    def __init__(self, st, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Variable Texte")
+        self.st = st
+        lay = QVBoxLayout(self)
+        f = QFormLayout()
+        self.nr = QSpinBox()
+        self.nr.setRange(-999999, 99999999)
+        self.nr.setValue(st.nr)
+        self.step = QSpinBox()
+        self.step.setRange(-1000, 1000)
+        self.step.setValue(st.step)
+        crow = QHBoxLayout()
+        self.csv = QLineEdit(st.csv_path)
+        self.csv.setPlaceholderText("keine CSV-Datei")
+        b = QPushButton("…")
+        b.setFixedWidth(30)
+        b.clicked.connect(self._browse)
+        b2 = QPushButton("✕")
+        b2.setFixedWidth(30)
+        b2.setToolTip("CSV-Datei entfernen")
+        b2.clicked.connect(lambda: (self.csv.setText(""), self._load()))
+        crow.addWidget(self.csv, 1)
+        crow.addWidget(b)
+        crow.addWidget(b2)
+        self.row = QSpinBox()
+        self.row.setRange(1, 1)
+        self.auto = QCheckBox("Nach jedem Auftrag bzw. G-Code-Export weiterzählen")
+        self.auto.setChecked(st.auto_advance)
+        self.cols = QLabel()
+        self.cols.setWordWrap(True)
+        for label, w in (("Nummer {nr}", self.nr), ("Schrittweite", self.step), ("CSV-Datei", crow),
+                         ("Aktuelle Zeile", self.row), ("Spalten", self.cols), ("", self.auto)):
+            f.addRow(label, w)
+        lay.addLayout(f)
+        self.preview = QLabel()
+        self.preview.setWordWrap(True)
+        lay.addWidget(self.preview)
+        self.row.valueChanged.connect(self._update_preview)
+        self.nr.valueChanged.connect(self._update_preview)
+        self.csv.editingFinished.connect(self._load)
+        self._rows = []
+        self._load()
+        self.row.setValue(st.csv_row + 1)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def _browse(self):
+        p, _ = QFileDialog.getOpenFileName(self, "CSV-Datei", "", "CSV (*.csv *.txt);;Alle Dateien (*)")
+        if p:
+            self.csv.setText(p)
+            self._load()
+
+    def _load(self):
+        from ..core.vartext import read_csv
+        self._rows, head = [], []
+        p = self.csv.text().strip()
+        if p:
+            try:
+                head, self._rows = read_csv(p)
+            except Exception as e:
+                self.cols.setText(f"Datei nicht lesbar: {e}")
+        self.row.setRange(1, max(1, len(self._rows)))
+        self.row.setEnabled(bool(self._rows))
+        if head:
+            self.cols.setText(", ".join("{" + h + "}" for h in head) + f"   ({len(self._rows)} Zeilen)")
+        elif not p:
+            self.cols.setText("–")
+        self._update_preview()
+
+    def _update_preview(self, *_):
+        r = self._rows[self.row.value() - 1] if self._rows else {}
+        vals = ", ".join(f"{k} = {v}" for k, v in list(r.items())[:4])
+        self.preview.setText(f"Nächster Auftrag: {{nr}} = {self.nr.value()}" + (f"; {vals}" if vals else ""))
+
+    def apply(self):
+        self.st.nr, self.st.step = self.nr.value(), self.step.value()
+        self.st.csv_path = self.csv.text().strip()
+        self.st.csv_row = self.row.value() - 1 if self._rows else 0
+        self.st.auto_advance = self.auto.isChecked()
+
+
+GRBL_SETTINGS = {
+    0: "Schrittimpuls-Dauer (µs)", 1: "Schritt-Leerlaufverzögerung (ms, 255 = Motoren immer an)",
+    2: "Schrittsignal invertieren (Bitmaske)", 3: "Drehrichtung invertieren (Bitmaske X=1, Y=2, Z=4)",
+    4: "Enable-Signal invertieren", 5: "Endschalter invertieren", 6: "Sonde invertieren",
+    10: "Statusbericht (Bitmaske)", 11: "Kurvenabweichung (mm)", 12: "Bogentoleranz (mm)",
+    13: "Berichte in Zoll", 20: "Software-Endschalter (Arbeitsbereich)", 21: "Hardware-Endschalter",
+    22: "Referenzfahrt aktiv", 23: "Referenzfahrt-Richtung invertieren (Bitmaske)",
+    24: "Referenzfahrt langsam (mm/min)", 25: "Referenzfahrt schnell (mm/min)", 26: "Endschalter-Entprellung (ms)",
+    27: "Rückzug nach Referenzfahrt (mm)", 30: "Maximaler S-Wert (= 100 % Leistung)", 31: "Minimaler S-Wert",
+    32: "Lasermodus (1 = an, für Laser nötig)",
+    100: "Schritte/mm X", 101: "Schritte/mm Y", 102: "Schritte/mm Z",
+    110: "Max. Geschwindigkeit X (mm/min)", 111: "Max. Geschwindigkeit Y (mm/min)",
+    112: "Max. Geschwindigkeit Z (mm/min)", 120: "Beschleunigung X (mm/s²)", 121: "Beschleunigung Y (mm/s²)",
+    122: "Beschleunigung Z (mm/s²)", 130: "Max. Verfahrweg X (mm)", 131: "Max. Verfahrweg Y (mm)",
+    132: "Max. Verfahrweg Z (mm)",
+}
+
+
+class GrblSettingsDialog(QDialog):
+    """GRBL-Einstellungen ($$) anzeigen und geänderte Werte zurückschreiben."""
+
+    def __init__(self, panel, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtWidgets import QHeaderView, QTableWidget, QTableWidgetItem
+        self._Item = QTableWidgetItem
+        self.panel = panel
+        self.setWindowTitle("GRBL-Einstellungen")
+        self.resize(620, 560)
+        lay = QVBoxLayout(self)
+        warn = QLabel("⚠ Falsche Werte können die Maschine falsch fahren lassen. Vorher die aktuellen Werte "
+                      "sichern (Exportieren), nur bekannte Werte ändern.")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Nr.", "Bedeutung", "Wert"])
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        lay.addWidget(self.table, 1)
+        self.status = QLabel("Lese Einstellungen …")
+        lay.addWidget(self.status)
+        bb = QDialogButtonBox()
+        b_read = bb.addButton("Neu lesen", QDialogButtonBox.ButtonRole.ActionRole)
+        b_save = bb.addButton("Exportieren…", QDialogButtonBox.ButtonRole.ActionRole)
+        b_write = bb.addButton("Geänderte schreiben", QDialogButtonBox.ButtonRole.ApplyRole)
+        bb.addButton(QDialogButtonBox.StandardButton.Close)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        b_read.clicked.connect(self._read)
+        b_save.clicked.connect(self._export)
+        b_write.clicked.connect(self._write)
+        self._orig: dict[int, str] = {}
+        panel.grblSettingsUpdated.connect(self._fill)
+        self._fill()
+
+    def _read(self):
+        self.panel.grbl_settings.clear()
+        self.table.setRowCount(0)
+        self.status.setText("Lese Einstellungen …")
+        self.panel.conn.send("$$")
+
+    def _fill(self):
+        cur = dict(self.panel.grbl_settings)
+        if not cur:
+            return
+        self.table.blockSignals(True)
+        self.table.setRowCount(len(cur))
+        for r, k in enumerate(sorted(cur)):
+            for c, txt in enumerate((f"${k}", GRBL_SETTINGS.get(k, ""), cur[k])):
+                it = self._Item(txt)
+                if c < 2:
+                    it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(r, c, it)
+        self.table.blockSignals(False)
+        self._orig = cur
+        self.status.setText(f"{len(cur)} Einstellungen gelesen. Werte in der Spalte „Wert“ ändern und "
+                            "„Geänderte schreiben“ drücken.")
+
+    def changes(self) -> list[tuple[int, str]]:
+        out = []
+        for r in range(self.table.rowCount()):
+            k = int(self.table.item(r, 0).text()[1:])
+            v = self.table.item(r, 2).text().strip()
+            if v and v != self._orig.get(k):
+                out.append((k, v))
+        return out
+
+    def _write(self):
+        ch = self.changes()
+        if not ch:
+            self.status.setText("Keine Änderungen.")
+            return
+        bad = [f"${k}={v}" for k, v in ch if not re.fullmatch(r"-?\d+(\.\d+)?", v)]
+        if bad:
+            QMessageBox.warning(self, "GRBL-Einstellungen", "Ungültige Werte (nur Zahlen):\n" + "\n".join(bad))
+            return
+        txt = "\n".join(f"${k}={v}   ({GRBL_SETTINGS.get(k, '')})" for k, v in ch)
+        if QMessageBox.question(self, "GRBL-Einstellungen", f"Diese Werte in die Steuerung schreiben?\n\n{txt}") \
+                != QMessageBox.StandardButton.Yes:
+            return
+        for k, v in ch:
+            self.panel.conn.send(f"${k}={v}")
+            self.panel._log(f">> ${k}={v}")
+        self.status.setText(f"{len(ch)} Wert(e) geschrieben – lese zur Kontrolle neu …")
+        self._read()
+
+    def _export(self):
+        p, _ = QFileDialog.getSaveFileName(self, "GRBL-Einstellungen sichern", "grbl-einstellungen.txt",
+                                           "Text (*.txt)")
+        if p:
+            with open(p, "w", encoding="utf-8") as f:
+                for k in sorted(self._orig):
+                    f.write(f"${k}={self._orig[k]}\n")
+
+
+class MacroDialog(QDialog):
+    """Eigene G-Code-Knöpfe: Name, G-Code (mehrzeilig), Tastenkürzel."""
+
+    def __init__(self, macros: list, parent=None):
+        super().__init__(parent)
+        from PyQt6.QtWidgets import QKeySequenceEdit, QListWidget
+        self.setWindowTitle("Makros bearbeiten")
+        self.resize(560, 420)
+        self._macros = [dict(m) for m in macros]
+        lay = QHBoxLayout(self)
+        left = QVBoxLayout()
+        self.list = QListWidget()
+        left.addWidget(self.list, 1)
+        row = QHBoxLayout()
+        for text, fn in (("+", self._add), ("−", self._del), ("↑", lambda: self._move(-1)), ("↓", lambda: self._move(1))):
+            b = QPushButton(text)
+            b.setFixedWidth(34)
+            b.clicked.connect(fn)
+            row.addWidget(b)
+        left.addLayout(row)
+        lay.addLayout(left, 1)
+        right = QVBoxLayout()
+        f = QFormLayout()
+        self.name = QLineEdit()
+        self.code = QPlainTextEdit()
+        self.code.setPlaceholderText("z. B.\nM8\nG0 X0 Y0")
+        self.key = QKeySequenceEdit()
+        f.addRow("Name", self.name)
+        f.addRow("G-Code", self.code)
+        f.addRow("Tastenkürzel", self.key)
+        right.addLayout(f)
+        hint = QLabel("Jede Zeile wird an die Steuerung gesendet. Makros sind gesperrt, solange ein Auftrag läuft.")
+        hint.setWordWrap(True)
+        right.addWidget(hint)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        right.addWidget(bb)
+        lay.addLayout(right, 2)
+        self._cur = -1
+        self.list.currentRowChanged.connect(self._select)
+        self.name.textEdited.connect(self._store)
+        self.code.textChanged.connect(self._store)
+        self.key.keySequenceChanged.connect(self._store)
+        self._refresh()
+        if self._macros:
+            self.list.setCurrentRow(0)
+
+    def _refresh(self):
+        self.list.blockSignals(True)
+        self.list.clear()
+        for m in self._macros:
+            self.list.addItem(m.get("name") or "(ohne Namen)")
+        self.list.blockSignals(False)
+
+    def _select(self, i):
+        self._cur = i
+        ok = 0 <= i < len(self._macros)
+        for w in (self.name, self.code, self.key):
+            w.setEnabled(ok)
+            w.blockSignals(True)
+        m = self._macros[i] if ok else {}
+        self.name.setText(m.get("name", ""))
+        self.code.setPlainText(m.get("gcode", ""))
+        from PyQt6.QtGui import QKeySequence
+        self.key.setKeySequence(QKeySequence(m.get("key", "")))
+        for w in (self.name, self.code, self.key):
+            w.blockSignals(False)
+
+    def _store(self, *_):
+        if not (0 <= self._cur < len(self._macros)):
+            return
+        m = self._macros[self._cur]
+        m["name"] = self.name.text()
+        m["gcode"] = self.code.toPlainText()
+        m["key"] = self.key.keySequence().toString()
+        it = self.list.item(self._cur)
+        if it is not None:
+            it.setText(m["name"] or "(ohne Namen)")
+
+    def _add(self):
+        self._macros.append({"name": f"Makro {len(self._macros) + 1}", "gcode": "", "key": ""})
+        self._refresh()
+        self.list.setCurrentRow(len(self._macros) - 1)
+
+    def _del(self):
+        if 0 <= self._cur < len(self._macros):
+            del self._macros[self._cur]
+            self._refresh()
+            self.list.setCurrentRow(min(self._cur, len(self._macros) - 1))
+
+    def _move(self, d):
+        i, j = self._cur, self._cur + d
+        if 0 <= i < len(self._macros) and 0 <= j < len(self._macros):
+            self._macros[i], self._macros[j] = self._macros[j], self._macros[i]
+            self._refresh()
+            self.list.setCurrentRow(j)
+
+    def macros(self) -> list:
+        return [m for m in self._macros if m.get("gcode", "").strip() or m.get("name", "").strip()]
