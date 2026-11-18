@@ -1240,6 +1240,47 @@ def test_lightburn_legacy_lbrn():
     assert poly.closed and poly.bez is not None and np.allclose(g.bbox([poly]), (100, 100, 110, 110), atol=1e-6)
 
 
+def test_shared_edges():
+    from tilaser.core import shapes
+    from tilaser.core.model import ImportedPath
+    from tilaser.core.nesting import NestSettings, nest
+    from tilaser.core.overlap import remove_overlaps, slide_distance
+
+    def burn_len(res):
+        return sum(float(np.hypot(*(b[:, 1] - b[:, 0]).T).sum()) for _, b in res.burn)
+
+    # zwei Quadrate mit gemeinsamer Kante, ein drittes überlappt nur halb
+    a, b, c = _sq(0, 0, 20), _sq(20, 0, 20), _sq(40, 10, 20)
+    out, saved = remove_overlaps([a, b, c])
+    assert abs(saved - 30) < 1e-6 and out[0] is a                       # 20 mm + 10 mm doppelt
+    assert abs(sum(p.length() for p in out) - (80 + 60 + 70)) < 1e-6
+    # Gleiten: an der Ecke vorbei blockiert nicht, frontal schon
+    assert slide_distance([_sq(30, 20, 10)], [_sq(0, 0, 20)], (-1, 0)) == np.inf
+    assert abs(slide_distance([_sq(30, 0, 10)], [_sq(0, 0, 20)], (-1, 0)) - 10) < 1e-9
+
+    pr = Project()
+    its = [pr.add_vector_import(f"q{i}", [ImportedPath(shapes.rectangle(20, 20), "#000000", "#000000")],
+                                center_at=(300, 300)) for i in range(6)]
+    its.append(pr.add_vector_import("k", [ImportedPath(shapes.ellipse(16, 16), "#000000", "#000000")],
+                                    center_at=(300, 300)))
+    nest(pr, its, NestSettings(0, 0, 100, 60, spacing=0, margin=0, rotations=(0,)), thorough=False)
+    boxes = sorted(tuple(np.round(it.world_bbox()[:2], 6)) for it in its[:6])
+    assert all(x % 20 == 0 and y % 20 == 0 for x, y in boxes), boxes   # Quadrate exakt bündig
+    for i in range(len(its)):
+        for j in range(i + 1, len(its)):
+            assert _overlap_area(its[i], its[j], 0.1) == 0.0
+    full = 6 * 80 + its[6].world_paths()[0].length()
+    with_dupes = generate(pr, MachineProfile(remove_overlaps=False))
+    without = generate(pr, MachineProfile())
+    assert abs(burn_len(with_dupes) - full) < 0.5 and burn_len(without) < full - 50
+    assert "Doppelte Linien ausgelassen" in without.text
+    assert all(len(it.paths[0].poly.pts) == 4 for it in its[:6])        # Projekt unverändert
+    # größerer Abstand: alle Linien wieder da
+    nest(pr, its, NestSettings(0, 0, 200, 100, spacing=3, margin=0, rotations=(0,)), thorough=False)
+    again = generate(pr, MachineProfile())
+    assert abs(burn_len(again) - full) < 0.5 and "Doppelte" not in again.text
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

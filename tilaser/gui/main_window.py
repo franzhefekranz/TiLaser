@@ -1204,7 +1204,8 @@ class MainWindow(QMainWindow):
             return
         st = NestSettings(x=dlg.x.value(), y=dlg.y.value(), width=dlg.w.value(), height=dlg.h.value(),
                           spacing=dlg.spacing.value(), margin=dlg.margin.value(), rotations=dlg.rot.currentData(),
-                          copies=dlg.copies.value(), use_holes=dlg.holes.isChecked())
+                          copies=dlg.copies.value(), use_holes=dlg.holes.isChecked(),
+                          shared_edges=dlg.shared.isChecked())
         self._checkpoint("Nesting")
         prog = QProgressDialog("Teile werden angeordnet …", "Abbrechen", 0, 1000, self)
         prog.setWindowModality(Qt.WindowModality.WindowModal)

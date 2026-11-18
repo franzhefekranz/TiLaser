@@ -35,6 +35,7 @@ class NestSettings:
     copies: int = 1               # Anzahl je ausgewähltem Objekt
     cell: float | None = None     # Rastergröße (mm), None = automatisch
     use_holes: bool = True        # kleine Teile in Löcher größerer Teile setzen
+    shared_edges: bool = True     # bei Abstand 0: Teile bündig zusammenschieben (gemeinsame Kanten)
 
 
 @dataclass
@@ -329,4 +330,9 @@ def nest(project: Project, items: list[Item], s: NestSettings, progress=None, th
             res.new_items.append(it)
         res.placed.append(it.id)
     res.utilization = area / max(1, G_rows * G_cols)
+    if s.spacing <= 0 and s.shared_edges and res.placed:
+        # Das Raster lässt mindestens eine Zelle Luft; jetzt exakt bündig zusammenschieben
+        from .overlap import compact
+        placed = [project.item(i) for i in res.placed]
+        compact([p for p in placed if p is not None], s.x + s.margin, s.y + s.margin)
     return res
