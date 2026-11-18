@@ -197,3 +197,17 @@ def transform_items(items: list[Item], originals: list[tuple], scale: float = 1.
         it.y = anchor[1] + sa * dx + ca * dy
         it.scale = max(1e-4, s * scale)
         it.rotation = (r + rotation) if not it.mirror_x else (r + rotation)
+
+
+def extract_items(project: Project, ids) -> Project:
+    """Neues Projekt nur mit den Objekten 'ids' (gleiche Lage) und den Ebenen, die sie benutzen."""
+    ids = set(ids)
+    p = Project()
+    p.items = [clone_item(it, new_ids=False) for it in project.items if it.id in ids]
+    used = set().union(*[it.layer_ids() for it in p.items]) if p.items else set()
+    p.layers = [Layer.from_dict(l.to_dict()) for l in project.layers if l.id in used]
+    st = getattr(project, "vars", None)
+    if st is not None:
+        import copy as _copy
+        p.vars = _copy.copy(st)
+    return p

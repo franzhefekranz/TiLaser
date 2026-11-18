@@ -193,6 +193,8 @@ Dateien können direkt aus dem Explorer bzw. Dateimanager auf die Arbeitsfläche
 
 *Datei → Projekt speichern* (Strg+S) legt eine `.tlp`-Datei an. Sie enthält alle Objekte, Ebenen mit
 Parametern und eingebettete Bilder. Kurven bleiben als echte Kurven gespeichert.
+*Datei → Auswahl als Projekt speichern…* (auch im Rechtsklick-Menü) speichert nur die ausgewählten Objekte
+mit ihren Ebenen als eigene `.tlp`-Datei, in derselben Lage.
 
 ### LightBurn-Projekte
 
@@ -417,6 +419,17 @@ Sperrholzplatte.
 Nach dem Anordnen meldet TiLaser, wie viele Teile platziert wurden und wie viel der Fläche belegt ist.
 **Teile, die nicht passen**, bleiben an ihrem Platz und sind danach ausgewählt. Mit Strg+Z wird das
 Nesting vollständig rückgängig gemacht.
+
+**Mehrere Platten nacheinander:** Passen nicht alle Teile, bietet TiLaser im Ergebnisfenster an:
+
+- **Platzierte speichern…** – die angeordneten Teile (mit ihren Ebenen und der Grundfläche, falls
+  eingezeichnet) als eigene `.tlp`-Datei speichern, z. B. `platte1.tlp`. Das Projekt bleibt, wie es ist.
+- **Speichern und entfernen…** – wie oben, danach werden die gespeicherten Teile aus dem aktuellen
+  Projekt entfernt. Übrig bleiben die Teile, die nicht gepasst haben; sie sind ausgewählt und lassen sich
+  sofort erneut anordnen (Strg+Shift+N). So entsteht Platte für Platte (`platte2.tlp`, …), bis alles
+  verteilt ist. Entfernen lässt sich mit Strg+Z rückgängig machen; die gespeicherte Datei bleibt.
+
+Jede Platte öffnet man später mit *Datei → Projekt öffnen* und lasert sie wie gewohnt.
 
 **Genauigkeit:** Die Teile werden für die Berechnung in ein feines Raster (etwa 0,25–1 mm, abhängig von der
 Größe der Grundfläche) umgerechnet. Das Raster ist bewusst großzügig: Der Mindestabstand wird immer

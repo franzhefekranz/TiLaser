@@ -948,6 +948,32 @@ def test_nesting():
             assert np.hypot(a.x - b.x, a.y - b.y) >= 12 - 0.05
 
 
+def test_extract_items_for_sheet():
+    from tilaser.core import shapes
+    from tilaser.core.editing import extract_items
+    from tilaser.core.model import ImportedPath
+    from tilaser.core.nesting import NestSettings, nest
+    pr = Project()
+    its = [pr.add_vector_import(f"q{i}", [ImportedPath(shapes.rectangle(40, 40), c, c)], center_at=(300, 300))
+           for i, c in enumerate(["#000000", "#ff0000"] * 3)]
+    res = nest(pr, its, NestSettings(0, 0, 90, 90, spacing=2, margin=0, rotations=(0,)), thorough=False)
+    assert len(res.placed) == 4 and len(res.unplaced) == 2
+    sheet = extract_items(pr, res.placed)
+    assert [it.id for it in sheet.items] == [i for i in (it.id for it in pr.items) if i in res.placed]
+    assert {l.id for l in sheet.layers} == set().union(*[it.layer_ids() for it in sheet.items])
+    fp = os.path.join(TMP, "platte1.tlp")
+    save_project(sheet, fp)
+    back = load_project(fp)
+    assert len(back.items) == 4 and all(0 <= it.world_bbox()[0] and it.world_bbox()[2] <= 90 for it in back.items)
+    for i in res.placed:                                   # Rest bleibt im Projekt und lässt sich neu nesten
+        pr.remove_item(i)
+    rest = [pr.item(i) for i in res.unplaced]
+    res2 = nest(pr, rest, NestSettings(0, 0, 90, 90, spacing=2, margin=0, rotations=(0,)), thorough=False)
+    assert len(res2.placed) == 2 and not res2.unplaced
+    sheet.items[0].x += 5                                  # Kopie ist unabhängig vom Original
+    assert pr.item(rest[0].id) is not sheet.items[0]
+
+
 class FakeGrbl:
     def __init__(self, *a, **k):
         self.out = bytearray(b"\r\nGrbl 1.1h ['$' for help]\r\n")
