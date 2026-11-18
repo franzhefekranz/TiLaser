@@ -1,0 +1,49 @@
+TiLaser – verwendete Fremdsoftware und Lizenzen
+================================================
+
+TiLaser selbst steht unter der GNU General Public License Version 3 (GPL-3.0),
+siehe LICENSE. Quellcode: https://github.com/franzhefekranz/TiLaser
+
+Die fertigen Programmpakete (Windows-Installer, portable Version, AppImage, deb)
+enthalten die folgenden Bibliotheken. Die vollständigen Lizenztexte, so wie die
+jeweiligen Projekte sie mitliefern, liegen im Ordner „licenses“ neben dem Programm
+(bzw. unter /opt/tilaser/licenses und /usr/share/doc/tilaser/licenses).
+
+Komponente        Lizenz                                  Projekt
+----------------  --------------------------------------  ----------------------------------------------
+Python            PSF License Agreement                   https://www.python.org/
+PyQt6, PyQt6-sip  GPL-3.0 (Riverbank Computing Ltd.)      https://www.riverbankcomputing.com/software/pyqt/
+Qt 6              LGPL-3.0 (The Qt Company Ltd.)          https://www.qt.io/
+  Qt Multimedia   enthält FFmpeg, LGPL-2.1 oder neuer     https://ffmpeg.org/
+  Qt SVG u. a.    LGPL-3.0, gebündelte Drittkomponenten   https://doc.qt.io/qt-6/licenses-used-in-qt.html
+                  siehe Qt-Dokumentation
+NumPy             BSD-3-Clause (enthält OpenBLAS u. a.,   https://numpy.org/
+                  siehe deren Lizenzdatei)
+Pillow            MIT-CMU / HPND (enthält libjpeg,        https://python-pillow.org/
+                  libpng, zlib, FreeType u. a.)
+fontTools         MIT                                     https://github.com/fonttools/fonttools
+pyserial          BSD-3-Clause                            https://github.com/pyserial/pyserial
+pyclipper         MIT                                     https://github.com/fonttools/pyclipper
+  Clipper         Boost Software License 1.0              (Angus Johnson)
+PyInstaller       GPL-2.0-or-later mit Bootloader-        https://pyinstaller.org/
+                  Ausnahme (nur das Startprogramm)
+
+Hinweise zur LGPL (Qt, FFmpeg)
+------------------------------
+Qt und FFmpeg liegen als eigenständige, dynamisch geladene Bibliotheken im
+Programmordner. Sie können durch eigene, kompatible Versionen ersetzt werden.
+Quellcode von Qt: https://download.qt.io/  –  FFmpeg: https://ffmpeg.org/download.html
+Den Quellcode der verwendeten Fassungen schicken wir auf Anfrage zu (Issue im
+GitHub-Projekt).
+
+Optionale externe Programme (nicht mitgeliefert)
+------------------------------------------------
+Ghostscript (AGPL-3.0) bzw. Inkscape (GPL-2.0+) werden für den EPS-Import nur
+aufgerufen, wenn sie auf dem Rechner installiert sind.
+
+Weitere Hinweise
+----------------
+* Der QR-Code-Encoder (tilaser/core/barcode.py) ist eine eigene Umsetzung nach
+  ISO/IEC 18004. Sein Aufbau orientiert sich an der QR-Code-Bibliothek von
+  Project Nayuki (MIT-Lizenz, https://www.nayuki.io/page/qr-code-generator-library).
+* Die Code-128-Muster stammen aus der Norm ISO/IEC 15417.

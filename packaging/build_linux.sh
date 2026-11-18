@@ -42,6 +42,8 @@ if [[ "${SKIP_BUILD:-0}" != 1 ]]; then
     rm -rf build dist/TiLaser
     $PY -m PyInstaller --noconfirm --clean packaging/tilaser.spec
 fi
+# Lizenztexte der gebündelten Bibliotheken (GPL/LGPL-Pflicht beim Weitergeben)
+$PY tools/collect_licenses.py dist/TiLaser
 [[ -x dist/TiLaser/tilaser ]] || { echo "dist/TiLaser/tilaser fehlt"; exit 1; }
 
 # Bibliotheken, die das Qt-xcb-Plugin braucht, aber nicht mit PyQt6 ausgeliefert werden
@@ -107,6 +109,8 @@ if [[ "${SKIP_DEB:-0}" != 1 ]]; then
     cp "$LINUX/tilaser-mime.xml" "$PKG/usr/share/mime/packages/tilaser.xml"
     cp "$LINUX/tilaser.appdata.xml" "$PKG/usr/share/metainfo/io.github.franzhefekranz.tilaser.metainfo.xml"
     cp README.md "$PKG/usr/share/doc/tilaser/"
+    cp dist/TiLaser/THIRD_PARTY_LICENSES.txt "$PKG/usr/share/doc/tilaser/"
+    cp -a dist/TiLaser/licenses "$PKG/usr/share/doc/tilaser/licenses"
     {
         echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
         echo "Upstream-Name: TiLaser"
@@ -115,6 +119,11 @@ if [[ "${SKIP_DEB:-0}" != 1 ]]; then
         echo "Files: *"
         echo "License: GPL-3.0-or-later"
         echo " See /usr/share/common-licenses/GPL-3"
+        echo
+        echo "Files: opt/tilaser/_internal/*"
+        echo "Comment: Mitgelieferte Bibliotheken (Python, PyQt6, Qt 6, FFmpeg, NumPy, Pillow, fontTools,"
+        echo " pyserial, pyclipper) mit eigenen Lizenzen, siehe"
+        echo " /usr/share/doc/tilaser/THIRD_PARTY_LICENSES.txt und /usr/share/doc/tilaser/licenses/"
     } > "$PKG/usr/share/doc/tilaser/copyright"
     SIZE="$(du -sk "$PKG" | cut -f1)"
     cat > "$PKG/DEBIAN/control" <<EOF
