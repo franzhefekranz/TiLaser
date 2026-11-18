@@ -39,6 +39,7 @@ class MachineProfile:
     travel_speed: float = 6000.0      # mm/min
     passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     frame_rubber: bool = False        # Rahmen als Gummiband (konvexe Hülle) statt Rechteck
+    frame_rubber_show: bool = False   # Gummiband-Linie dauerhaft auf der Arbeitsfläche zeigen (nur Anzeige)
     bed_w: float = 400.0
     bed_h: float = 400.0
     header: str = "G21\nG90"

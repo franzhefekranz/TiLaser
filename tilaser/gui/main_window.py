@@ -148,6 +148,8 @@ class MainWindow(QMainWindow):
         self.machine.frameRequested.connect(self.run_frame)
         self.machine.firmwareDetected.connect(self._on_firmware)
         self.machine.profileChanged.connect(lambda: storage.save_machine(self.profile))
+        self.machine.rubber_show.toggled.connect(self._set_rubber_show)
+        self.machine.only_sel.toggled.connect(lambda _: self._update_rubber())
         self.layers.set_machine(self.profile.name)
         self._update_title()
         self.canvas.zoom_fit()
@@ -292,6 +294,12 @@ class MainWindow(QMainWindow):
                                 "Linke untere Objektecke beim Ziehen auf das Raster legen")
         self.a_snap.setCheckable(True)
         v.addAction(self.a_snap)
+        self.a_rubber_show = self._act("Gummiband-Rahmen anzeigen", lambda: self._set_rubber_show(
+            self.a_rubber_show.isChecked()), None, "Linie, die der Gummiband-Rahmen abfährt, auf der Arbeitsfläche "
+                                                     "zeigen – nur zur Ansicht, wird nicht gelasert")
+        self.a_rubber_show.setCheckable(True)
+        self.a_rubber_show.setChecked(self.profile.frame_rubber_show)
+        v.addAction(self.a_rubber_show)
         sm = v.addMenu("Rastermaß")
         for st in (0.5, 1.0, 5.0, 10.0):
             a = sm.addAction(f"{st:g} mm")
@@ -647,6 +655,8 @@ class MainWindow(QMainWindow):
         return [self.project.item(i) for i in self.canvas.selected_ids() if self.project.item(i)]
 
     def _on_selection(self, ids):
+        if self.machine.only_sel.isChecked():
+            self._update_rubber()
         items = [self.project.item(i) for i in ids]
         self.objects.set_item(items[0] if len(items) == 1 else None)
         if len(items) > 1:
@@ -843,7 +853,31 @@ class MainWindow(QMainWindow):
         self._invalidate()
 
     # ------------------------------------------------------------ G-Code
+    def _set_rubber_show(self, on: bool):
+        self.profile.frame_rubber_show = on
+        for w in (self.a_rubber_show, self.machine.rubber_show):
+            if w.isChecked() != on:
+                w.blockSignals(True)
+                w.setChecked(on)
+                w.blockSignals(False)
+        storage.save_machine(self.profile)
+        self._update_rubber()
+
+    def _rubber_hull(self):
+        """Punkte der Gummiband-Linie für das, was der Rahmen abfahren würde (ohne Ursprungs-Versatz)."""
+        only = self.canvas.selected_ids() if self.machine.only_sel.isChecked() else None
+        if self.machine.only_sel.isChecked() and not only:
+            return None
+        pts = job_project(self.project, only).outline_points()
+        return convex_hull(pts) if pts is not None else None
+
+    def _update_rubber(self):
+        if "machine" not in self.__dict__:                   # während des Aufbaus
+            return
+        self.canvas.set_rubber_outline(self._rubber_hull() if self.profile.frame_rubber_show else None)
+
     def _invalidate(self):
+        self._update_rubber()
         self.result = None
         bb = self.project.bbox()
         self._info = f"Auftrag: {bb[2] - bb[0]:.1f} × {bb[3] - bb[1]:.1f} mm" if bb else ""
@@ -977,7 +1011,7 @@ class MainWindow(QMainWindow):
         if self.profile.frame_rubber:
             pts = jp.outline_points()
             hull = convex_hull(pts) if pts is not None else None
-            if hull is not None and len(hull) >= 3:
+            if hull is not None and len(hull) >= 3 and not self.profile.frame_rubber_show:
                 self.canvas.show_frame_outline(hull)
         if self.profile.frame_power > 0 and QMessageBox.question(
                 self, "Rahmen", f"Rahmen mit {self.profile.frame_power:g} % Laserleistung fahren?\n"

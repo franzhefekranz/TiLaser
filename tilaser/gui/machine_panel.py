@@ -227,6 +227,11 @@ class MachinePanel(QWidget):
         jb.addWidget(self.only_sel, 4, 0, 1, 2)
         jb.addWidget(self.btn_resume, 4, 2, 1, 2)
         jb.addWidget(self.rubber, 5, 0, 1, 2)
+        self.rubber_show = QCheckBox("Anzeigen")
+        self.rubber_show.setToolTip("Gummiband-Linie dauerhaft auf der Arbeitsfläche zeigen.\n"
+                                    "Nur zur Ansicht – sie wird nicht gelasert.")
+        self.rubber_show.setChecked(bool(getattr(self.profile, "frame_rubber_show", False)))
+        jb.addWidget(self.rubber_show, 5, 2, 1, 2)
         self.rubber.setChecked(bool(getattr(self.profile, "frame_rubber", False)))
         self.rubber.toggled.connect(self._rubber_toggled)
         self.origin.currentIndexChanged.connect(lambda _: self.anchor.setEnabled(self.origin.currentData() == "current"))
