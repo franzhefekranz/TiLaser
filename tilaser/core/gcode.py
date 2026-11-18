@@ -38,6 +38,7 @@ class MachineProfile:
     rapid_with_feed: bool = False     # G0 mit F (Marlin)
     travel_speed: float = 6000.0      # mm/min
     passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
+    frame_rubber: bool = False        # Rahmen als Gummiband (konvexe Hülle) statt Rechteck
     bed_w: float = 400.0
     bed_h: float = 400.0
     header: str = "G21\nG90"
@@ -427,13 +428,41 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
     return w.result(warnings, bb)
 
 
-def frame_gcode(bbox, prof: MachineProfile) -> list[str]:
-    """Umriss (Bounding Box) abfahren – mit Laser aus oder sehr geringer Leistung."""
+def convex_hull(points) -> list[tuple[float, float]]:
+    """Konvexe Hülle (Monotone Chain), gegen den Uhrzeigersinn, beginnend links unten."""
+    pts = sorted({(round(float(x), 4), round(float(y), 4)) for x, y in np.asarray(points, float)})
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
+
+
+def frame_gcode(bbox, prof: MachineProfile, hull=None) -> list[str]:
+    """Umriss abfahren – mit Laser aus oder sehr geringer Leistung.
+
+    Standard ist das umschließende Rechteck (``bbox``). Mit ``hull`` (Punkte der konvexen Hülle,
+    „Gummiband“) fährt der Kopf die Form eng umschließend ab – wie ein um die Teile gespanntes Gummiband."""
     ys = prof.y_scale
-    x0, y0, x1, y1 = bbox
-    y0, y1 = y0 * ys, y1 * ys
+    if hull is not None and len(hull) >= 3:
+        corners = [(float(x), float(y) * ys) for x, y in hull]
+        corners.append(corners[0])
+        x0, y0 = corners[0]
+    else:
+        x0, y0, x1, y1 = bbox
+        y0, y1 = y0 * ys, y1 * ys
+        corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
     lines = ["G21", "G90", "M5"]
-    corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
     lines.append(f"G0 X{fmt(x0)} Y{fmt(y0)}" + (f" F{fmt(prof.travel_speed, 0)}" if prof.rapid_with_feed else ""))
     if prof.frame_power > 0:
         s = round(prof.frame_power / 100 * prof.s_max, 3)

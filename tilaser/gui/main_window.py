@@ -17,7 +17,7 @@ from ..core import geometry as g
 from ..core import storage
 from ..core.dxf_import import import_dxf
 from ..core import editing as ed
-from ..core.gcode import DIALECTS, frame_gcode, generate, job_project, origin_offset, resume_lines
+from ..core.gcode import DIALECTS, convex_hull, frame_gcode, generate, job_project, origin_offset, resume_lines
 from ..core.materialtest import build_project
 from ..core.trace import trace_image
 from ..core.model import MODE_LABELS, PALETTE, Item, Project, VectorPath, color_name, new_id
@@ -968,15 +968,22 @@ class MainWindow(QMainWindow):
         except ValueError as e:
             QMessageBox.information(self, "Rahmen", str(e))
             return
-        bb = job_project(self.project, only, offset).bbox()
+        jp = job_project(self.project, only, offset)
+        bb = jp.bbox()
         if not bb:
             QMessageBox.information(self, "Rahmen", "Keine aktiven Objekte.")
             return
+        hull = None
+        if self.profile.frame_rubber:
+            pts = jp.outline_points()
+            hull = convex_hull(pts) if pts is not None else None
+            if hull is not None and len(hull) >= 3:
+                self.canvas.show_frame_outline(hull)
         if self.profile.frame_power > 0 and QMessageBox.question(
                 self, "Rahmen", f"Rahmen mit {self.profile.frame_power:g} % Laserleistung fahren?\n"
                                 "Schutzbrille tragen!") != QMessageBox.StandardButton.Yes:
             return
-        self.machine.run_job(frame_gcode(bb, self.profile))
+        self.machine.run_job(frame_gcode(bb, self.profile, hull))
 
     def _on_firmware(self, fw):
         if fw == self.profile.dialect:

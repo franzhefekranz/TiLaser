@@ -217,12 +217,18 @@ class MachinePanel(QWidget):
         self.anchor.setToolTip("Ankerpunkt des Auftrags bei 'Aktuelle Position'")
         self.only_sel = QCheckBox("Nur Auswahl")
         self.only_sel.setToolTip("Nur die ausgewählten Objekte lasern bzw. umrahmen")
+        self.rubber = QCheckBox("Gummiband")
+        self.rubber.setToolTip("Rahmen eng um die Teile (konvexe Hülle) statt als Rechteck abfahren –\n"
+                               "wie ein um alle Teile gespanntes Gummiband. Spart Weg bei runden oder schrägen Formen.")
         self.btn_resume = QPushButton("Fortsetzen…")
         self.btn_resume.setToolTip("Abgebrochenen Auftrag ab einer Zeile fortsetzen")
         jb.addWidget(self.origin, 3, 0, 1, 2)
         jb.addWidget(self.anchor, 3, 2, 1, 2)
         jb.addWidget(self.only_sel, 4, 0, 1, 2)
         jb.addWidget(self.btn_resume, 4, 2, 1, 2)
+        jb.addWidget(self.rubber, 5, 0, 1, 2)
+        self.rubber.setChecked(bool(getattr(self.profile, "frame_rubber", False)))
+        self.rubber.toggled.connect(self._rubber_toggled)
         self.origin.currentIndexChanged.connect(lambda _: self.anchor.setEnabled(self.origin.currentData() == "current"))
         self.anchor.setEnabled(False)
         self.last_pos: list | None = None
@@ -255,6 +261,10 @@ class MachinePanel(QWidget):
             self._log("!! pyserial fehlt – Laser-Steuerung deaktiviert. Installation: pip install pyserial")
 
     # ------------------------------------------------------------ Verbindung
+    def _rubber_toggled(self, on):
+        self.profile.frame_rubber = on
+        self.profileChanged.emit()
+
     def refresh_ports(self):
         cur = self.port.currentText()
         self.port.clear()
