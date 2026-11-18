@@ -128,15 +128,22 @@ def _b64_to_img(s: str) -> np.ndarray:
 
 def save_project(project: Project, path: str):
     data = {"version": 1, "layers": [l.to_dict() for l in project.layers], "items": []}
+    st = getattr(project, "vars", None)
+    if st is not None:
+        data["vars"] = st.to_dict() if hasattr(st, "to_dict") else dict(st)
     for it in project.items:
         d = {k: getattr(it, k) for k in ("id", "name", "kind", "img_w", "img_h", "layer_id", "x", "y",
                                          "scale", "rotation", "mirror_x")}
+        if it.var:
+            d["var"] = it.var
         if it.kind == "raster":
             d["image"] = _img_to_b64(it.image)
         else:
             d["paths"] = []
             for vp in it.paths:
                 pd = {"layer": vp.layer_id, "closed": vp.poly.closed}
+                if vp.start_fixed:
+                    pd["start"] = True
                 if vp.poly.bez is not None:
                     b = vp.poly.bez
                     pd["bez"] = [np.round(b.anchors, 5).tolist(), np.round(b.hin, 5).tolist(),
@@ -154,9 +161,12 @@ def load_project(path: str) -> Project:
         data = json.load(f)
     p = Project()
     p.layers = [Layer.from_dict(d) for d in data.get("layers", [])]
+    if data.get("vars"):
+        from .vartext import VarState
+        p.vars = VarState.from_dict(data["vars"])
     for d in data.get("items", []):
         it = Item(id=new_id("I"), name=d.get("name", "Objekt"), kind=d.get("kind", "vector"))
-        for k in ("img_w", "img_h", "layer_id", "x", "y", "scale", "rotation", "mirror_x"):
+        for k in ("img_w", "img_h", "layer_id", "x", "y", "scale", "rotation", "mirror_x", "var"):
             if k in d:
                 setattr(it, k, d[k])
         if it.kind == "raster":
@@ -168,6 +178,6 @@ def load_project(path: str) -> Project:
                     poly = g.Polyline.from_bez(g.BezPath(*pd["bez"], closed=pd["closed"]))
                 else:
                     poly = g.Polyline(np.array(pd["pts"], float), pd["closed"])
-                it.paths.append(VectorPath(poly, pd["layer"]))
+                it.paths.append(VectorPath(poly, pd["layer"], bool(pd.get("start", False))))
         p.items.append(it)
     return p

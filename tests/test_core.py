@@ -305,6 +305,103 @@ def test_line_times():
     assert abs(line_times(clean, prof)[-1] - res.time_s) / res.time_s < 0.05             # passt zur Gesamtschätzung
 
 
+def test_lightburn_round_features():
+    """Offset-Füllung, Startpunkt, Schnittreihenfolge, Z-Versatz, Einstell-Tests, Makros."""
+    from tilaser.core.gcode import offset_rings, ordered_paths
+    from tilaser.core.lasertests import (FocusTest, IntervalTest, RampTest, build_focus_test, build_interval_test,
+                                         build_ramp_test)
+    from tilaser.core.model import ImportedPath, VectorPath
+    # Offset-Füllung: Ringe im Abstand, auch mit Loch
+    rings = offset_rings([_sq(0, 0, 10)], 1.0)
+    assert len(rings) == 5 and np.allclose(g.bbox([rings[0]]), (0.5, 0.5, 9.5, 9.5), atol=1e-6)
+    assert len(offset_rings([_sq(0, 0, 20), _sq(8, 8, 4)], 1.0)) >= 8
+    pr = Project()
+    pr.add_vector_import("o", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000")])
+    pr.layers[0].mode, pr.layers[0].interval = "offset", 1.0
+    res = generate(pr, MachineProfile())
+    assert sum(1 for l in res.lines if l.startswith("G0")) >= 5
+    # Startpunkt: festgelegte Kontur wird nicht gedreht
+    a = _sq(10, 0, 10)
+    a.start_fixed = True
+    out = g.order_paths([a], (20, 10), False)
+    assert np.allclose(out[0].pts[0], [10, 0])
+    free = g.order_paths([_sq(10, 0, 10)], (20, 10), False)
+    assert np.allclose(free[0].pts[0], [20, 10])
+    pr2 = Project()
+    it = pr2.add_vector_import("s", [ImportedPath(_sq(0, 0, 10), "#000000", "#000000")])
+    it.paths[0].start_fixed = True
+    fp = os.path.join(TMP, "start.tlp")
+    save_project(pr2, fp)
+    assert load_project(fp).items[0].paths[0].start_fixed
+    # Schnittreihenfolge: Objekt für Objekt folgt der Projektreihenfolge
+    pr3 = Project()
+    for x in (100, 0, 50):
+        pr3.add_vector_import(f"q{x}", [ImportedPath(_sq(x, 0, 5), "#000000", "#000000")])
+    xs = lambda lines: [round(float(next(t[1:] for t in l.split() if t.startswith("X")))) for l in lines
+                        if l.startswith("G0") and " X" in l]
+    by_obj = generate(pr3, MachineProfile(cut_order="objects"))
+    opt = generate(pr3, MachineProfile())
+    assert [x // 50 * 50 for x in xs(by_obj.lines)[:3]] == [100, 0, 50]
+    assert [x // 50 * 50 for x in xs(opt.lines)[:3]] == [0, 50, 100]
+    # Z-Versatz je Ebene
+    pr3.layers[0].z_offset = -1.5
+    zl = [l for l in generate(pr3, MachineProfile()).lines if l.startswith("G0 Z")]
+    assert zl == ["G0 Z-1.5", "G0 Z1.5"]
+    # Einstell-Tests
+    ft = build_focus_test(FocusTest(steps=5, labels=False))
+    assert sorted(round(l.z_offset, 2) for l in ft.layers) == [-2, -1, 0, 1, 2]
+    assert len(build_ramp_test(RampTest(labels=False)).items) == 2
+    it_ = build_interval_test(IntervalTest(count=4, labels=False))
+    assert [round(l.interval, 3) for l in it_.layers] == [0.05, 0.133, 0.217, 0.3]
+    for tp in (ft, it_):
+        assert generate(tp, MachineProfile()).time_s > 0
+    # Makros im Profil
+    prof = MachineProfile()
+    assert prof.macros and prof.macros[0]["gcode"] == "M8"
+    prof.macros.append({"name": "Fokus", "gcode": "G0 Z5", "key": "Ctrl+1"})
+    assert MachineProfile.from_dict(prof.to_dict()).macros[-1]["key"] == "Ctrl+1"
+
+
+def test_variable_text_and_codes():
+    import datetime
+    from tilaser.core import vartext as vt
+    from tilaser.core.barcode import code128_widths, qr_matrix
+    st = vt.VarState(nr=7)
+    now = datetime.datetime(2026, 11, 18, 9, 5)
+    assert vt.render("Nr {nr:03} am {datum} {zeit} {Name} {x}", st, now, {"Name": "Anna"}) == \
+        "Nr 007 am 18.11.2026 09:05 Anna {x}"
+    csvp = os.path.join(TMP, "liste.csv")
+    open(csvp, "w", encoding="utf-8").write("Name;Ort\nAnna;Berlin\nBen;Köln\n")
+    head, rows = vt.read_csv(csvp)
+    assert head == ["Name", "Ort"] and rows[1]["Ort"] == "Köln"
+    pr = Project()
+    layer = pr.add_layer("G", mode="fill")
+    st = vt.project_state(pr)
+    st.csv_path = csvp
+    qr = vt.make_item({"kind": "qr", "template": "{Name}-{nr}", "size": 20}, layer.id, 50, 50, st, vt.current_row(st))
+    pr.items.append(qr)
+    assert qr.name == "QR: Anna-1" and np.allclose(qr.world_bbox()[2] - qr.world_bbox()[0], 20, atol=1.0)
+    vt.advance(pr)
+    assert vt.refresh_project(pr) == 1 and qr.name == "QR: Ben-2"
+    fp = os.path.join(TMP, "var.tlp")
+    save_project(pr, fp)
+    back = load_project(fp)
+    assert back.vars.nr == 2 and back.items[0].var["template"] == "{Name}-{nr}"
+    # Code 128: Start B, Prüfzeichen, Stopp; jede Zeichenbreite 11 Module
+    w = code128_widths("AB")
+    assert sum(w) == 11 * 4 + 13 and w[:6] == [2, 1, 1, 2, 1, 4]
+    # QR-Code: mit OpenCV lesbar (falls vorhanden)
+    m = qr_matrix("TiLaser {nr} Prüfung", "M")
+    assert len(m) in (21, 25, 29)
+    try:
+        import cv2
+    except ImportError:
+        return
+    a = np.pad(np.where(np.array(m), 0, 255).astype(np.uint8), 4, constant_values=255)
+    img = np.kron(a, np.ones((8, 8), np.uint8))
+    assert cv2.QRCodeDetector().detectAndDecode(img)[0] == "TiLaser {nr} Prüfung"
+
+
 def test_group_ungroup():
     pr = Project()
     sq = lambda x0, y0, w: g.Polyline(np.array([[x0, y0], [x0 + w, y0], [x0 + w, y0 + w], [x0, y0 + w]]), True)

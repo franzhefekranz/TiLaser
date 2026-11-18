@@ -41,6 +41,7 @@ class MachineProfile:
     passes_per_path: bool = True      # Schneiden: alle Durchgänge einer Kontur, dann die nächste
     frame_rubber: bool = False        # Rahmen als Gummiband (konvexe Hülle) statt Rechteck
     remove_overlaps: bool = True      # deckungsgleiche Linien einer Ebene nur einmal schneiden
+    cut_order: str = "optimized"      # 'optimized' (kürzeste Wege) | 'objects' (Objektreihenfolge)
     frame_rubber_show: bool = False   # Gummiband-Linie dauerhaft auf der Arbeitsfläche zeigen (nur Anzeige)
     bed_w: float = 400.0
     bed_h: float = 400.0
@@ -48,6 +49,10 @@ class MachineProfile:
     footer: str = "G0 X0 Y0"
     air_on: str = "M8"
     air_off: str = "M9"
+    macros: list = field(default_factory=lambda: [
+        {"name": "Luft an", "gcode": "M8", "key": ""},
+        {"name": "Luft aus", "gcode": "M9", "key": ""},
+        {"name": "Entsperren + Home", "gcode": "$X\n$H", "key": ""}])
     frame_power: float = 0.0          # % – 0 = Laser aus beim Framing
     frame_speed: float = 3000.0
     port: str = ""
@@ -250,11 +255,43 @@ def _z_restore(w: GWriter, op: Layer):
         w.emit("G90")
 
 
+def _order_key(p) -> int:
+    return getattr(p, "_order", 0)
+
+
+def ordered_paths(paths: list[g.Polyline], start, inner_first: bool, by_objects: bool) -> list[g.Polyline]:
+    """Schnittreihenfolge: optimiert über alle Konturen oder Objekt für Objekt (Reihenfolge im Projekt),
+    innerhalb eines Objekts optimiert."""
+    if not by_objects:
+        return g.order_paths(paths, start, inner_first)
+    out: list[g.Polyline] = []
+    cur = start
+    for k in sorted({_order_key(p) for p in paths}):
+        grp = g.order_paths([p for p in paths if _order_key(p) == k], cur, inner_first)
+        if grp:
+            out += grp
+            cur = tuple(grp[-1].loop_pts()[-1])
+    return out
+
+
 def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
-    if layer.kerf:
-        paths = apply_kerf(paths, layer.kerf)
-    if layer.tabs > 0:
-        paths = add_tabs(paths, layer.tabs, layer.tab_width, layer.tabs_outer_only)
+    by_obj = w.p.cut_order == "objects"
+
+    def prep(ps):
+        if layer.kerf:
+            ps = apply_kerf(ps, layer.kerf)
+        if layer.tabs > 0:
+            ps = add_tabs(ps, layer.tabs, layer.tab_width, layer.tabs_outer_only)
+        return ps
+    if by_obj and (layer.kerf or layer.tabs > 0):
+        new = []
+        for k in sorted({_order_key(p) for p in paths}):        # je Objekt, damit die Zuordnung bleibt
+            for p in prep([q for q in paths if _order_key(q) == k]):
+                p._order = k
+                new.append(p)
+        paths = new
+    else:
+        paths = prep(paths)
     if w.p.remove_overlaps and len(paths) > 1:
         # Gemeinsame Kanten nur einmal schneiden – nur in der Ausgabe, das Projekt bleibt unverändert
         from .overlap import remove_overlaps
@@ -267,7 +304,7 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         # Jede Kontur mit allen Durchgängen fertig schneiden, erst dann zur nächsten
         w.comment(f"{passes} Durchgänge je Kontur")
         start = (w.x or 0.0, w.y or 0.0)
-        for p in g.order_paths(paths, start, layer.inner_first):
+        for p in ordered_paths(paths, start, layer.inner_first, by_obj):
             pts = p.loop_pts()
             for n in range(passes):
                 # offene Pfade abwechselnd vor und zurück, damit keine Leerfahrt zum Anfang nötig ist
@@ -279,7 +316,7 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         if passes > 1:
             w.comment(f"Durchgang {n + 1}/{passes}")
         start = (w.x or 0.0, w.y or 0.0)
-        for p in g.order_paths(paths, start, layer.inner_first):
+        for p in ordered_paths(paths, start, layer.inner_first, by_obj):
             w.polyline(p.loop_pts(), layer.speed, s)
         _z_between(w, layer, n)
     _z_restore(w, layer)
@@ -297,6 +334,69 @@ def _layer_fill(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: lis
         for seg in segs:
             w.travel(*seg[0])
             w.burn(*seg[1], layer.speed, s)
+        _z_between(w, layer, n)
+    _z_restore(w, layer)
+
+
+def offset_rings(paths: list[g.Polyline], interval: float, max_rings: int = 5000) -> list[g.Polyline]:
+    """Konturparallele Füllung: Ringe im Abstand 'interval' nach innen (erster Ring bei interval/2)."""
+    from .boolean import offset_shapes
+    closed = [p for p in paths if p.closed and len(p.pts) >= 3]
+    if not closed or interval <= 0:
+        return []
+    bb = g.bbox(closed)
+    n_max = min(max_rings, int(max(bb[2] - bb[0], bb[3] - bb[1]) / interval) + 2)
+    from .offset import pyclipper
+    A = np.vstack([p.loop_pts()[:-1] for p in closed])
+    B = np.vstack([p.loop_pts()[1:] for p in closed])
+    rings: list[g.Polyline] = []
+    for k in range(n_max):
+        d = (k + 0.5) * interval
+        ring = offset_shapes(closed, -d)
+        ring = [r for r in ring if len(r.pts) >= 3 and abs(_area(r.pts)) > (interval * interval) * 0.05]
+        if pyclipper is None:
+            # einfacher Ersatz-Offset: zusammengefallene/überschlagene Ringe verwerfen
+            ring = [r for r in ring if _min_edge_dist(r.pts, A, B) >= d - 0.05 * interval]
+        if not ring:
+            break
+        rings += ring
+    return rings
+
+
+def _min_edge_dist(P, A, B) -> float:
+    """Kleinster Abstand der Punkte P zu den Strecken A[i]–B[i]."""
+    best = np.inf
+    AB = B - A
+    L2 = np.maximum((AB ** 2).sum(1), 1e-18)
+    for i in range(0, len(P), 256):
+        p = P[i:i + 256, None, :]
+        t = np.clip(((p - A) * AB).sum(-1) / L2, 0, 1)
+        q = A + t[..., None] * AB
+        best = min(best, float(np.sqrt(((p - q) ** 2).sum(-1)).min()))
+    return best
+
+
+def _area(pts) -> float:
+    return 0.5 * float(np.sum(pts[:, 0] * np.roll(pts[:, 1], -1) - np.roll(pts[:, 0], -1) * pts[:, 1]))
+
+
+def _layer_offset_fill(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: list[str]):
+    open_count = sum(1 for p in paths if not p.closed)
+    if open_count:
+        warnings.append(f"Ebene '{layer.name}': {open_count} offene Pfade können nicht gefüllt werden.")
+    if w.p.cut_order == "objects":
+        rings = []
+        for k in sorted({_order_key(p) for p in paths}):
+            for r in offset_rings([p for p in paths if _order_key(p) == k], max(0.01, layer.interval)):
+                r._order = k
+                rings.append(r)
+    else:
+        rings = offset_rings(paths, max(0.01, layer.interval))
+    s = w.s_val(layer.power)
+    for n in range(max(1, layer.passes)):
+        start = (w.x or 0.0, w.y or 0.0)
+        for p in ordered_paths(rings, start, False, w.p.cut_order == "objects"):
+            w.polyline(p.loop_pts(), layer.speed, s)
         _z_between(w, layer, n)
     _z_restore(w, layer)
 
@@ -395,11 +495,13 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
             continue
         paths: list[g.Polyline] = []
         rasters = []
-        for it in project.items:
+        for idx, it in enumerate(project.items):
             if it.kind == "raster" and it.layer_id == layer.id:
                 rasters.append(it)
             elif it.kind == "vector":
-                paths += it.world_paths(layer.id)
+                for p in it.world_paths(layer.id):
+                    p._order = idx                      # Objektreihenfolge für 'Schnittreihenfolge: Objekte'
+                    paths.append(p)
         if not paths and not rasters:
             continue
         any_output = True
@@ -407,6 +509,11 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
         w.comment(f"Ebene: {layer.name} | {layer.mode} | {layer.power:g}% | {layer.speed:g} mm/min | {layer.passes}x")
         if layer.air and prof.air_on:
             w.emit(prof.air_on)
+        if layer.z_offset:
+            w.laser_off()
+            w.emit("G91")
+            w.emit(f"G0 Z{fmt(layer.z_offset)}")              # Fokus-Versatz der Ebene
+            w.emit("G90")
         ops = [layer] + [sub for sub in layer.subs if sub.output]
         for k, op in enumerate(ops):
             if k:
@@ -416,6 +523,8 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 _layer_cut(w, op, paths)
             elif op.mode == "fill":
                 _layer_fill(w, op, paths, warnings)
+            elif op.mode == "offset":
+                _layer_offset_fill(w, op, paths, warnings)
             elif op.mode == "raster":
                 for it in rasters:
                     _layer_raster(w, op, it, warnings)
@@ -425,6 +534,10 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 for it in rasters:
                     _layer_raster(w, op, it, warnings)
         w.laser_off()
+        if layer.z_offset:
+            w.emit("G91")
+            w.emit(f"G0 Z{fmt(-layer.z_offset)}")
+            w.emit("G90")
         if layer.air and prof.air_off:
             w.emit(prof.air_off)
     w.finish()

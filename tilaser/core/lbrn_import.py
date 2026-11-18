@@ -188,7 +188,7 @@ def _make_layer(idx: int, cs: dict | None, kind: str) -> Layer:
     if kind == "raster":
         mode = "raster"
     else:
-        mode = {"Cut": "cut", "Scan": "fill", "Scan+Cut": "fill", "Offset": "fill", "Image": "fill"}.get(lb_type, "cut")
+        mode = {"Cut": "cut", "Scan": "fill", "Scan+Cut": "fill", "Offset": "offset", "Image": "fill"}.get(lb_type, "cut")
     color = nearest_palette(LB_COLORS[idx % len(LB_COLORS)])
     lname = cs.get("name") or f"C{idx:02d}"
     if re.fullmatch(r"C\d\d|T\d", lname):
@@ -397,8 +397,6 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
                     "(in LightBurn in einen Pfad umwandeln und neu speichern).")
     for t, n in rd.unknown.items():
         warn.append(f"{n} Form(en) vom Typ „{t}“ werden nicht unterstützt und wurden übersprungen.")
-    if any(s.get("type") == "Offset" for s in settings.values()):
-        warn.append("Ebenen mit „Offset-Füllung“ wurden als normale Füllung übernommen.")
     if not pr.items:
         warn.append("Die Datei enthält keine verwertbaren Formen.")
     return pr, warn

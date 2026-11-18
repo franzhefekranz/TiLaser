@@ -19,7 +19,7 @@ from . import geometry as g
 from .lbrn_import import LB_COLORS
 from .model import Layer, Project, _lab, nearest_palette
 
-_TYPES = {"cut": "Cut", "fill": "Scan", "raster": "Image"}
+_TYPES = {"cut": "Cut", "fill": "Scan", "offset": "Offset", "raster": "Image"}
 _DITHER = {"floyd": "dither", "jarvis": "jarvis", "stucki": "stucki", "atkinson": "atkinson",
            "threshold": "threshold", "grayscale": "grayscale"}
 
@@ -64,7 +64,7 @@ def _cut_setting(parent, layer: Layer, idx: int, prio: int):
     v("priority", prio)
     v("numPasses", layer.passes)
     v("doOutput", 1 if layer.output else 0)
-    if layer.mode in ("fill", "raster"):
+    if layer.mode in ("fill", "offset", "raster"):
         v("interval", _n(layer.interval))
         v("angle", _n(layer.angle))
         v("crossHatch", 1 if layer.crosshatch else 0)

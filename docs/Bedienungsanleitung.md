@@ -275,6 +275,12 @@ Menü **Anordnen**:
 | Array erstellen | Strg+Shift+A, siehe unten |
 | Nesting | Strg+Shift+N, siehe [Kapitel 8](#8-nesting--teile-automatisch-anordnen) |
 | Zentrieren / An 0/0 | Auswahl in die Mitte des Arbeitsbereichs bzw. an den Nullpunkt schieben |
+| Schnittreihenfolge | *Zuerst / Früher / Später / Zuletzt schneiden* (Strg+Shift+Bild↑, Strg+Bild↑, Strg+Bild↓, Strg+Shift+Bild↓) verschiebt die Auswahl in der Reihenfolge des Projekts. *Reihenfolge anzeigen* blendet die Nummern auf der Arbeitsfläche ein (nur Anzeige). Wirksam, wenn in den Maschineneinstellungen *Schnittreihenfolge: Objekt für Objekt* gewählt ist |
+
+**Schnittreihenfolge:** Standard ist *Optimiert* – TiLaser sucht je Ebene den kürzesten Weg über alle Konturen
+(innen vor außen). Mit *Objekt für Objekt* (Maschineneinstellungen) wird ein Objekt nach dem anderen in der
+Reihenfolge des Projekts fertig gelasert; innerhalb eines Objekts bleibt es bei innen vor außen und kurzen Wegen.
+Die Ebenen-Reihenfolge gilt in beiden Fällen weiterhin zuerst.
 
 **Am Raster fangen:** *Ansicht → Am Raster fangen* (Strg+Shift+F). Beim Verschieben rastet die linke untere
 Objektecke auf das Raster ein. Rastermaß unter *Ansicht → Rastermaß* (0,5 / 1 / 5 / 10 mm).
@@ -336,6 +342,7 @@ Am ausgewählten Knoten erscheinen die **Kurven-Anfasser** (Kreise).
 | Segment in Linie umwandeln | L |
 | Knoten glätten | S |
 | Pfad auftrennen | B (geschlossene Kontur öffnen bzw. offene Linie teilen) |
+| **Startpunkt setzen** | A (oder *Maschine → Startpunkt auf gewählten Knoten setzen*): Am ausgewählten Knoten beginnt der Schnitt dieser Kontur; TiLaser wählt den Startpunkt dann nicht mehr selbst. Bei offenen Linien geht das an einem der beiden Enden. Mit Kerf-Ausgleich oder Haltestegen wählt TiLaser den Startpunkt weiterhin selbst |
 
 Kurven aus SVG, PDF, DXF, Schriften und den Zeichenwerkzeugen bleiben echte Bézierkurven mit wenigen Knoten.
 
@@ -360,7 +367,29 @@ Menü **Formen** (mindestens zwei geschlossene Vektorobjekte auswählen):
 
 *Datei → Text einfügen* (Strg+T): Text (mehrzeilig), Schrift (alle installierten TrueType-/OpenType-Schriften
 oder eine Datei über „…“), Größe in mm, Zeilen- und Zeichenabstand, Ausrichtung und Ebene. Neue Ebenen für
-Text sind standardmäßig **Füllen** (Gravur) oder **Schneiden/Kontur**.
+Text sind standardmäßig **Füllen** (Gravur) oder **Schneiden/Kontur**. Den Inhalt eines eingefügten Textes
+ändert man später per Rechtsklick → *Inhalt ändern…*.
+
+### Variabler Text, QR-Code und Barcode
+
+Texte und Code-Inhalte dürfen **Platzhalter** enthalten, die vor jedem Auftrag eingesetzt werden:
+
+| Platzhalter | Ergebnis |
+|---|---|
+| `{nr}` | fortlaufende Nummer, z. B. `17`; `{nr:03}` mit führenden Nullen: `017` |
+| `{datum}` / `{zeit}` | Tagesdatum `18.11.2026` / Uhrzeit `14:05`; außerdem `{jahr}`, `{monat}`, `{tag}` |
+| `{Spaltenname}` | Wert aus der aktuellen Zeile einer CSV-Datei, z. B. `{Name}` |
+
+*Werkzeuge → Variable Texte…* legt Startnummer und Schrittweite fest, wählt eine CSV-Datei (erste Zeile =
+Spaltennamen, Trennzeichen `;` oder `,`) und die aktuelle Zeile. Mit *Nach jedem Auftrag bzw. G-Code-Export
+weiterzählen* erhöht TiLaser die Nummer und geht zur nächsten CSV-Zeile, sobald ein Auftrag fertig ist –
+für Seriennummern, Namensschilder oder Etiketten. Die Vorschau zeigt immer die nächsten Werte.
+
+*Werkzeuge → QR-Code / Barcode einfügen…* (Strg+Shift+Q) erzeugt einen **QR-Code** (Kantenlänge,
+Fehlerkorrektur L/M/Q/H, auch Umlaute und Adressen) oder einen **Barcode Code 128** (Breite, Höhe; Zeichen
+ASCII 32–126) als Gravur auf einer Füll-Ebene. Der Inhalt darf Platzhalter enthalten, z. B.
+`https://example.com/teil/{nr:05}`. Für zuverlässiges Scannen einen kleinen Zeilenabstand (höchstens ein Viertel
+der Modulbreite) und einen hellen Rand um den Code lassen und vor einer Serie mit dem Handy testen.
 
 ### Text auf Pfad
 
@@ -448,6 +477,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 |---|---|
 | **Schneiden / Linie** | Der Laser fährt die Konturen ab (Schneiden oder Ritzen) |
 | **Füllen (Schraffur)** | Geschlossene Flächen werden zeilenweise graviert (Löcher bleiben frei) |
+| **Offset-Füllung (Konturen)** | Geschlossene Flächen werden mit Konturlinien im Zeilenabstand von außen nach innen gefüllt – weniger Hin-und-Her als Schraffur, gut für Schriften und schmale Formen |
 | **Rasterbild** | Bilder werden pixelweise graviert |
 
 ### Parameter
@@ -458,7 +488,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Leistung min | Raster (Graustufen) | Leistung für helle Bildbereiche |
 | Geschwindigkeit | alle | mm/min |
 | Durchgänge | alle | Wie oft der Arbeitsgang wiederholt wird |
-| Zeilenabstand | Füllen, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
+| Zeilenabstand | Füllen, Offset-Füllung, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
 | Winkel, Kreuzschraffur | Füllen | Richtung der Schraffur; zweite Schraffur um 90° gedreht |
 | Bildmodus | Raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (Dithering), Schwellwert, Graustufen |
 | Schwellwert, Invertieren | Raster | |
@@ -469,6 +499,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | **Kerf-Ausgleich** | Schneiden | Schnittbreite in mm. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt – die Teile werden maßhaltig. Wichtig für Steck- und Presspassungen. |
 | **Haltestege** | Schneiden | Anzahl Stege je Kontur und Stegbreite. Die Teile bleiben im Material hängen und fallen nicht durch den Wabentisch. Optional nur an Außenkonturen. |
 | Z-Schritt je Durchgang | alle | Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |
+| Z-Versatz | alle | Vor dieser Ebene fährt Z um den Wert (+ = höher), danach zurück – z. B. leicht defokussiert gravieren (nur mit motorisierter Z-Achse) |
 | Air Assist | alle | Sendet M8/M9 (Druckluft ein/aus) |
 
 ![Raster-Ebene](screenshots/06_ebene_raster.png)
@@ -521,6 +552,26 @@ Der Tooltip eines Presets zeigt Material und Herkunft der Werte. Eigene Presets 
 Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren…** (G-Code-Datei) und
 **An Laser senden**.
 
+### Fokustest
+
+*Werkzeuge → Fokustest…* findet den besten Abstand zwischen Laser und Material:
+
+- **Ohne Z-Achse – Rampe** (für den AlgoLaser und die meisten Diodenlaser): TiLaser lasert eine lange Linie
+  mit Skala. Dafür ein Brett so schräg legen, dass ein Ende etwa 10 mm höher liegt, und auf die Mitte
+  fokussieren. Nach dem Lasern die **dünnste Stelle** der Linie suchen und an der Skala ablesen; dort stimmt
+  der Abstand. Den Fokus danach auf diese Höhe einstellen.
+- **Mit Z-Achse:** mehrere beschriftete Linien, jede mit einem anderen Z-Versatz (z. B. −2 bis +2 mm). Die
+  schärfste Linie zeigt den besten Versatz.
+
+### Zeilenabstandstest
+
+*Werkzeuge → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
+und schreibt den Wert darunter. Das Feld, in dem die Linien gerade zu einer gleichmäßigen Fläche verschmelzen,
+ist der passende Zeilenabstand für dieses Material und diesen Fokus – kleiner bringt nur mehr Laufzeit.
+
+Beide Tests bieten wie der Materialtest **Vorschau**, **Exportieren…** und **An Laser senden**, zusätzlich
+**Ins Projekt** (Test als normale Objekte einfügen, z. B. um ihn zu verschieben).
+
 ---
 
 ## 11. Maschine einrichten und verbinden
@@ -544,6 +595,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 | Rahmen: Leistung / Geschwindigkeit | 0 % = Laser beim Rahmen aus; bis 20 % für einen sichtbaren Punkt |
 | Durchgänge | *Bei mehreren Durchgängen jede Kontur fertig schneiden* – an (Standard): jede Kontur bekommt alle Durchgänge, erst dann geht es zur nächsten; offene Linien abwechselnd hin und zurück. Aus: Durchgang 1 über alle Konturen, dann Durchgang 2 usw.; das Material kühlt dazwischen ab, dafür fährt der Laser öfter hin und her. Gilt für Schneid-Ebenen |
 | Doppelte Linien | *Übereinanderliegende Linien nur einmal schneiden* (Standard an): Liegen Linien einer Ebene genau aufeinander – etwa die gemeinsame Kante zweier bündiger Teile –, wird das Stück nur einmal geschnitten; im G-Code steht dann ein Kommentar mit der eingesparten Länge. Das gilt nur für die Ausgabe: Die Teile im Projekt bleiben vollständig, wer sie wieder auseinanderschiebt oder mit Abstand neu anordnet, hat alle Linien zurück. Bei eingestellter Schnittbreitenkorrektur (Kerf) liegen die Kanten nicht mehr aufeinander und werden normal geschnitten |
+| Schnittreihenfolge | *Optimiert (kürzeste Wege)* oder *Objekt für Objekt (Reihenfolge im Projekt)*, siehe [Anordnen](#anordnen) |
 | Rotationsachse | siehe [Kapitel 15](#15-rotationsachse) |
 | Air Assist an/aus | Standard M8/M9 |
 | G-Code Anfang/Ende | Wird jedem Auftrag voran- bzw. nachgestellt |
@@ -584,6 +636,12 @@ Im Tab *Verbindung* liegen außerdem:
 - **Absolut:** X/Y in Werkstückkoordinaten eingeben und *Fahren* klicken (oder Enter). *Aktuelle Position
   übernehmen* füllt die Felder mit der momentanen Kopfposition. Bei Zielen außerhalb des Arbeitsbereichs
   fragt TiLaser nach. Der Laser ist beim Fahren aus.
+- **Per Klick:** Rechtsklick auf die Arbeitsfläche → *Laser hierher fahren* fährt den Kopf genau an diese
+  Stelle. Mit Objekten in der Auswahl gibt es *Laser zur Auswahl fahren* → Mitte oder eine der vier Ecken
+  (auch unter *Maschine*). Praktisch, um zu prüfen, wo ein Teil auf dem Werkstück landet.
+- **Makros:** eigene G-Code-Knöpfe, z. B. *Luft an* (`M8`), *Luft aus* (`M9`) oder *Entsperren + Home*.
+  *Bearbeiten…* (auch *Maschine → Makros bearbeiten…*) legt Makros an: Name, G-Code (mehrere Zeilen möglich)
+  und ein Tastenkürzel, das im ganzen Fenster gilt. Während ein Auftrag läuft, sind Makros gesperrt.
 
 ### Konsole
 
@@ -591,6 +649,14 @@ Im Tab *Verbindung* liegen außerdem:
 
 Zeigt alle Meldungen der Steuerung (`<<`) und gesendeten Befehle (`>>`). Unten können eigene Befehle
 eingegeben werden, z. B. `$$` (GRBL-Einstellungen anzeigen), `$I` (Version) oder `?` (Status).
+
+### GRBL-Einstellungen
+
+*Maschine → GRBL-Einstellungen ($$)…* liest alle Einstellungen der Steuerung und zeigt sie mit deutscher
+Bedeutung, z. B. `$30` maximaler S-Wert, `$32` Lasermodus, `$110/$111` Höchstgeschwindigkeit,
+`$120/$121` Beschleunigung, `$130/$131` Verfahrweg. Werte in der Spalte *Wert* ändern und
+*Geänderte schreiben* drücken; TiLaser zeigt die Änderungen vorher noch einmal an und liest danach zur
+Kontrolle neu. *Exportieren…* sichert alle Werte als Textdatei – das sollte man vor jeder Änderung tun.
 
 ---
 
@@ -735,12 +801,14 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | Strg+0 | Alles zeigen | | Strg+L / Strg+R | 90° links / rechts drehen |
 | Strg+Shift+F | Am Raster fangen | | Strg+Shift+A | Array |
 | F5 | Kamerabild aktualisieren | | Strg+Shift+N | Nesting |
-| Strg+Shift+K | Live-Kamera | | | |
+| Strg+Shift+K | Live-Kamera | | Strg+Shift+Q | QR-Code / Barcode einfügen |
+| Strg+Bild↑ / Strg+Bild↓ | Früher / später schneiden | | Strg+Shift+Bild↑ / ↓ | Zuerst / zuletzt schneiden |
 | V R E P L N | Zeichenwerkzeuge | | Strg+Shift+←/→/↑/↓ | Links/rechts/oben/unten ausrichten |
 | Esc | Zurück zum Auswählen | | Strg+Shift+U / D / I | Vereinigen / Abziehen / Schnittmenge |
 | Alt+T | Bild nachzeichnen | | Alt+O / Alt+J | Offset / Pfade verbinden |
 
-Im Knotenmodus: Entf, C, L, S, B (siehe [Knotenbearbeitung](#knotenbearbeitung)).
+Im Knotenmodus: Entf, C, L, S, B, A (siehe [Knotenbearbeitung](#knotenbearbeitung)). Makros können eigene
+Tastenkürzel bekommen.
 
 ---
 
