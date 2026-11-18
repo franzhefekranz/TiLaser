@@ -178,10 +178,12 @@ class MainWindow(QMainWindow):
         self.a_open = self._act("Projekt öffnen…", self.open_project, "Ctrl+O")
         self.a_save = self._act("Projekt speichern", self.save_project, "Ctrl+S")
         self.a_save_as = self._act("Projekt speichern unter…", lambda: self.save_project(True), "Ctrl+Shift+S")
+        self.a_save_sel = self._act("Auswahl als Projekt speichern…", self.save_selection, None,
+                                    "Nur die ausgewählten Objekte (mit ihren Ebenen) als eigene .tlp-Datei speichern")
         self.a_import = self._act("Importieren…", self.import_dialog, "Ctrl+I", "SVG, DXF oder Bild importieren")
         self.a_text = self._act("Text einfügen…", self.insert_text, "Ctrl+T")
         self.a_export = self._act("G-Code exportieren…", self.export_gcode, "Ctrl+E")
-        for a in (self.a_new, self.a_open, self.a_save, self.a_save_as):
+        for a in (self.a_new, self.a_open, self.a_save, self.a_save_as, self.a_save_sel):
             m.addAction(a)
         m.addSeparator()
         m.addAction(self.a_import)
@@ -564,6 +566,41 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.statusBar().showMessage(f"Gespeichert: {p}", 4000)
 
+    def save_selection(self):
+        ids = self.canvas.selected_ids()
+        if not ids:
+            QMessageBox.information(self, "Auswahl speichern", "Bitte zuerst Objekte auswählen.")
+            return
+        self.save_items_as_project(ids, "auswahl.tlp")
+
+    def save_items_as_project(self, ids, default_name: str) -> str | None:
+        """Objekte 'ids' samt Ebenen als eigenes Projekt speichern; Rückgabe: Pfad oder None."""
+        base = os.path.splitext(os.path.basename(self.project_path))[0] + "_" if self.project_path else ""
+        p, _ = QFileDialog.getSaveFileName(self, "Als Projekt speichern",
+                                           os.path.join(self.last_dir, base + default_name),
+                                           "TiLaser-Projekt (*.tlp)")
+        if not p:
+            return None
+        if not p.lower().endswith(".tlp"):
+            p += ".tlp"
+        try:
+            storage.save_project(ed.extract_items(self.project, ids), p)
+        except Exception as e:
+            QMessageBox.critical(self, "Speichern", str(e))
+            return None
+        self.last_dir = os.path.dirname(p)
+        self.statusBar().showMessage(f"{len(ids)} Objekt(e) gespeichert: {p}", 6000)
+        return p
+
+    def _remove_items(self, ids, title):
+        self._checkpoint(title)
+        for i in ids:
+            self.project.remove_item(i)
+            self.canvas.remove_item(i)
+        self.objects.set_item(None)
+        self.layers.refresh()
+        self._invalidate()
+
     # ------------------------------------------------------------ Import
     def import_dialog(self):
         files, _ = QFileDialog.getOpenFileNames(
@@ -876,6 +913,7 @@ class MainWindow(QMainWindow):
             menu.addAction(self.a_dup)
             menu.addAction(self.a_array)
             menu.addAction(self.a_nest)
+            menu.addAction(self.a_save_sel)
             if len(items) == 1 and items[0].kind == "vector":
                 menu.addAction(self.a_textpath)
             if any(it.kind == "raster" for it in items):
@@ -1438,6 +1476,7 @@ class MainWindow(QMainWindow):
                 self._restore(p)
             return
         prog.close()
+        fr = None
         if dlg.frame.isChecked():
             layer = self.project.add_layer("Nesting-Grundfläche", "#757575", "cut")
             layer.output = False
@@ -1452,9 +1491,34 @@ class MainWindow(QMainWindow):
         msg = (f"{len(res.placed)} Teile platziert"
                + (f" (davon {len(res.new_items)} Kopien)" if res.new_items else "")
                + f", Flächennutzung {res.utilization * 100:.0f} %, Raster {res.cell:.2f} mm.")
-        if res.unplaced:
-            msg += f"\n\n{len(res.unplaced)} Teil(e) passen nicht auf die Grundfläche – sie sind jetzt ausgewählt."
-        QMessageBox.information(self, "Nesting", msg)
+        if not res.unplaced:
+            QMessageBox.information(self, "Nesting", msg)
+            return
+        msg += (f"\n\n{len(res.unplaced)} Teil(e) passen nicht auf die Grundfläche – sie sind jetzt ausgewählt."
+                "\n\nDie platzierten Teile können als eigene Datei (eine Platte) gespeichert werden. Mit "
+                "„Speichern und entfernen“ verschwinden sie danach aus diesem Projekt, und der Rest lässt "
+                "sich gleich erneut anordnen (Strg+Shift+N).")
+        box = QMessageBox(QMessageBox.Icon.Information, "Nesting", msg, parent=self)
+        b_save = box.addButton("Platzierte speichern…", QMessageBox.ButtonRole.ActionRole)
+        b_move = box.addButton("Speichern und entfernen…", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("Schließen", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(b_move)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked not in (b_save, b_move):
+            return
+        sheet = list(res.placed) + ([fr.id] if fr is not None else [])
+        n = self.__dict__.get("_sheet_no", 0) + 1
+        path = self.save_items_as_project(sheet, f"platte{n}.tlp")
+        if path is None:
+            return
+        self._sheet_no = n
+        if clicked is b_move:
+            self._remove_items(sheet, "Platzierte Teile entfernen")
+            self.canvas.select_only(res.unplaced)
+            self.statusBar().showMessage(f"Platte gespeichert ({os.path.basename(path)}). "
+                                         f"{len(res.unplaced)} Teil(e) übrig – jetzt erneut nesten (Strg+Shift+N).",
+                                         10000)
 
     def _on_items_transformed(self, ids):
         if self.objects.item and self.objects.item.id in ids:
