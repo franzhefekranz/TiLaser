@@ -421,7 +421,7 @@ Konturen, z. B. um ein Logo zu schneiden.
 
 ### Box-Generator
 
-*Werkzeuge → Box-Generator…* (Strg+Umschalt+B) erzeugt einen Kasten mit Fingerzinken: Boden, vier
+*Werkzeuge → Generatoren → Box-Generator…* (Strg+Umschalt+B) erzeugt einen Kasten mit Fingerzinken: Boden, vier
 Wände und optional einen Deckel. Die Teile werden zusammengesteckt und bei Bedarf verleimt.
 
 | Einstellung | Wirkung |
@@ -440,6 +440,75 @@ verschieben, mit [Nesting](#8-nesting--teile-automatisch-anordnen) platzsparend 
 Lüftungsschlitze und Gravuren ergänzen (z. B. mit *Formen → Abziehen*). Die Zinken bleiben dabei unverändert.
 
 Tipp: Erst eine kleine Probe-Box (z. B. 40 × 30 × 20 mm) schneiden und die Passung prüfen, dann den Kerf anpassen.
+
+### Muster in einer Fläche
+
+![Biegescharnier, Lochmuster, Zinken, Zahnräder, Puzzle und Schablone](screenshots/muster_generatoren.png)
+
+Unter *Werkzeuge → Muster in Fläche* füllt TiLaser eine **ausgewählte geschlossene Kontur** (z. B. ein
+Rechteck oder die Umrisslinie eines Teils, auch mit Löchern). Das Ergebnis ist ein neues Objekt; die
+Kontur selbst bleibt unverändert und wird wie gewohnt ausgeschnitten.
+
+**Biegescharnier** – versetzte Schnittlinien, mit denen sich Sperrholz biegen lässt (Living Hinge).
+
+| Einstellung | Wirkung |
+|---|---|
+| Art | *Gerade Schlitze* oder *Doppelte Schlitze* (weicher) |
+| Schlitzlänge, Steg | Länge der Schnitte und der stehen bleibenden Stege dazwischen |
+| Abstand der Reihen | Kleiner = biegsamer, aber zerbrechlicher. 3-mm-Sperrholz: etwa 1,5 mm |
+| Abstand zum Rand | Ein Streifen ohne Schnitte um die Fläche herum |
+| Richtung der Schlitze | 0° = waagerecht; die Biegeachse liegt parallel zu den Schlitzen |
+
+**Lochmuster / Lüftungsgitter** – Kreise, Sechsecke, Quadrate oder Langlöcher, als Raster oder versetzt
+(Waben). Es werden nur ganze Löcher gesetzt, die mit dem Randabstand vollständig in der Fläche liegen –
+ideal für Lüftungsgitter in Gehäusewänden.
+
+**Gravurmuster** – Flächenmuster auf einer Füll-Ebene:
+
+![Gravurmuster](screenshots/muster_gravur.png)
+
+*Größe* ist der Rapport (Wiederholung), *Fuge* der Abstand zwischen den Elementen (Rauten, Punkte, Waben,
+Ziegel, Wellen), *Drehung* dreht das Muster. Hahnentritt und Fischgrät sind wie beim Stoff aus kleinen
+Quadraten aufgebaut.
+
+### Fingerzinken an Kante
+
+Verbindet zwei beliebige Teile mit Fingerzinken – z. B. eine selbst gezeichnete Rückwand mit einem
+Boden. So geht es:
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
+   überlappend). Am einfachsten mit *Anordnen → Ausrichten* oder am Raster fangen.
+2. Beide Teile auswählen → *Werkzeuge → Fingerzinken an Kante…*
+
+| Einstellung | Wirkung |
+|---|---|
+| Art | *Eckverbindung*: Beide Teile behalten ihr Außenmaß, Aussparungen gehen um die Materialstärke hinein (wie beim Box-Generator). *Zinken nach außen*: Teil 1 bekommt herausragende Zinken, Teil 2 passende Aussparungen; so wie gezeichnet greifen sie genau ineinander |
+| Materialstärke | Tiefe der Zinken/Aussparungen |
+| Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt |
+| Dogbone-Durchmesser | Rundet jede **Innenecke** mit einem kleinen Kreis frei („Hundeknochen“), damit eckige Zinken ganz hineinpassen – wichtig bei dickem Material, starker Kegelform des Strahls oder beim Fräsen. 0 = aus |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+| Zinken bei Teil 2 beginnen | Vertauscht, welches Teil außen die Zinken hat |
+
+Kurven der Teile werden dabei in feine Linienzüge umgewandelt.
+
+### Zahnrad, Puzzle und Schablonen-Stege
+
+**Zahnrad** (*Werkzeuge → Generatoren*) – Stirnrad mit Evolventenverzahnung. Wichtig ist das **Modul**:
+Teilkreis = Modul × Zähnezahl, nur Räder mit gleichem Modul passen zusammen. Mit *Gegenrad erzeugen*
+entstehen zwei kämmende Räder im richtigen Achsabstand (Modul × (z1 + z2) / 2, steht nach dem Erzeugen
+in der Statusleiste). Das *Flankenspiel* macht die Zähne etwas schmaler, damit die Räder nicht klemmen.
+Unter etwa 17 Zähnen werden die Zahnfüße nicht unterschnitten – die Räder laufen dann etwas rauer.
+
+**Puzzle** – Rahmen und Schnittlinien mit zufälligen Nasen. Breite, Höhe, Spalten und Reihen festlegen;
+*Nasengröße* und *Unregelmäßigkeit* bestimmen das Aussehen. Die *Zufallszahl* steht nach dem Erzeugen in
+der Statusleiste – dieselbe Zahl ergibt wieder dasselbe Puzzle. Tipp: erst ein Foto auf die Fläche
+gravieren, dann das Puzzle ausschneiden.
+
+**Schablonen-Stege** (*Werkzeuge → Schablonen-Stege…*) – für Schablonen, bei denen Buchstaben aus einer
+Platte ausgeschnitten werden: Innenteile wie im O, A, B oder 8 würden herausfallen. Text oder Form
+auswählen; TiLaser legt durch jedes Innenteil einen Steg (senkrecht oder waagerecht) der eingestellten
+Breite.
 
 ---
 
@@ -751,6 +820,24 @@ links und die Bedienung rechts; dort gilt außerdem **Leertaste** = Pause/Fortse
 > Firewall beim ersten Start, ob TiLaser im privaten Netz erreichbar sein darf – das mit *Zulassen*
 > bestätigen. Auch mit Weboberfläche gilt: den Laser nie unbeaufsichtigt lassen.
 
+### Auftragsprotokoll
+
+*Maschine → Auftragsprotokoll…* zeigt alle Aufträge: Start, Dauer, Ergebnis (fertig, gestoppt, Alarm …),
+Art (Auftrag oder Testmuster), Projektdatei, Ebenen mit Leistung und Geschwindigkeit, ob über die
+Weboberfläche gestartet wurde, ein Flammenalarm und die Kosten. Darunter stehen die Summen.
+
+Für die **Kosten** drei Werte eintragen (0 = nicht berechnen):
+
+- *Stundensatz* – z. B. Abnutzung der Laserdiode und Maschine oder die eigene Arbeitszeit
+- *Leistungsaufnahme* – Laser, Absaugung und Luftpumpe zusammen in Watt
+- *Strompreis* je kWh
+
+Kosten = Laufzeit × Stundensatz + Laufzeit × Leistungsaufnahme × Strompreis (Pausen zählen nicht mit).
+Das Protokoll ist die Datei `auftraege.csv` im Einstellungsordner (siehe Kapitel 19), mit Semikolon
+getrennt, so dass Excel und LibreOffice sie direkt öffnen. *Als CSV speichern…* legt eine Kopie ab,
+*Protokoll leeren…* löscht alle Einträge. Rahmenfahrten werden nicht protokolliert; das Protokollieren
+lässt sich im selben Dialog ausschalten.
+
 ## 13. Vorschau und Simulation
 
 ![Werkzeugweg-Vorschau](screenshots/10_vorschau.png)
@@ -945,6 +1032,7 @@ Tastenkürzel bekommen.
 |---|---|
 | Maschinenprofil, eigene Presets | Windows: `%USERPROFILE%\.tilaser`, Linux/macOS: `~/.tilaser` |
 | Portable Version | Unterordner `daten` neben `TiLaser.exe` (aktiv, solange `portable.txt` existiert) |
+| Auftragsprotokoll | `auftraege.csv` im selben Ordner wie das Maschinenprofil |
 | Eigener Ordner | Umgebungsvariable `TILASER_HOME` |
 | Projekte | Beliebig, Dateiendung `.tlp` |
 

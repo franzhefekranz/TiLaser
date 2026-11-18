@@ -1565,6 +1565,102 @@ def test_webserver():
         srv.stop()
 
 
+def _ring_area(rings):
+    tot = 0.0
+    for r in rings:
+        p = r.pts if hasattr(r, "pts") else r
+        tot += 0.5 * float(np.sum(p[:, 0] * np.roll(p[:, 1], -1) - p[:, 1] * np.roll(p[:, 0], -1)))
+    return tot
+
+
+def test_clip_boolean_without_pyclipper():
+    from tilaser.core.clip import boolean, clip_lines
+    sq = lambda x, y, w, h: g.Polyline(np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], float), True)
+    a, b = [sq(0, 0, 10, 10)], [sq(5.001, 5.002, 10, 10)]
+    assert abs(abs(_ring_area(boolean(a, b, "intersection"))) - 4.999 * 4.998) < 1e-6
+    assert abs(abs(_ring_area(boolean(a, b, "difference"))) - (100 - 4.999 * 4.998)) < 1e-6
+    ring = [g.Polyline(g.circle_points(0, 0, 10), True), g.Polyline(g.circle_points(0, 0, 5), True)]
+    pieces = clip_lines([g.Polyline(np.array([[-20, 0.3], [20, 0.3]]))], ring)
+    assert len(pieces) == 2 and all(abs(p.pts[:, 0]).min() >= 4.9 for p in pieces)
+
+
+def test_patterns_in_region():
+    from tilaser.core import patterns as pt
+    from tilaser.core.clip import distance_to_edges, inside
+    rect = [g.Polyline(np.array([[0, 0], [120, 0], [120, 50], [0, 50]], float), True)]
+    hinge = pt.living_hinge(rect, 20, 3, 1.5, 3)
+    pts = np.vstack([p.pts for p in hinge])
+    assert len(hinge) > 50 and (distance_to_edges(pts, rect) >= 3 - 1e-6).all()
+    holes = pt.hole_pattern(rect, "hex", 6, 2, "offset", 3)
+    pts = np.vstack([p.pts for p in holes])
+    assert len(holes) > 40 and inside(pts, rect).all() and (distance_to_edges(pts, rect) >= 3 - 1e-6).all()
+    donut = [g.Polyline(g.circle_points(60, 40, 38), True),
+             g.Polyline(np.array([[45, 30], [75, 30], [75, 50], [45, 50]], float), True)]
+    region_area = abs(_ring_area(donut[:1])) - 600
+    for kind in pt.ENGRAVE_PATTERNS:
+        res = pt.engrave_pattern(donut, kind, 8, 1)
+        cov = sum(abs(_ring_area([p])) for p in res)
+        assert res and 0.15 * region_area < cov < 0.95 * region_area, kind
+        c = np.vstack([p.pts for p in res])
+        assert inside(c[:: max(1, len(c) // 200)] * 0.999 + np.array([60, 40]) * 0.001, donut[:1]).all()
+    hs = pt.engrave_pattern(rect, "checker", 10, 0)
+    assert abs(sum(abs(_ring_area([p])) for p in hs) - 3000) < 5
+
+
+def test_finger_joint_edges():
+    from tilaser.core.clip import boolean
+    from tilaser.core.joints import finger_joint
+    A = [np.array([[0, 0], [100, 0], [100, 50], [0, 50.]])]
+    B = [np.array([[100, 80], [0, 80], [0, 50], [100, 50.]])]
+    w = 100 / 11
+    ra, rb, n = finger_joint(A, B, 3, 10, "corner")
+    assert n == 1 and abs(_ring_area(ra) - (5000 - 5 * w * 3)) < 1e-6 and abs(_ring_area(rb) - (3000 - 6 * w * 3)) < 1e-6
+    ra, rb, _ = finger_joint(A, B, 3, 10, "tabs")
+    P = lambda rs: [g.Polyline(r, True) for r in rs]
+    assert abs(_ring_area(ra) - (5000 + 6 * w * 3)) < 1e-6
+    assert sum(abs(_ring_area([p])) for p in boolean(P(ra), P(rb), "intersection")) < 1e-6   # greifen ineinander
+    ra2, rb2, _ = finger_joint(A, B, 3, 10, "corner", dogbone=1.0)
+    assert len(rb2[0]) > len(rb[0]) and _ring_area(rb2) < 3000 - 6 * w * 3
+    try:
+        finger_joint(A, [r + [0, 20] for r in B], 3, 10)
+        assert False
+    except ValueError:
+        pass
+
+
+def test_gear_puzzle_stencil():
+    from tilaser.core.shapes_gen import gear_pair, jigsaw, spur_gear, stencil_bridges
+    gear = spur_gear(2, 20, bore=5)
+    r = np.hypot(*gear[0].pts.T)
+    assert abs(r.max() - 22) < 0.05 and abs(r.min() - 17.5) < 0.05 and len(gear) == 2
+    a, b, dist = gear_pair(2, 15, 24)
+    assert dist == 39
+    frame, lines = jigsaw(200, 150, 6, 4, seed=7)
+    assert frame.closed and len(lines) == 3 + 5
+    pts = np.vstack([p.pts for p in lines])
+    assert pts[:, 0].min() >= -0.01 and pts[:, 0].max() <= 200.01
+    assert len(jigsaw(200, 150, 6, 4, seed=7)[1][0].pts) == len(lines[0].pts)    # gleiche Zahl, gleiches Puzzle
+    o = [g.Polyline(g.circle_points(0, 0, 10), True), g.Polyline(g.circle_points(0, 0, 6), True)]
+    res, n = stencil_bridges(o, 2.0)
+    assert n == 1 and len(res) == 2
+    assert abs(sum(abs(_ring_area([p])) for p in res) - (np.pi * 64 - 2 * 2 * 4)) < 0.5
+
+
+def test_job_log(tmp_path=None):
+    import tempfile
+    from tilaser.core import joblog
+    d = tempfile.mkdtemp()
+    f = os.path.join(d, "auftraege.csv")
+    e = joblog.JobEntry(start="2026-11-18 10:00:00", duration_s=1800, result="fertig", project="test.tlp",
+                        layers="Schneiden (80 %, 300 mm/min, 1×)", cost=joblog.job_cost(1800, 10, 200, 0.4))
+    joblog.append(e, f)
+    joblog.append(joblog.JobEntry(result="gestoppt", duration_s=60), f)
+    rows = joblog.read(f)
+    assert len(rows) == 2 and rows[0].project == "test.tlp" and abs(rows[0].cost - 5.04) < 1e-9
+    assert rows[0].duration_s == 1800 and joblog.totals(rows)["done"] == 1
+    assert open(f, "rb").read(3) == b"\xef\xbb\xbf"                    # BOM für Excel
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

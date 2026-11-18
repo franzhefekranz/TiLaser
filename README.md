@@ -130,7 +130,11 @@ ein GitHub-Release an.
 | Bildoptionen | Ebene (Raster): Helligkeit, Kontrast, Gamma; Dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Bild nachzeichnen | *Werkzeuge → Bild nachzeichnen* (Alt+T) bzw. Rechtsklick auf ein Bild |
 | Materialtest | *Werkzeuge → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
-| Box-Generator | *Werkzeuge → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |
+| Muster in Fläche | *Werkzeuge → Muster in Fläche*: Biegescharnier, Lochmuster/Lüftungsgitter, Gravurmuster (Hahnentritt, Fischgrät, Waben …) |
+| Fingerzinken an Kante | Zwei Teile mit berührenden Kanten verzinken, als Eckverbindung oder ineinandergreifend, optional mit Dogbone-Ecken |
+| Zahnrad, Puzzle, Schablone | *Werkzeuge → Generatoren*: Evolventen-Zahnrad (auch als Paar), Puzzle; *Schablonen-Stege* für Innenteile |
+| Auftragsprotokoll | *Maschine → Auftragsprotokoll*: Dauer, Ergebnis, Ebenen und Kosten jedes Auftrags, CSV |
+| Box-Generator | *Werkzeuge → Generatoren → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |
 | Fokus- und Zeilenabstandstest | *Werkzeuge → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |
 | Offset-Füllung | Ebenenmodus: Flächen mit Konturlinien von außen nach innen füllen |
 | Variable Texte, QR-Code, Barcode | Platzhalter `{nr}`, `{datum}`, `{Spalte}` aus CSV, zählt nach jedem Auftrag weiter; QR-Code und Code 128 ohne Zusatzprogramm |

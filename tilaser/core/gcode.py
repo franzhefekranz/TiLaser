@@ -87,6 +87,11 @@ class MachineProfile:
     web_port: int = 8080
     web_pin: str = ""                 # leer = ohne Anmeldung (nicht empfohlen)
     web_allow_start: bool = False     # Aufträge aus der Ferne starten erlauben
+    job_log: bool = True              # Aufträge im Protokoll (auftraege.csv) festhalten
+    job_rate: float = 0.0             # Maschinenstundensatz für die Kostenrechnung
+    job_power_w: float = 0.0          # Leistungsaufnahme (Laser + Absaugung + Luft) in W
+    job_kwh_price: float = 0.0        # Strompreis je kWh
+    job_currency: str = "€"
 
     @property
     def y_scale(self) -> float:

@@ -26,7 +26,7 @@ from ..core.svg_import import import_svg
 from ..core.text_import import text_to_polylines
 from .canvas import LaserCanvas
 from . import icons
-from .dialogs import (ArrayDialog, BarcodeDialog, BoxDialog, CameraGrabber, VarDialog, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog, FocusTestDialog, IntervalTestDialog,
+from .dialogs import (ArrayDialog, BarcodeDialog, BoxDialog, ParamDialog, CameraGrabber, VarDialog, GcodeDialog, MachineDialog, MaterialTestDialog, NestDialog, FocusTestDialog, IntervalTestDialog,
                       OffsetDialog,
                       PointPickDialog, TextDialog, TextPathDialog, TraceDialog, camera_devices)
 from .camera_live import CameraPanel, LiveCamera
@@ -144,6 +144,8 @@ class MainWindow(QMainWindow):
         self.camera_panel.flameDetected.connect(self._on_flame)
         self.machine.jobEnded.connect(lambda _s: self.camera_panel.job_finished())
         self.machine.jobEnded.connect(self._on_job_ended)
+        self.machine.jobStarted.connect(self._job_log_started)
+        self.machine.jobEnded.connect(self._job_log_ended)
         self.machine.macrosEdited.connect(self._bind_macro_keys)
         self._macro_shortcuts = []
         self._bind_macro_keys()
@@ -312,8 +314,23 @@ class MainWindow(QMainWindow):
                                "QR-Code oder Code-128-Barcode als Gravur einfügen (Platzhalter erlaubt)"))
         wz.addAction(self._act("Variable Texte…", self.var_settings, None,
                                "Fortlaufende Nummer und CSV-Datei für Platzhalter wie {nr} oder {Name}"))
-        wz.addAction(self._act("Box-Generator…", self.box_generator, "Ctrl+Shift+B",
-                               "Kasten mit Fingerzinken aus Plattenmaterial erzeugen"))
+        gen = wz.addMenu("Generatoren")
+        gen.addAction(self._act("Box-Generator…", self.box_generator, "Ctrl+Shift+B",
+                                "Kasten mit Fingerzinken aus Plattenmaterial erzeugen"))
+        gen.addAction(self._act("Zahnrad…", self.gear_generator, None,
+                                "Stirnrad mit Evolventenverzahnung, optional mit passendem Gegenrad"))
+        gen.addAction(self._act("Puzzle…", self.puzzle_generator, None, "Puzzle mit zufälligen Nasen"))
+        mu = wz.addMenu("Muster in Fläche")
+        mu.addAction(self._act("Biegescharnier…", lambda: self.pattern_tool("hinge"), None,
+                               "Schnittmuster, mit dem sich Holz in der ausgewählten Fläche biegen lässt"))
+        mu.addAction(self._act("Lochmuster / Lüftungsgitter…", lambda: self.pattern_tool("holes"), None,
+                               "Löcher oder Langlöcher in der ausgewählten Fläche verteilen"))
+        mu.addAction(self._act("Gravurmuster…", lambda: self.pattern_tool("engrave"), None,
+                               "Hahnentritt, Fischgrät, Waben … als Gravur in der ausgewählten Fläche"))
+        wz.addAction(self._act("Fingerzinken an Kante…", self.finger_joint_tool, None,
+                               "Zinken an der gemeinsamen Kante zweier Teile, optional mit Dogbone-Ecken"))
+        wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
+                               "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
         wz.addAction(self._act("Fokustest…", self.focus_test, None,
                                "Besten Fokusabstand finden: Rampe auf schrägem Brett oder Linien mit Z-Versatz"))
@@ -352,6 +369,8 @@ class MainWindow(QMainWindow):
                                "Einstellungen der GRBL-Steuerung anzeigen und ändern"))
         mm.addAction(self._act("Makros bearbeiten…", self.machine.edit_macros, None,
                                "Eigene G-Code-Knöpfe mit Tastenkürzel"))
+        mm.addAction(self._act("Auftragsprotokoll…", self.job_log_dialog, None,
+                               "Alle Aufträge mit Dauer, Ergebnis und Kosten"))
         mm.addAction(self._act("Weboberfläche…", self.web_settings, None,
                                "Laser vom Handy oder einem anderen Rechner im Netz beobachten und bedienen"))
         self.a_rotary = self._act("Rotationsachse aktiv", self._toggle_rotary)
@@ -1219,6 +1238,7 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Auftrag starten", text) != QMessageBox.StandardButton.Yes:
             return
         self._var_job = True                     # nach dem Auftrag Platzhalter weiterzählen
+        self._prepare_job_log("Auftrag", res, "TiLaser")
         self.machine.run_job(res.lines)
 
     def run_frame(self):
@@ -1599,6 +1619,252 @@ class MainWindow(QMainWindow):
         if dlg.exec() == FocusTestDialog.DialogCode.Accepted and dlg.action:
             self._run_test(dlg.project(), "Fokustest", dlg.action)
 
+    # ------------------------------------------------------------ Generatoren und Muster
+    def _target_layer(self, choice, mode_new: str, name_new: str):
+        if choice == ParamDialog.NEW_FILL:
+            return self.project.add_layer(name_new, mode="fill")
+        if choice == ParamDialog.NEW_CUT:
+            return self.project.add_layer(name_new, mode="cut")
+        return self.project.layer(choice) or self.project.add_layer(name_new, mode=mode_new)
+
+    def _add_generated(self, name: str, world, select=True):
+        """world: Liste (Polylinie, Ebenen-ID) in Weltkoordinaten -> neues Objekt."""
+        n = self.project._item_from_world(name, world)
+        self.project.items.append(n)
+        self.canvas.add_item(n)
+        self.layers.set_project(self.project)
+        if select:
+            self.canvas.select_only([n.id])
+        self._invalidate()
+        return n
+
+    def _place_at(self, polys, x=10.0, y=10.0):
+        bb = g.bbox(polys)
+        m = g.translate(x - bb[0], y - bb[1])
+        return [p.transformed(m) for p in polys]
+
+    def _region_selection(self, title):
+        items = self._vector_selection()
+        rings = [p for it in items for p in it.world_paths() if p.closed and len(p.pts) >= 3]
+        if not rings:
+            QMessageBox.information(self, title, "Bitte zuerst eine geschlossene Kontur auswählen "
+                                                 "(z. B. ein Rechteck oder die Umrisslinie eines Teils).")
+            return None, None
+        return items, rings
+
+    def pattern_tool(self, kind: str):
+        from ..core import patterns as pt
+        titles = {"hinge": "Biegescharnier", "holes": "Lochmuster", "engrave": "Gravurmuster"}
+        title = titles[kind]
+        items, region = self._region_selection(title)
+        if not region:
+            return
+        cut_pref = next(iter(items[0].layer_ids()), ParamDialog.NEW_CUT)
+        if kind == "hinge":
+            fields = [("style", "Art", "c", "straight", pt.HINGE_STYLES),
+                      ("slit", "Schlitzlänge", "f", 20.0, (2, 500, 1, 1, " mm")),
+                      ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
+                      ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
+                      ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                      ("angle", "Richtung der Schlitze", "f", 0.0, (-180, 180, 0, 15, " °")),
+                      ("layer", "Ebene", "layer", None, (("cut",), cut_pref))]
+            info = ("Die Fläche biegt sich um eine Achse parallel zu den Schlitzen. Kleinerer Reihenabstand "
+                    "und längere Schlitze = weicher. Für 3-mm-Sperrholz sind 1,5 mm Abstand und 20 mm Schlitze "
+                    "ein guter Anfang. Die Fläche selbst wird nicht verändert.")
+        elif kind == "holes":
+            fields = [("shape", "Form", "c", "circle", pt.HOLE_SHAPES),
+                      ("size", "Größe (Ø / Schlüsselweite)", "f", 5.0, (0.5, 200, 1, 0.5, " mm")),
+                      ("slot_len", "Länge (nur Langloch)", "f", 15.0, (1, 500, 1, 1, " mm")),
+                      ("web", "Steg zwischen Löchern", "f", 2.0, (0.2, 100, 1, 0.5, " mm")),
+                      ("layout", "Anordnung", "c", "offset", pt.HOLE_LAYOUTS),
+                      ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                      ("angle", "Drehung", "f", 0.0, (-180, 180, 0, 15, " °")),
+                      ("layer", "Ebene", "layer", None, (("cut",), cut_pref))]
+            info = "Es werden nur ganze Löcher gesetzt, die mit dem Randabstand vollständig in der Fläche liegen."
+        else:
+            fields = [("pattern", "Muster", "c", "houndstooth", pt.ENGRAVE_PATTERNS),
+                      ("size", "Größe (Rapport)", "f", 8.0, (1, 200, 1, 0.5, " mm")),
+                      ("gap", "Fuge / Abstand", "f", 1.0, (0, 50, 1, 0.2, " mm")),
+                      ("angle", "Drehung", "f", 0.0, (-180, 180, 0, 15, " °")),
+                      ("layer", "Ebene", "layer", None, (("fill",), ParamDialog.NEW_FILL))]
+            info = ("Das Muster wird als Fläche auf eine Füll-Ebene gelegt und dort graviert. "
+                    "Die Fuge gilt für Rauten, Punkte, Waben, Ziegel und Wellen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        try:
+            if kind == "hinge":
+                res = pt.living_hinge(region, v["slit"], v["bridge"], v["spacing"], v["margin"], v["angle"], v["style"])
+            elif kind == "holes":
+                res = pt.hole_pattern(region, v["shape"], v["size"], v["web"], v["layout"], v["margin"],
+                                      v["slot_len"], v["angle"])
+            else:
+                res = pt.engrave_pattern(region, v["pattern"], v["size"], v["gap"], v["angle"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        if not res:
+            QMessageBox.information(self, title, "Mit diesen Einstellungen passt nichts in die Fläche.")
+            return
+        self._checkpoint(title)
+        layer = self._target_layer(v["layer"], "fill" if kind == "engrave" else "cut", title)
+        self._add_generated(title, [(p, layer.id) for p in res])
+        self.statusBar().showMessage(f"{title}: {len(res)} Konturen erzeugt.", 6000)
+
+    def finger_joint_tool(self):
+        from ..core.joints import finger_joint
+        title = "Fingerzinken an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        fields = [("kind", "Art", "c", "corner", {"corner": "Eckverbindung (Außenmaße bleiben)",
+                                                  "tabs": "Zinken nach außen (Teile liegen wie gezeichnet)"}),
+                  ("thickness", "Materialstärke", "f", 3.0, (0.5, 50, 2, 0.1, " mm")),
+                  ("finger", "Zinkenbreite", "f", 10.0, (1, 200, 1, 1, " mm")),
+                  ("dogbone", "Dogbone-Durchmesser (0 = aus)", "f", 1.0, (0, 20, 2, 0.1, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None),
+                  ("swap", "Zinken bei Teil 2 beginnen", "b", False, None)]
+        info = ("Die beiden Teile so hinlegen, dass die zu verbindenden Kanten aufeinanderliegen (z. B. mit "
+                "Anordnen → Ausrichten). Kurven bleiben erhalten nur als feine Linienzüge.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        a, b = (items[1], items[0]) if v["swap"] else (items[0], items[1])
+        wa, wb = [(p, vp.layer_id) for p, vp in zip(a.world_paths(), a.paths)], \
+                 [(p, vp.layer_id) for p, vp in zip(b.world_paths(), b.paths)]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n = finger_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], v["thickness"],
+                                     v["finger"], v["kind"], v["dogbone"], v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        for it, world, idx, rings in ((a, wa, ia, ra), (b, wb, ib, rb)):
+            new_world = list(world)
+            for k, i in enumerate(idx):
+                if len(rings[k]) != len(world[i][0].pts) or not np.allclose(rings[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rings[k], True), world[i][1])
+            self._replace_item(it, new_world)
+        self.statusBar().showMessage(f"Fingerzinken an {n} Kante(n) erzeugt.", 6000)
+
+    def _replace_item(self, it, world):
+        idx = self.project.items.index(it)
+        n = self.project._item_from_world(it.name, world)
+        self.project.remove_item(it.id)
+        self.canvas.remove_item(it.id)
+        self.project.items.insert(idx, n)
+        self.canvas.add_item(n)
+        self._invalidate()
+        return n
+
+    def stencil_tool(self):
+        from ..core.shapes_gen import stencil_bridges
+        title = "Schablonen-Stege"
+        items = self._vector_selection()
+        if not items:
+            QMessageBox.information(self, title, "Bitte zuerst einen Text oder eine Form auswählen.")
+            return
+        fields = [("width", "Stegbreite", "f", 1.5, (0.2, 20, 2, 0.1, " mm")),
+                  ("dir", "Richtung", "c", "vertical", {"vertical": "Senkrecht", "horizontal": "Waagerecht"})]
+        dlg = ParamDialog(title, fields, self.project, "Für jedes Innenteil (z. B. im O, A, B, 8) wird ein Steg "
+                          "durch die Form gelegt, damit es beim Ausschneiden der Schablone hängen bleibt.", self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        done = 0
+        self._checkpoint(title)
+        new_ids = []
+        for it in items:
+            paths = it.world_paths()
+            lid = next(iter(it.layer_ids()))
+            try:
+                res, n = stencil_bridges([p for p in paths if p.closed], v["width"], v["dir"])
+            except ValueError:
+                continue
+            if n:
+                new = self._replace_item(it, [(p, lid) for p in res] + [(p, lid) for p in paths if not p.closed])
+                new_ids.append(new.id)
+                done += n
+            else:
+                new_ids.append(it.id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"{done} Steg(e) eingefügt." if done else "Keine Innenteile gefunden.", 6000)
+
+    def gear_generator(self):
+        from ..core.shapes_gen import gear_info, gear_pair, spur_gear
+        title = "Zahnrad"
+        fields = [("module", "Modul", "f", 2.0, (0.3, 20, 2, 0.25, " mm")),
+                  ("teeth", "Zähne", "i", 20, (6, 400)),
+                  ("pressure", "Eingriffswinkel", "c", 20.0, {20.0: "20° (Standard)", 14.5: "14,5°", 25.0: "25°"}),
+                  ("bore", "Bohrung (0 = keine)", "f", 5.0, (0, 500, 1, 0.5, " mm")),
+                  ("backlash", "Flankenspiel", "f", 0.1, (0, 2, 2, 0.05, " mm")),
+                  ("pair", "Gegenrad erzeugen", "b", False, None),
+                  ("teeth2", "Zähne Gegenrad", "i", 40, (6, 400)),
+                  ("bore2", "Bohrung Gegenrad", "f", 5.0, (0, 500, 1, 0.5, " mm")),
+                  ("layer", "Ebene", "layer", None, (("cut",), ParamDialog.NEW_CUT))]
+        dlg = ParamDialog(title, fields, self.project, "Teilkreis = Modul × Zähne. Räder mit gleichem Modul passen "
+                          "zusammen; der Achsabstand ist Modul × (Zähne 1 + Zähne 2) / 2. Ab etwa 17 Zähnen "
+                          "entstehen keine unterschnittenen Zähne.", self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        try:
+            if v["pair"]:
+                a, b, dist = gear_pair(v["module"], v["teeth"], v["teeth2"], v["pressure"], v["bore"], v["bore2"],
+                                       v["backlash"])
+            else:
+                a, b, dist = spur_gear(v["module"], v["teeth"], v["pressure"], v["bore"], v["backlash"]), [], 0
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        layer = self._target_layer(v["layer"], "cut", "Zahnrad")
+        inf = gear_info(v["module"], v["teeth"])
+        shift = self._place_at(a + b)
+        na = len(a)
+        ids = [self._add_generated(f"Zahnrad z={v['teeth']}", [(p, layer.id) for p in shift[:na]], False).id]
+        if b:
+            ids.append(self._add_generated(f"Zahnrad z={v['teeth2']}", [(p, layer.id) for p in shift[na:]], False).id)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(f"Teilkreis Ø {inf['pitch_d']:g} mm, Kopfkreis Ø {inf['outer_d']:g} mm"
+                                     + (f", Achsabstand {dist:g} mm" if b else ""), 10000)
+
+    def puzzle_generator(self):
+        import random
+        from ..core.shapes_gen import jigsaw
+        title = "Puzzle"
+        fields = [("width", "Breite", "f", 200.0, (10, 2000, 1, 5, " mm")),
+                  ("height", "Höhe", "f", 150.0, (10, 2000, 1, 5, " mm")),
+                  ("cols", "Spalten", "i", 6, (1, 100)),
+                  ("rows", "Reihen", "i", 4, (1, 100)),
+                  ("tab", "Nasengröße", "f", 20.0, (10, 30, 0, 1, " %")),
+                  ("jitter", "Unregelmäßigkeit", "f", 4.0, (0, 13, 0, 1, " %")),
+                  ("seed", "Zufallszahl (0 = neu würfeln)", "i", 0, (0, 999999)),
+                  ("radius", "Eckenradius", "f", 0.0, (0, 100, 1, 1, " mm")),
+                  ("layer", "Ebene", "layer", None, (("cut",), ParamDialog.NEW_CUT))]
+        dlg = ParamDialog(title, fields, self.project, "Tipp: Ein Foto auf derselben Fläche vorher gravieren, "
+                          "dann ausschneiden. Gleiche Zufallszahl = gleiches Puzzle.", self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        seed = v["seed"] or random.randint(1, 999999)
+        try:
+            frame, lines = jigsaw(v["width"], v["height"], v["cols"], v["rows"], v["tab"], v["jitter"], seed,
+                                  v["radius"], 10.0, 10.0)
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        layer = self._target_layer(v["layer"], "cut", "Puzzle")
+        self._add_generated(f"Puzzle {v['cols']}×{v['rows']}", [(frame, layer.id)] + [(p, layer.id) for p in lines])
+        self.statusBar().showMessage(f"Puzzle mit {v['cols'] * v['rows']} Teilen, Zufallszahl {seed}.", 10000)
+
     def box_generator(self):
         dlg = BoxDialog(self.profile, self)
         if dlg.exec() == BoxDialog.DialogCode.Accepted and dlg.action:
@@ -1647,6 +1913,7 @@ class MainWindow(QMainWindow):
             if QMessageBox.question(self, title, f"{title} starten? Dauer ca. {fmt_time(res.time_s)}\n\n"
                                     "⚠ Schutzbrille tragen, Laser nie unbeaufsichtigt lassen!") \
                     == QMessageBox.StandardButton.Yes:
+                self._prepare_job_log(title, res, "TiLaser", tp)
                 self.machine.run_job(res.lines)
 
     def resume_job(self):
@@ -1805,8 +2072,13 @@ class MainWindow(QMainWindow):
         try:
             res = bo.boolean_many(groups, op)
         except bo.BooleanUnavailable as e:
-            QMessageBox.warning(self, "Formen", str(e))
-            return
+            if op == "xor":
+                QMessageBox.warning(self, "Formen", str(e))
+                return
+            from ..core import clip           # eigene Berechnung ohne pyclipper
+            res = groups[0]
+            for grp in groups[1:]:
+                res = clip.boolean(res, grp, op)
         self._checkpoint({"union": "Vereinigen", "difference": "Abziehen", "intersection": "Schnittmenge",
                           "xor": "Ausschluss"}[op])
         layer_id = next(iter(items[0].layer_ids()))
@@ -2055,6 +2327,54 @@ class MainWindow(QMainWindow):
                 sc.activated.connect(lambda i=k: self.machine.run_macro(i))
                 self._macro_shortcuts.append(sc)
 
+    # ------------------------------------------------------------ Auftragsprotokoll
+    def _prepare_job_log(self, kind, res, source, project=None):
+        from ..core import joblog
+        if not getattr(self.profile, "job_log", True):
+            self._job_info = None
+            return
+        name = os.path.basename(self.project_path) if self.project_path and project is None else \
+            ("" if project is not None else "(ungespeichert)")
+        self._job_info = {"kind": kind, "project": name,
+                          "layers": joblog.layer_summary(project if project is not None else self.project),
+                          "lines": len(res.lines), "estimate_s": float(res.time_s), "source": source,
+                          "t0": None, "start": "", "flame": ""}
+
+    def _job_log_started(self):
+        info = self.__dict__.get("_job_info")
+        if info and info["t0"] is None:
+            import time as _t
+            from ..core import joblog
+            info["t0"], info["start"] = _t.time(), joblog.now()
+
+    def _job_log_ended(self, state):
+        info = self.__dict__.get("_job_info")
+        self._job_info = None
+        if not info or info["t0"] is None:
+            return
+        from ..core import joblog
+        dur = self.machine._active_time() if hasattr(self.machine, "_active_time") else 0.0
+        if not dur:
+            import time as _t
+            dur = _t.time() - info["t0"]
+        p = self.profile
+        e = joblog.JobEntry(start=info["start"], end=joblog.now(), duration_s=float(dur),
+                            estimate_s=info["estimate_s"], result=joblog.RESULTS.get(state, state),
+                            kind=info["kind"], project=info["project"], layers=info["layers"],
+                            lines=info["lines"], source=info["source"], flame=info["flame"],
+                            cost=joblog.job_cost(dur, p.job_rate, p.job_power_w, p.job_kwh_price))
+        try:
+            joblog.append(e)
+        except OSError as ex:
+            self.machine._log(f"!! Auftragsprotokoll konnte nicht geschrieben werden: {ex}")
+
+    def job_log_dialog(self):
+        from .dialogs import JobLogDialog
+        dlg = JobLogDialog(self.profile, self)
+        if dlg.exec() == JobLogDialog.DialogCode.Accepted:
+            dlg.apply(self.profile)
+            storage.save_machine(self.profile)
+
     def _on_job_ended(self, state):
         was = self.__dict__.pop("_var_job", False)
         if was and state == "done":
@@ -2080,6 +2400,8 @@ class MainWindow(QMainWindow):
         if not test:
             import time as _t
             self._flame_alarm, self._flame_did = _t.time(), did
+            if self.__dict__.get("_job_info"):
+                self._job_info["flame"] = _t.strftime("%H:%M:%S") + (f" ({did})" if did else "")
             self._web_tick()
         self.tabs.setCurrentWidget(cp)
         self.raise_()
@@ -2239,6 +2561,7 @@ class MainWindow(QMainWindow):
             return
         m._log(f"-- Auftrag über die Weboberfläche gestartet (ca. {fmt_time(res.time_s)}).")
         self._var_job = True
+        self._prepare_job_log("Auftrag", res, "Weboberfläche")
         m.run_job(res.lines)
 
     def _live_bg_toggled(self, on):
