@@ -57,9 +57,10 @@ PyInstaller baut einen Ordner (`dist/TiLaser`), keine Einzeldatei-EXE. Das start
 von Virenscannern beanstandet. Die Konfiguration steht in `packaging/tilaser.spec`, das Installer-Skript in
 `packaging/windows/tilaser.iss`.
 
-**Neue Version veröffentlichen:** `__version__` in `tilaser/__init__.py` erhöhen, committen, dann
-`git tag v0.2.0 && git push --tags`. Der Workflow `.github/workflows/build.yml` baut alle Pakete und hängt sie an
-ein GitHub-Release an.
+**Neue Version veröffentlichen:** `__version__` in `tilaser/__init__.py` erhöhen, in `CHANGELOG.md` einen
+Abschnitt `## <Version>` schreiben, beides nach `main` bringen, dann `git tag v0.9.1 && git push origin v0.9.1`.
+Der Workflow `.github/workflows/build.yml` baut alle Pakete und legt ein GitHub-Release mit dem Text aus
+`CHANGELOG.md` an (Versionen 0.x als Vorabversion).
 
 ## Funktionen
 

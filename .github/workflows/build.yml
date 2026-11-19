@@ -85,9 +85,20 @@ jobs:
         with:
           path: release
           merge-multiple: true
+      - name: Beschreibung aus CHANGELOG.md
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          awk -v v="$V" '$0 ~ "^## "v"( |$)" {f=1; next} f && /^## [0-9]/ {exit} f' CHANGELOG.md > release-notes.md
+          [ -s release-notes.md ] || echo "TiLaser $V" > release-notes.md
+          cat release-notes.md
       - uses: softprops/action-gh-release@v2
         with:
+          name: TiLaser ${{ github.ref_name }}
+          body_path: release-notes.md
+          # Versionen vor 1.0 gelten als Beta (Vorabversion)
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
           files: |
             release/*
             docs/TiLaser-Bedienungsanleitung.pdf
+            docs/TiLaser-Manual.pdf
           generate_release_notes: true
