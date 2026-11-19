@@ -470,7 +470,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, tt)
         self.tool_group = QActionGroup(self)
         self.tool_actions = {}
-        for key, text, sc, tip in (("select", "⬚", "V", "Auswählen und verschieben (V)"),
+        for key, text, sc, tip in (("select", "⬚", "V", "Auswählen und verschieben (V). Rahmen nach rechts = nur ganz umschlossene, nach links = berührte Objekte"),
                                    ("rect", "▭", "R", "Rechteck zeichnen (R) – Shift: Quadrat, Strg: von der Mitte"),
                                    ("ellipse", "◯", "E", "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte"),
                                    ("polygon", "⬡", "P", "Polygon/Stern zeichnen (P)"),

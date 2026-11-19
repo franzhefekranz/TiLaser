@@ -767,7 +767,7 @@
  "Großes Kamerafenster": "Large camera window",
  "Live-Bild in einem eigenen Fenster, z. B. auf dem zweiten Bildschirm": "Live image in a separate window, e.g. on a second screen",
  "Lizenzen von TiLaser und der mitgelieferten Bibliotheken": "Licenses of TiLaser and the included libraries",
- "Auswählen und verschieben (V)": "Select and move (V)",
+ "Auswählen und verschieben (V). Rahmen nach rechts = nur ganz umschlossene, nach links = berührte Objekte": "Select and move (V). Frame to the right = only fully enclosed, to the left = touched objects",
  "Rechteck zeichnen (R) – Shift: Quadrat, Strg: von der Mitte": "Draw rectangle (R) – Shift: square, Ctrl: from the center",
  "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte": "Draw ellipse (E) – Shift: circle, Ctrl: from the center",
  "Polygon/Stern zeichnen (P)": "Draw polygon/star (P)",

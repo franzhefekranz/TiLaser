@@ -193,7 +193,7 @@ Esc schaltet jederzeit zurück zu *Auswählen*.
 | Seitlich scrollen | Shift+Mausrad oder Touchpad seitwärts wischen |
 | Hoch/runter scrollen | Strg+Mausrad |
 | Kontextmenü | Rechte Maustaste **klicken** |
-| Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen |
+| Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen: **nach rechts** gezogen (von oben links) werden nur Objekte ausgewählt, die ganz im Rahmen liegen, **nach links** gezogen (von unten rechts) alle, die der Rahmen berührt. Mit Strg oder Shift kommt die Rahmenauswahl zur bestehenden Auswahl hinzu |
 | Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm) |
 | Alles zeigen | Strg+0 |
 | Löschen | Entf |
@@ -368,7 +368,7 @@ kleine Stück unter der Maus genommen. Esc bricht ab, Strg+Z macht das Anlegen r
 
 | Werkzeug | Taste | Bedienung |
 |---|---|---|
-| Auswählen | V | Standard |
+| Auswählen | V | Standard. Rahmen nach rechts ziehen = nur ganz umschlossene Objekte, nach links ziehen = alle berührten Objekte |
 | Rechteck | R | Aufziehen. Shift = Quadrat, Strg = vom Mittelpunkt aus. Eckenradius im Feld unter den Werkzeugen. |
 | Ellipse | E | Aufziehen. Shift = Kreis, Strg = vom Mittelpunkt aus. |
 | Polygon/Stern | P | Aufziehen. Eckenzahl im Feld darunter, ★ = Stern. |

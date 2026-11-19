@@ -194,7 +194,7 @@ Esc always switches back to *Select*.
 | Scroll sideways | Shift+mouse wheel or swipe sideways on the touchpad |
 | Scroll up/down | Ctrl+mouse wheel |
 | Context menu | **Click** the right mouse button |
-| Select | Click; several with Ctrl+click or by dragging a rubber band |
+| Select | Click; several with Ctrl+click or by dragging a rubber band: dragged **to the right** (from top left) only objects lying completely inside the frame are selected, dragged **to the left** (from bottom right) all objects the frame touches. With Ctrl or Shift the frame selection is added to the existing selection |
 | Move | Drag, or arrow keys (1 mm, with Shift 10 mm) |
 | Show all | Ctrl+0 |
 | Delete | Del |
@@ -366,7 +366,7 @@ piece under the mouse is used. Esc cancels, Ctrl+Z undoes the placement.
 
 | Tool | Key | How |
 |---|---|---|
-| Select | V | Default |
+| Select | V | Default. Drag the frame to the right = only fully enclosed objects, to the left = all touched objects |
 | Rectangle | R | Drag. Shift = square, Ctrl = from the center. Corner radius in the field below the tools. |
 | Ellipse | E | Drag. Shift = circle, Ctrl = from the center. |
 | Polygon/star | P | Drag. Number of corners in the field below, ★ = star. |
