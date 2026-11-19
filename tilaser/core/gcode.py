@@ -85,7 +85,7 @@ class MachineProfile:
     flame_show: bool = True           # erkannte Stellen im Live-Bild markieren
     web_enabled: bool = False         # Weboberfläche zur Fernbedienung
     web_port: int = 8080
-    web_pin: str = ""                 # leer = ohne Anmeldung (nicht empfohlen)
+    web_pin: str = ""                 # leer = beim Einschalten wird eine PIN erzeugt
     web_allow_start: bool = False     # Aufträge aus der Ferne starten erlauben
     job_log: bool = True              # Aufträge im Protokoll (auftraege.csv) festhalten
     job_rate: float = 0.0             # Maschinenstundensatz für die Kostenrechnung

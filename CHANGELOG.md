@@ -18,6 +18,8 @@ Allen Nutzern der 0.9.0 wird das Update empfohlen.
   (Lasermodus aus), startet TiLaser keinen Auftrag, der den Laser einschaltet.
 - Meldet die Steuerung während eines Auftrags `error:…`, wird der Auftrag angehalten statt fortgesetzt.
 - Ungültige Koordinaten (NaN/unendlich) gelangen nicht mehr in den G-Code.
+- *Fertig* wird erst gemeldet, wenn die Maschine wirklich steht (GRBL: Status *Idle*, Marlin/Smoothie:
+  angehängtes `M400`) – vorher konnte schon der nächste Auftrag gestartet werden, während der Laser noch lief.
 
 ### Import, Kerf und Weboberfläche
 
@@ -27,7 +29,15 @@ Allen Nutzern der 0.9.0 wird das Update empfohlen.
   Kontur mehr; entfallene Konturen werden beim Start gemeldet.
 - Weboberfläche: ungültige Anfragen (z. B. negative `Content-Length`) können den Server nicht mehr blockieren;
   Verbindungen haben ein Zeitlimit.
+- Weboberfläche: PIN ist Pflicht (mindestens 4 Zeichen), Anfragen über fremde Rechnernamen werden abgewiesen
+  (Schutz vor DNS-Rebinding), Sitzungen laufen nach 24 Stunden auch im Server ab.
 - Unerwartete Fehler werden als Meldung angezeigt, statt das Programm zu beenden.
+
+### Geschwindigkeit
+
+- G-Code-Erzeugung und Import laufen im Hintergrund; die Oberfläche, der Laser-Status, die Kamera und der
+  Flammenwächter bleiben dabei bedienbar bzw. aktiv.
+- Pfadoptimierung bei vielen Konturen deutlich schneller (3000 Konturen: 17 s → 0,5 s), mit identischem Ergebnis.
 
 ### Downloads
 
@@ -38,7 +48,9 @@ Wie bei 0.9.0, mit Versionsnummer 0.9.1.
 **English:** Safety update. Marlin/Smoothieware: *Pause* sends `M5` immediately and *Stop* sends `M410`/`M5`/air
 off without waiting; the flame guard stops instead of pausing. GRBL: explicit `S0` before travel moves, no job
 start with `$32=0`. Controller errors pause the job. Fixed hangs on malicious DXF/SVG files and in the web
-server, wrong contours from kerf compensation without pyclipper, and crashes on unexpected errors.
+server, wrong contours from kerf compensation without pyclipper, and crashes on unexpected errors. *Done* is
+reported only when the machine has stopped. Web interface: mandatory PIN, host check against DNS rebinding.
+G-code generation and import run in the background; path optimisation is up to 30× faster.
 
 ## 0.9.0
 

@@ -2006,11 +2006,109 @@ def test_webserver_bad_content_length():
         for cl in (b"-1", b"abc", b"999999"):
             c = socket.create_connection(("127.0.0.1", port))
             c.settimeout(3)
-            c.sendall(b"POST /api/login HTTP/1.1\r\nHost: x\r\nX-TiLaser: 1\r\nContent-Length: " + cl + b"\r\n\r\n{}")
+            c.sendall(b"POST /api/login HTTP/1.1\r\nHost: 127.0.0.1\r\nX-TiLaser: 1\r\nContent-Length: " + cl + b"\r\n\r\n{}")
             assert c.recv(20).startswith(b"HTTP/1.0 403")
             c.close()
     finally:
         srv.stop()
+
+
+def test_webserver_pin_and_host():
+    import socket
+    from tilaser.core import webserver as ws
+    assert ws.host_allowed("192.168.1.20:8080") and ws.host_allowed("[fe80::1]:8080")
+    assert ws.host_allowed("localhost:8080") and ws.host_allowed(socket.gethostname() + ":8080")
+    assert not ws.host_allowed("evil.example.com:8080") and not ws.host_allowed("") and not ws.host_allowed(None)
+    for pin in ("", "12"):
+        try:
+            ws.WebServer(port=0, pin=pin, host="0.0.0.0").start()
+            raise AssertionError("ohne PIN darf der Server nicht im Netz starten")
+        except ValueError:
+            pass
+    srv = ws.WebServer(port=0, pin="123456", host="127.0.0.1")
+    srv.start()
+    try:
+        c = socket.create_connection(("127.0.0.1", srv.port))
+        c.settimeout(3)
+        c.sendall(b"GET /api/status HTTP/1.1\r\nHost: rebind.attacker.net:8080\r\n\r\n")
+        assert c.recv(20).startswith(b"HTTP/1.0 421")
+        c.close()
+        tok = srv.check_pin("123456")
+        assert srv.authorized(tok)
+        srv._sessions[tok] -= ws.SESSION_S + 1                 # Sitzung abgelaufen
+        assert not srv.authorized(tok)
+    finally:
+        srv.stop()
+
+
+def test_done_only_after_idle(monkeypatch):
+    class BusyGrbl(FakeGrbl):
+        busy_until = None
+
+        def write(self, data):
+            if data == b"?":
+                run = self.busy_until is None or time.time() < self.busy_until
+                self.out += (b"<Run|MPos:0,0,0|FS:100,0>\r\n" if run else b"<Idle|MPos:0,0,0|FS:0,0>\r\n")
+                return 1
+            n = super().write(data)
+            if b"G1 X49" in data:
+                self.busy_until = time.time() + 0.8          # Maschine fährt nach dem letzten ok noch
+            return n
+    fake = BusyGrbl()
+    monkeypatch.setattr(snd, "serial", type("S", (), {"Serial": staticmethod(lambda *a, **k: fake)}))
+    states = []
+    c = snd.LaserConnection(on_state=states.append)
+    monkeypatch.setattr(c, "_detect", lambda: None)
+    c.connect("FAKE", 115200, "grbl")
+    try:
+        c.start_job([f"G1 X{i}" for i in range(50)])
+        assert _wait(lambda: fake.received and fake.received[-1] == "G1 X49")
+        t_last = time.time()
+        assert _wait(lambda: "done" in states)
+        assert time.time() - t_last > 0.5 and not c.job_active
+    finally:
+        c.disconnect()
+
+
+def test_order_paths_matches_bruteforce():
+    """Die beschleunigte Pfadoptimierung muss genau das Ergebnis des vollständigen Vergleichs liefern."""
+    def brute(polys, cur):
+        rem, out, cur = list(polys), [], np.asarray(cur, float)
+        while rem:
+            best = None
+            for i, p in enumerate(rem):
+                if p.closed:
+                    d2 = np.sum((p.pts - cur) ** 2, axis=1)
+                    k = int(np.argmin(d2))
+                    cands = [(d2[k], i, "rot", k)]
+                else:
+                    cands = [(np.sum((p.pts[0] - cur) ** 2), i, "start", 0), (np.sum((p.pts[-1] - cur) ** 2), i, "rev", 0)]
+                for c in cands:
+                    if best is None or c[:2] < best[:2]:
+                        best = c
+            p = rem.pop(best[1])
+            if best[2] == "rot":
+                pts = p.pts[:-1] if np.allclose(p.pts[0], p.pts[-1]) else p.pts
+                p = g.Polyline(np.roll(pts, -best[3], axis=0), True)
+            elif best[2] == "rev":
+                p = g.Polyline(p.pts[::-1].copy(), False)
+            out.append(p)
+            cur = p.loop_pts()[-1]
+        return out
+    rng = np.random.default_rng(7)
+    for _ in range(15):
+        ps = []
+        for _ in range(int(rng.integers(1, 90))):
+            c = np.round(rng.uniform(0, 100, 2))
+            ps.append(g.Polyline(g.circle_points(*c, float(rng.choice([1, 2, 5]))), True) if rng.random() < 0.5
+                      else g.Polyline(np.round(rng.uniform(0, 100, (int(rng.integers(2, 5)), 2))), False))
+        ps += ps[:2]                                                       # Gleichstände
+        a, b = g.order_paths(ps, (0, 0), False), brute(ps, (0, 0))
+        assert all(np.array_equal(x.pts, y.pts) for x, y in zip(a, b)) and len(a) == len(b)
+    many = [g.Polyline(g.circle_points(*rng.uniform(0, 300, 2), 2), True) for _ in range(3000)]
+    t0 = time.time()
+    assert len(g.order_paths(many, (0, 0), True)) == 3000
+    assert time.time() - t0 < 8
 
 
 if __name__ == "__main__":

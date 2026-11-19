@@ -876,7 +876,7 @@ The **job bar** at the bottom right is visible in every tab.
 | **▶ Start** | Generates the G-code and starts after a safety prompt (with estimated time and notes) |
 | **⏸ Pause / Resume** | Pauses or resumes (GRBL: feed hold `!` / `~`). With Marlin/Smoothie TiLaser sends `M5` immediately – the controller still finishes the moves already buffered, but the laser does not keep burning while standing still; on resume it is switched on again |
 | **■ Stop** | Immediate abort (GRBL: soft reset); then *Unlock* if needed. With Marlin/Smoothie immediately `M410` (quick stop), `M5` and the *air off* command |
-| Progress and time | While lasering: bar with percent and **remaining time** (“~4:12 left”), next to it **elapsed time / expected total time** (e.g. “3:05 / ~7:17”, minutes:seconds, from one hour hours:minutes:seconds). The first estimate comes from the distance and feed of each G-code line; as soon as part of the job is done, it is adjusted to the actual speed of the machine (acceleration, slower corners). Pauses do not count. After the end, the actual duration is shown, in the console together with the original estimate |
+| Progress and time | While lasering: bar with percent and **remaining time** (“~4:12 left”), next to it **elapsed time / expected total time** (e.g. “3:05 / ~7:17”, minutes:seconds, from one hour hours:minutes:seconds). The first estimate comes from the distance and feed of each G-code line; as soon as part of the job is done, it is adjusted to the actual speed of the machine (acceleration, slower corners). Pauses do not count. After the end, the actual duration is shown, in the console together with the original estimate. TiLaser reports *Done* only when the machine has really stopped: with GRBL as soon as it reports *Idle* after the last line, with Marlin/Smoothie via an appended `M400` (waits until all moves are finished) |
 | **Origin** | *Absolute*: coordinates as on the work area. *Current position*: the chosen **anchor point** (e.g. bottom left) of the job is placed where the laser head is right now – handy for positioning by jogging |
 | **Selection only** | Only laser or frame the selected objects |
 | **Resume…** | Continue from a chosen line after a stop, alarm or lost connection |
@@ -897,7 +897,7 @@ next room. TiLaser itself has to be running.
 |---|---|
 | Turn on web interface | Starts the web server (stays on after restarting TiLaser) |
 | Port | Default 8080 |
-| PIN | Asked in the browser. The login lasts up to 24 hours, but ends when TiLaser restarts or this dialog is closed with OK. After 10 wrong entries the login is locked for 5 minutes. Empty = no login (not recommended) |
+| PIN | Asked in the browser. The login lasts up to 24 hours, but ends when TiLaser restarts or this dialog is closed with OK. After 10 wrong entries the login is locked for 5 minutes. The PIN is mandatory and must have at least 4 characters; if it is empty or shorter, TiLaser creates a new one. Requests via foreign host names (instead of the IP address or the own computer name) are rejected – this protects against web pages that redirect the browser to TiLaser |
 | Allow starting jobs remotely | Shows a *Start job* button that starts the currently open project with the settings of the job bar. Off by default |
 
 The dialog shows the address (e.g. `http://192.168.1.20:8080/`) and a QR code you can scan with the phone

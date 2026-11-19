@@ -6,7 +6,8 @@ Der Server läuft in einem eigenen Thread. Er greift nie direkt auf die Oberflä
 * Befehle aus dem Browser landen in einer Warteschlange (``WebServer.commands``), die das Hauptfenster
   im eigenen Takt abarbeitet.
 
-Zugang: PIN. Nach richtiger Eingabe bekommt der Browser ein zufälliges Sitzungs-Cookie
+Zugang: PIN (Pflicht, mindestens 4 Zeichen). Anfragen mit fremdem Host-Namen werden abgewiesen
+(Schutz vor DNS-Rebinding). Nach richtiger Eingabe bekommt der Browser ein zufälliges Sitzungs-Cookie
 (HttpOnly, SameSite=Strict). Nach mehreren Fehlversuchen wird die Anmeldung kurz gesperrt.
 """
 from __future__ import annotations
@@ -23,6 +24,33 @@ from urllib.parse import urlparse
 
 COMMANDS = ("pause", "resume", "stop", "start", "ack")
 COOKIE = "tilaser_session"
+SESSION_S = 86400                    # Sitzung gilt 24 Stunden
+MIN_PIN = 4
+LOOPBACK = ("127.0.0.1", "localhost", "::1")
+
+
+def host_allowed(host_header: str | None) -> bool:
+    """Schutz vor DNS-Rebinding: nur IP-Adressen, localhost und der eigene Rechnername als Host.
+
+    Eine fremde Webseite kann den Browser zwar unter ihrem eigenen Namen auf TiLaser umleiten,
+    der Host-Kopf trägt dann aber ihren Namen – solche Anfragen werden abgewiesen."""
+    import ipaddress
+    h = (host_header or "").strip().lower()
+    if h.startswith("["):                                   # [IPv6]:port
+        h = h[1:].split("]", 1)[0]
+    elif h.count(":") == 1:
+        h = h.rsplit(":", 1)[0]
+    h = h.rstrip(".")
+    if not h:
+        return False
+    try:
+        ipaddress.ip_address(h)
+        return True
+    except ValueError:
+        pass
+    me = socket.gethostname().lower().rstrip(".")
+    short = me.split(".", 1)[0]
+    return h == "localhost" or h in (me, short) or h.startswith(short + ".")
 
 
 def local_addresses() -> list[str]:
@@ -67,6 +95,8 @@ class WebServer:
 
     # ---------------------------------------------------------------- Lebenszyklus
     def start(self):
+        if len(self.pin) < MIN_PIN and self.host not in LOOPBACK:
+            raise ValueError(f"Die Weboberfläche braucht eine PIN mit mindestens {MIN_PIN} Zeichen.")
         handler = _make_handler(self)
         self._httpd = ThreadingHTTPServer((self.host, self.port), handler)
         self._httpd.daemon_threads = True
@@ -117,7 +147,7 @@ class WebServer:
         self._fails = [t for t in self._fails if now - t < 300]
         if len(self._fails) >= 10:
             return None
-        if self.pin and not hmac.compare_digest(str(pin).strip(), self.pin):
+        if not hmac.compare_digest(str(pin).strip().encode(), self.pin.encode()):
             self._fails.append(now)
             return None
         tok = secrets.token_urlsafe(24)
@@ -129,8 +159,11 @@ class WebServer:
         return len([t for t in self._fails if now - t < 300]) >= 10
 
     def authorized(self, token: str | None) -> bool:
-        if not self.pin:
+        if not self.pin and self.host in LOOPBACK:
             return True
+        now = time.monotonic()
+        for t in [t for t, t0 in self._sessions.items() if now - t0 > SESSION_S]:
+            self._sessions.pop(t, None)                     # abgelaufene Sitzungen entfernen
         return bool(token) and token in self._sessions
 
     def logout_all(self):
@@ -184,8 +217,16 @@ def _make_handler(srv: WebServer):
             except (ValueError, UnicodeDecodeError):
                 return {}
 
+        def _host_ok(self) -> bool:
+            if host_allowed(self.headers.get("Host")):
+                return True
+            self._send(421, b"", "text/plain")
+            return False
+
         # -- Routen
         def do_GET(self):
+            if not self._host_ok():
+                return
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
                 self._send(200, localized(PAGE).encode("utf-8"), "text/html; charset=utf-8",
@@ -212,6 +253,8 @@ def _make_handler(srv: WebServer):
             self._send(404, localized("Nicht gefunden").encode("utf-8"), "text/plain; charset=utf-8")
 
         def do_POST(self):
+            if not self._host_ok():
+                return
             path = urlparse(self.path).path
             # Nur Anfragen aus der eigenen Seite (fetch mit eigenem Kopf), kein einfaches Formular von außen
             if self.headers.get("X-TiLaser") != "1":

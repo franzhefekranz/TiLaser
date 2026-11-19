@@ -130,6 +130,7 @@ class LaserConnection:
         self.pause_on_error = True             # error:/Fehler im Auftrag -> anhalten statt weiterlaufen
         self.air_off = "M9"                    # beim Stopp (nicht GRBL) zusätzlich senden; "" = nicht
         self._extra_ok = 0                     # erwartete 'ok' auf direkt geschriebene Zeilen (Marlin)
+        self._finishing = False                # alle Zeilen quittiert, Maschine fährt noch (GRBL)
 
     # ------------------------------------------------------------ Verbindung
     @property
@@ -199,6 +200,9 @@ class LaserConnection:
             raise RuntimeError("Es läuft bereits ein Auftrag.")
         with self._lock:
             self._job = [c for c in (clean_line(l) for l in lines) if c]
+            if self.protocol != "grbl" and self._job:
+                self._job.append("M400")       # 'ok' erst, wenn alle Bewegungen ausgeführt sind
+            self._finishing = False
             self._job_idx = 0
             self._job_acked = 0
             self._paused = False
@@ -237,6 +241,7 @@ class LaserConnection:
             if self._job:
                 self.last_job, self.last_acked = list(self._job), self._job_acked
             self._job_active = False
+            self._finishing = False
             self._paused = False
             self._job = []
         if self.protocol == "grbl":
@@ -373,6 +378,10 @@ class LaserConnection:
         if line.startswith("<") and line.endswith(">"):
             st = parse_grbl_status(line, self._wco)
             self.on_status(st)
+            if self._finishing and self._job_active and st["state"].startswith("Idle"):
+                self._finishing = False        # 'ok' heißt nur „im Planner“ – fertig ist erst Idle
+                self._job_active = False
+                self.on_state("done")
             if st["state"].startswith("Alarm") and self._job_active:
                 self.last_job, self.last_acked = list(self._job), self._job_acked
                 self.on_log("!! Alarm – Auftrag abgebrochen")
@@ -392,9 +401,12 @@ class LaserConnection:
                     total = len(self._job)
                     if self._job_acked % 20 == 0 or self._job_acked >= total:
                         self.on_progress(self._job_acked, total)
-                    if self._job_active and self._job_acked >= total:
-                        self._job_active = False
-                        self.on_state("done")
+                    if self._job_active and self._job_acked >= total and not self._finishing:
+                        if self.protocol == "grbl":
+                            self._finishing = True     # auf <Idle> warten
+                        else:
+                            self._job_active = False   # letzte Zeile ist M400: Bewegungen sind fertig
+                            self.on_state("done")
             if is_err:
                 self.errors += 1
                 self.on_log("<< " + line)

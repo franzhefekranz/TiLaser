@@ -1377,7 +1377,8 @@ class WebDialog(QDialog):
         pin_row = QHBoxLayout()
         self.pin = QLineEdit(profile.web_pin or new_pin())
         self.pin.setMaxLength(12)
-        self.pin.setToolTip("Wird im Browser einmal abgefragt. Leer = ohne Anmeldung (nicht empfohlen).")
+        self.pin.setToolTip("Wird im Browser einmal abgefragt. Mindestens 4 Zeichen; "
+                            "ist sie kürzer oder leer, wird eine neue PIN erzeugt.")
         b_new = QPushButton("Neue PIN")
         b_new.clicked.connect(lambda: self.pin.setText(new_pin()))
         pin_row.addWidget(self.pin, 1)
@@ -1416,7 +1417,8 @@ class WebDialog(QDialog):
     def apply(self, profile):
         profile.web_enabled = self.enabled.isChecked()
         profile.web_port = int(self.port.value())
-        profile.web_pin = re.sub(r"\s+", "", self.pin.text())
+        pin = re.sub(r"\s+", "", self.pin.text())
+        profile.web_pin = pin if len(pin) >= 4 else self._new_pin()
         profile.web_allow_start = self.allow_start.isChecked()
 
 

@@ -273,7 +273,6 @@
  "Weboberfläche": "Web interface",
  "Den Laser vom Handy, Tablet oder einem anderen Rechner im selben Netz beobachten: Zustand, Fortschritt, Restzeit, Kamerabild und Konsole, dazu Pause, Fortsetzen und Stopp. TiLaser muss dafür laufen.": "Watch the laser from a phone, tablet or another computer on the same network: state, progress, remaining time, camera image and console, plus pause, resume and stop. TiLaser has to be running.",
  "Weboberfläche einschalten": "Turn on web interface",
- "Wird im Browser einmal abgefragt. Leer = ohne Anmeldung (nicht empfohlen).": "Asked once in the browser. Empty = no login (not recommended).",
  "Neue PIN": "New PIN",
  "Aufträge aus der Ferne starten erlauben": "Allow starting jobs remotely",
  "Startet das aktuell geöffnete Projekt mit den Einstellungen der Auftragsleiste. Nur einschalten, wenn beim Start immer jemand am Laser steht.": "Starts the currently open project with the settings of the job bar. Only turn this on if someone is always at the laser when it starts.",
@@ -1336,5 +1335,11 @@
  "Ebene '{0}': {1} Kontur(en) kleiner als die Schnittbreite ({2} mm) – durch den Kerf-Ausgleich entfallen, sie werden nicht geschnitten.": "Layer '{0}': {1} contour(s) smaller than the kerf width ({2} mm) – removed by the kerf compensation, they will not be cut.",
  "{0} Pfad(e) mit ungültigen Koordinaten (NaN/unendlich) wurden ausgelassen.": "{0} path(s) with invalid coordinates (NaN/infinite) were skipped.",
  "!! Fehler bei Zeile {0} des Auftrags – Auftrag angehalten. Prüfen, dann fortsetzen oder stoppen.": "!! Error at line {0} of the job – job paused. Check, then resume or stop.",
- "Die SVG-Datei ist zu komplex (mehr als {0} Elemente nach dem Auflösen von <use>-Verweisen).": "The SVG file is too complex (more than {0} elements after resolving <use> references)."
+ "Die SVG-Datei ist zu komplex (mehr als {0} Elemente nach dem Auflösen von <use>-Verweisen).": "The SVG file is too complex (more than {0} elements after resolving <use> references).",
+ "Wird im Browser einmal abgefragt. Mindestens 4 Zeichen; ist sie kürzer oder leer, wird eine neue PIN erzeugt.": "Asked once in the browser. At least 4 characters; if it is shorter or empty, a new PIN is created.",
+ "G-Code wird erzeugt …": "Generating G-code …",
+ "-- Weboberfläche: neue PIN {0} (Maschine → Weboberfläche)": "-- Web interface: new PIN {0} (Machine → Web interface)",
+ "{0} wird importiert …": "Importing {0} …",
+ "{0} wird geladen …": "Loading {0} …",
+ "Die Weboberfläche braucht eine PIN mit mindestens {0} Zeichen.": "The web interface needs a PIN with at least {0} characters."
 }

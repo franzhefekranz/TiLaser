@@ -355,21 +355,22 @@ def points_in_polygon(pts: np.ndarray, poly: np.ndarray) -> np.ndarray:
 def nesting_depth(polys: list[Polyline]) -> list[int]:
     """Wie viele andere geschlossene Pfade umschließen jeden Pfad?"""
     n = len(polys)
-    boxes = [(p.pts[:, 0].min(), p.pts[:, 1].min(), p.pts[:, 0].max(), p.pts[:, 1].max())
-             if len(p.pts) else (0, 0, 0, 0) for p in polys]
+    boxes = np.array([(p.pts[:, 0].min(), p.pts[:, 1].min(), p.pts[:, 0].max(), p.pts[:, 1].max())
+                      if len(p.pts) else (0, 0, 0, 0) for p in polys], float).reshape(-1, 4)
+    container = np.array([p.closed and len(p.pts) >= 3 for p in polys], bool)
     depth = [0] * n
     for i, p in enumerate(polys):
         if not len(p.pts):
             continue
         bi = boxes[i]
-        probe = p.pts[len(p.pts) // 2]
-        for j, q in enumerate(polys):
-            if i == j or not q.closed or len(q.pts) < 3:
-                continue
-            bj = boxes[j]
-            if bj[0] <= bi[0] and bj[1] <= bi[1] and bj[2] >= bi[2] and bj[3] >= bi[3] and bj != bi:
-                if points_in_polygon(probe[None, :], q.pts)[0]:
-                    depth[i] += 1
+        # nur Pfade, deren Box die eigene Box umfasst (vektorisiert vorgefiltert)
+        cand = container & (boxes[:, 0] <= bi[0]) & (boxes[:, 1] <= bi[1]) & (boxes[:, 2] >= bi[2]) & \
+            (boxes[:, 3] >= bi[3]) & ~np.all(boxes == bi, axis=1)
+        cand[i] = False
+        probe = p.pts[len(p.pts) // 2][None, :]
+        for j in np.flatnonzero(cand):
+            if points_in_polygon(probe, polys[j].pts)[0]:
+                depth[i] += 1
     return depth
 
 
@@ -395,23 +396,51 @@ def order_paths(polys: list[Polyline], start=(0.0, 0.0), inner_first=True) -> li
     cur = np.asarray(start, float)
     for lv in levels:
         remaining = list(groups[lv])
-        while remaining:
-            best_i, best_d, best_mode = 0, float("inf"), ("start", 0)
-            for i, p in enumerate(remaining):
+        n = len(remaining)
+        # Bounding-Boxen als untere Schranke: nur Kandidaten, deren Box näher liegt als der bisher beste
+        # Treffer, werden genau geprüft. Ergebnis wie beim vollständigen Vergleich (gleiche Gleichstände),
+        # aber ohne O(n²)-Python-Schleife.
+        bb = np.array([[q.pts[:, 0].min(), q.pts[:, 1].min(), q.pts[:, 0].max(), q.pts[:, 1].max()]
+                       for q in remaining]).reshape(-1, 4)
+        alive = np.ones(n, bool)
+        for _ in range(n):
+            dx = np.maximum(np.maximum(bb[:, 0] - cur[0], cur[0] - bb[:, 2]), 0.0)
+            dy = np.maximum(np.maximum(bb[:, 1] - cur[1], cur[1] - bb[:, 3]), 0.0)
+            lb = np.where(alive, dx * dx + dy * dy, np.inf)
+            k_try = min(n, 32)
+            cand = np.argpartition(lb, k_try - 1)[:k_try] if k_try < n else np.arange(n)
+            cand = cand[np.lexsort((cand, lb[cand]))]
+            best_i, best_d, best_mode = -1, float("inf"), ("start", 0)
+
+            def check(i):
+                nonlocal best_i, best_d, best_mode
+                p = remaining[i]
                 fixed = getattr(p, "start_fixed", False)      # festgelegter Startpunkt: nicht drehen/umkehren
                 if p.closed and not fixed:
                     d2 = np.sum((p.pts - cur) ** 2, axis=1)
                     k = int(np.argmin(d2))
-                    if d2[k] < best_d:
-                        best_i, best_d, best_mode = i, d2[k], ("rot", k)
+                    if (d2[k], i) < (best_d, best_i if best_i >= 0 else n):
+                        best_i, best_d, best_mode = i, float(d2[k]), ("rot", k)
                 else:
-                    ds = np.sum((p.pts[0] - cur) ** 2)
-                    de = np.sum((p.pts[-1] - cur) ** 2)
-                    if ds < best_d:
+                    ds = float(np.sum((p.pts[0] - cur) ** 2))
+                    de = float(np.sum((p.pts[-1] - cur) ** 2))
+                    if (ds, i) < (best_d, best_i if best_i >= 0 else n):
                         best_i, best_d, best_mode = i, ds, ("start", 0)
-                    if de < best_d and not fixed:
+                    if not fixed and (de, i) < (best_d, best_i if best_i >= 0 else n) and not (best_i == i and de >= ds):
                         best_i, best_d, best_mode = i, de, ("rev", 0)
-            p = remaining.pop(best_i)
+
+            done = False
+            for i in cand:
+                if lb[i] > best_d:
+                    done = True
+                    break
+                check(int(i))
+            if not done and k_try < n:                        # selten: die 32 nächsten Boxen reichten nicht
+                rest = np.flatnonzero(alive & (lb <= best_d))
+                for i in rest[np.lexsort((rest, lb[rest]))]:
+                    check(int(i))
+            alive[best_i] = False
+            p = remaining[best_i]
             if best_mode[0] == "rot":
                 k = best_mode[1]
                 pts = p.pts

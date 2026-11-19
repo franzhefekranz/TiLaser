@@ -20,6 +20,8 @@ from ..core import editing as ed
 from ..core.gcode import DIALECTS, convex_hull, frame_gcode, generate, job_project, origin_offset, resume_lines
 from ..core.materialtest import build_project
 from ..core.trace import trace_image
+from .busy import active as busy_active
+from .busy import run_busy
 from ..core.model import MODE_LABELS, PALETTE, Item, Project, VectorPath, color_name, new_id
 from ..core.raster import load_image_gray
 from ..core.svg_import import import_svg
@@ -667,61 +669,59 @@ class MainWindow(QMainWindow):
         new_ids, msgs = [], []
         if any(not f.lower().endswith(".tlp") for f in files):
             self._checkpoint("Importieren")
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            for f in files:
-                self.last_dir = os.path.dirname(f)
-                ext = os.path.splitext(f)[1].lower()
-                name = os.path.basename(f)
-                try:
-                    if ext == ".tlp":
-                        self.project_path = f
-                        self._set_project(storage.load_project(f))
-                        self._update_title()
-                        continue
-                    if ext in (".lbrn2", ".lbrn"):                 # Ebenen und Objekte dazuladen
-                        lp, warn = load_lbrn(f)
-                        msgs += [f"{name}: {w}" for w in warn]
-                        self.project.layers += lp.layers
-                        for it in lp.items:
-                            self.project.items.append(it)
-                            self.canvas.add_item(it)
-                            new_ids.append(it.id)
-                        continue
-                    if ext in (".svg", ".dxf", ".pdf", ".ai", ".eps", ".ps"):
-                        reader = {".svg": import_svg, ".dxf": import_dxf, ".eps": import_eps,
-                                  ".ps": import_eps}.get(ext, import_pdf)
+        for f in files:
+            self.last_dir = os.path.dirname(f)
+            ext = os.path.splitext(f)[1].lower()
+            name = os.path.basename(f)
+            try:
+                if ext == ".tlp":
+                    self.project_path = f
+                    self._set_project(run_busy(self, f"{name} wird geladen …", storage.load_project, f))
+                    self._update_title()
+                    continue
+                if ext in (".lbrn2", ".lbrn"):                 # Ebenen und Objekte dazuladen
+                    lp, warn = run_busy(self, f"{name} wird importiert …", load_lbrn, f)
+                    msgs += [f"{name}: {w}" for w in warn]
+                    self.project.layers += lp.layers
+                    for it in lp.items:
+                        self.project.items.append(it)
+                        self.canvas.add_item(it)
+                        new_ids.append(it.id)
+                    continue
+                if ext in (".svg", ".dxf", ".pdf", ".ai", ".eps", ".ps"):
+                    reader = {".svg": import_svg, ".dxf": import_dxf, ".eps": import_eps,
+                              ".ps": import_eps}.get(ext, import_pdf)
+                    def read(path=f, reader=reader, ext=ext):
                         try:
-                            paths, warn = reader(f)
+                            return reader(path)
                         except PdfError:
                             if ext != ".ai":
                                 raise
-                            paths, warn = import_eps(f)         # altes Illustrator-Format (PostScript)
-                        msgs += [f"{name}: {w}" for w in warn]
-                        if not paths:
-                            msgs.append(f"{name}: keine verwertbaren Konturen gefunden.")
-                            continue
-                        it = self.project.add_vector_import(name, paths)
-                        self._place_on_bed(it)
-                    elif ext in IMAGE_EXT:
-                        gray, w, h = load_image_gray(f)
-                        if max(gray.shape) > MAX_IMAGE_PX:
-                            from PIL import Image
-                            k = MAX_IMAGE_PX / max(gray.shape)
-                            gray = np.asarray(Image.fromarray(gray).resize(
-                                (int(gray.shape[1] * k), int(gray.shape[0] * k)), Image.Resampling.LANCZOS))
-                        it = self.project.add_raster(name, gray, w, h,
-                                                     center_at=(self.profile.bed_w / 2, self.profile.bed_h / 2))
-                        self._place_on_bed(it)
-                    else:
-                        msgs.append(f"{name}: Dateityp nicht unterstützt.")
+                            return import_eps(path)          # altes Illustrator-Format (PostScript)
+                    paths, warn = run_busy(self, f"{name} wird importiert …", read)
+                    msgs += [f"{name}: {w}" for w in warn]
+                    if not paths:
+                        msgs.append(f"{name}: keine verwertbaren Konturen gefunden.")
                         continue
-                    self.canvas.add_item(it)
-                    new_ids.append(it.id)
-                except Exception as e:
-                    msgs.append(f"{name}: Fehler beim Import – {e}")
-        finally:
-            QApplication.restoreOverrideCursor()
+                    it = self.project.add_vector_import(name, paths)
+                    self._place_on_bed(it)
+                elif ext in IMAGE_EXT:
+                    gray, w, h = run_busy(self, f"{name} wird geladen …", load_image_gray, f)
+                    if max(gray.shape) > MAX_IMAGE_PX:
+                        from PIL import Image
+                        k = MAX_IMAGE_PX / max(gray.shape)
+                        gray = np.asarray(Image.fromarray(gray).resize(
+                            (int(gray.shape[1] * k), int(gray.shape[0] * k)), Image.Resampling.LANCZOS))
+                    it = self.project.add_raster(name, gray, w, h,
+                                                 center_at=(self.profile.bed_w / 2, self.profile.bed_h / 2))
+                    self._place_on_bed(it)
+                else:
+                    msgs.append(f"{name}: Dateityp nicht unterstützt.")
+                    continue
+                self.canvas.add_item(it)
+                new_ids.append(it.id)
+            except Exception as e:
+                msgs.append(f"{name}: Fehler beim Import – {e}")
         self.layers.refresh()
         self.canvas.refresh_styles()
         self.canvas.select_only(new_ids)
@@ -1150,12 +1150,9 @@ class MainWindow(QMainWindow):
         if self.result is None:
             self._refresh_var_items()
         if self.result is None or self._result_key != key:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-            try:
-                self.result = generate(self.project, self.profile, only_ids, offset)
-                self._result_key = key
-            finally:
-                QApplication.restoreOverrideCursor()
+            self.result = run_busy(self, "G-Code wird erzeugt …", generate, self.project, self.profile,
+                                   only_ids, offset)
+            self._result_key = key
             self.lbl_info.setText(getattr(self, "_info", "") +
                                   f"  |  geschätzt {fmt_time(self.result.time_s)}  |  {len(self.result.lines)} Zeilen")
         return self.result
@@ -1235,6 +1232,8 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ Maschine
     def start_job(self):
+        if busy_active():                      # z. B. Start aus der Weboberfläche während einer Berechnung
+            return
         if not self.project.items:
             QMessageBox.information(self, "Start", "Das Projekt ist leer.")
             return
@@ -2580,10 +2579,14 @@ class MainWindow(QMainWindow):
             self.web.stop()
             self.web = None
         if p.web_enabled and self.web is None:
+            if len(p.web_pin or "") < 4:
+                from ..core.webserver import new_pin
+                p.web_pin = new_pin()                  # ohne PIN keine Weboberfläche
+                self.machine._log(f"-- Weboberfläche: neue PIN {p.web_pin} (Maschine → Weboberfläche)")
             try:
                 self.web = WebServer(port=p.web_port, pin=p.web_pin, allow_start=p.web_allow_start)
                 self.web.start()
-            except OSError as e:
+            except (OSError, ValueError) as e:
                 self.web = None
                 self.machine._log(f"!! Weboberfläche konnte nicht starten (Port {p.web_port}): {e}")
                 self.statusBar().showMessage(f"Weboberfläche: Port {p.web_port} ist belegt oder gesperrt.", 10000)
