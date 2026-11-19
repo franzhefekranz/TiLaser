@@ -32,9 +32,11 @@ vom ersten Start bis zum fertigen Werkstück.
 19. [Speicherorte und portable Version](#19-speicherorte-und-portable-version)
 20. [Lizenz und Markenhinweis](#20-lizenz-und-markenhinweis)
 21. [Sprache und Übersetzungen](#21-sprache-und-übersetzungen)
+22. [Referenz: alle Menüs, Fenster und Bedienelemente](#22-referenz-alle-menüs-fenster-und-bedienelemente)
 
 ---
 
+<!-- hilfe: sicherheit -->
 ## 1. Sicherheit
 
 Laser der Klasse 4 – dazu gehören praktisch alle Diodenlaser ab etwa 5 W – können Augen dauerhaft
@@ -53,6 +55,7 @@ schädigen und Brände auslösen.
 
 ---
 
+<!-- hilfe: installation -->
 ## 2. Installation
 
 ### Windows
@@ -100,6 +103,7 @@ Systemen, sonst Englisch). An English manual is available: [Manual_en.md](Manual
 
 ---
 
+<!-- hilfe: schnellstart -->
 ## 3. Schnellstart: das erste Werkstück
 
 1. **Maschine einrichten:** *Maschine → Maschineneinstellungen*. Unter *Maschinenvorlage* eine passende
@@ -119,6 +123,7 @@ Systemen, sonst Englisch). An English manual is available: [Manual_en.md](Manual
 
 ---
 
+<!-- hilfe: oberflaeche -->
 ## 4. Die Oberfläche
 
 ![Hauptfenster](screenshots/01_hauptfenster.png)
@@ -133,6 +138,8 @@ Systemen, sonst Englisch). An English manual is available: [Manual_en.md](Manual
 | **Seitenleiste** (rechts) | Tabs *Ebenen*, *Verbindung*, *Bewegen*, *Konsole*, *Kamera* |
 | **Auftragsleiste** (rechts unten) | Status, Position, Rahmen, Start, Pause, Stopp, Ursprung, Nur Auswahl, Fortsetzen, Gummiband |
 | **Statusleiste** (unten) | Mausposition in mm, Auftragsgröße, geschätzte Dauer, Zeilenzahl |
+
+**Hilfe:** *Hilfe → Bedienungsanleitung* oder **F1** öffnet diese Anleitung im Programm – F1 springt dabei direkt zu dem Abschnitt, der zum gerade benutzten Menüpunkt, Fenster oder Bedienelement passt ([Hilfe im Programm](#hilfe-im-programm)). Kapitel 22 beschreibt jedes Bedienelement einzeln.
 
 Die Werkzeugleisten zeigen Symbole. Zeigt man mit der Maus darauf, erscheinen Name und Tastenkürzel; die
 Menüs verwenden dieselben Symbole.
@@ -176,6 +183,7 @@ Esc schaltet jederzeit zurück zu *Auswählen*.
 
 ![Objektleiste](screenshots/03_objektleiste.png)
 
+<!-- hilfe: maus -->
 ### Maus und Tastatur auf der Arbeitsfläche
 
 | Aktion | Bedienung |
@@ -194,8 +202,10 @@ Dateien können direkt aus dem Explorer bzw. Dateimanager auf die Arbeitsfläche
 
 ---
 
+<!-- hilfe: dateien -->
 ## 5. Dateien öffnen, importieren und exportieren
 
+<!-- hilfe: projekte -->
 ### Projekte
 
 *Datei → Projekt speichern* (Strg+S) legt eine `.tlp`-Datei an. Sie enthält alle Objekte, Ebenen mit
@@ -203,6 +213,7 @@ Parametern und eingebettete Bilder. Kurven bleiben als echte Kurven gespeichert.
 *Datei → Auswahl als Projekt speichern…* (auch im Rechtsklick-Menü) speichert nur die ausgewählten Objekte
 mit ihren Ebenen als eigene `.tlp`-Datei, in derselben Lage.
 
+<!-- hilfe: lightburn -->
 ### LightBurn-Projekte
 
 TiLaser liest und schreibt LightBurn-Dateien (`.lbrn2`, lesend auch das ältere `.lbrn`).
@@ -222,6 +233,7 @@ TiLaser liest und schreibt LightBurn-Dateien (`.lbrn2`, lesend auch das ältere 
 Beim Speichern erhält jede Ebene die LightBurn-Farbe, die ihrer Farbe am nächsten kommt; mehr als 30 Ebenen
 passen nicht. Unterebenen (außer *Füllen + Schneiden*) gehen in LightBurn verloren.
 
+<!-- hilfe: import -->
 ### Import
 
 | Format | Hinweise |
@@ -234,6 +246,7 @@ passen nicht. Unterebenen (außer *Füllen + Schneiden*) gehen in LightBurn verl
 
 Liegt ein importiertes Objekt außerhalb des Arbeitsbereichs, wird es in die Mitte gesetzt.
 
+<!-- hilfe: export -->
 ### Export
 
 | Menüpunkt | Ergebnis |
@@ -246,8 +259,10 @@ Liegt ein importiertes Objekt außerhalb des Arbeitsbereichs, wird es in die Mit
 
 ---
 
+<!-- hilfe: objekte -->
 ## 6. Objekte bearbeiten
 
+<!-- hilfe: auswahl -->
 ### Auswahl, Anfasser und Objektleiste
 
 ![Auswahl mit Anfassern](screenshots/07_auswahl_anfasser.png)
@@ -260,6 +275,7 @@ Um die Auswahl erscheint ein gestrichelter Rahmen mit Anfassern:
 In der **Objektleiste** lassen sich Werte exakt eingeben: X/Y (Mittelpunkt), Breite, Höhe (proportional),
 Skalierung in %, Drehung, Spiegeln und die Ebene.
 
+<!-- hilfe: rueckgaengig -->
 ### Rückgängig, Kopieren, Einfügen
 
 | Funktion | Kürzel |
@@ -271,6 +287,7 @@ Skalierung in %, Drehung, Spiegeln und die Ebene.
 
 Im Menü *Bearbeiten* steht jeweils, was rückgängig gemacht wird. Es werden bis zu 60 Schritte gespeichert.
 
+<!-- hilfe: anordnen -->
 ### Anordnen
 
 Menü **Anordnen**:
@@ -295,6 +312,7 @@ Die Ebenen-Reihenfolge gilt in beiden Fällen weiterhin zuerst.
 Objektecke auf das Raster ein. Rastermaß unter *Ansicht → Rastermaß* (0,5 / 1 / 5 / 10 mm).
 Beim Zeichnen rasten auch die Punkte ein.
 
+<!-- hilfe: array -->
 ### Array
 
 ![Array](screenshots/23_array.png)
@@ -304,6 +322,7 @@ Beim Zeichnen rasten auch die Punkte ein.
 - **Kreis:** Anzahl (inklusive Original), Mittelpunkt, Gesamtwinkel (360° = voller Kreis) und ob die Kopien
   mitgedreht werden.
 
+<!-- hilfe: gruppieren -->
 ### Gruppieren und Ebene zuweisen
 
 ![Kontextmenü](screenshots/09_kontextmenue.png)
@@ -317,8 +336,10 @@ Beim Zeichnen rasten auch die Punkte ein.
 
 ---
 
+<!-- hilfe: zeichnen -->
 ## 7. Zeichnen, Formen und Text
 
+<!-- hilfe: zeichenwerkzeuge -->
 ### Zeichenwerkzeuge
 
 ![Zeichenwerkzeuge](screenshots/04_zeichenwerkzeuge.png)
@@ -334,6 +355,7 @@ Beim Zeichnen rasten auch die Punkte ein.
 
 Neue Formen landen auf der gerade im Tab *Ebenen* gewählten Ebene. Mit **Esc** geht es zurück zum Auswahlwerkzeug.
 
+<!-- hilfe: knoten -->
 ### Knotenbearbeitung
 
 ![Knotenbearbeitung](screenshots/08_knoten.png)
@@ -355,6 +377,7 @@ Am ausgewählten Knoten erscheinen die **Kurven-Anfasser** (Kreise).
 
 Kurven aus SVG, PDF, DXF, Schriften und den Zeichenwerkzeugen bleiben echte Bézierkurven mit wenigen Knoten.
 
+<!-- hilfe: formen -->
 ### Formen kombinieren
 
 Menü **Formen** (mindestens zwei geschlossene Vektorobjekte auswählen):
@@ -370,6 +393,7 @@ Menü **Formen** (mindestens zwei geschlossene Vektorobjekte auswählen):
 
 ![Offset](screenshots/24_offset.png)
 
+<!-- hilfe: text -->
 ### Text
 
 ![Text einfügen](screenshots/21_text.png)
@@ -379,6 +403,7 @@ oder eine Datei über „…“), Größe in mm, Zeilen- und Zeichenabstand, Aus
 Text sind standardmäßig **Füllen** (Gravur) oder **Schneiden/Kontur**. Den Inhalt eines eingefügten Textes
 ändert man später per Rechtsklick → *Inhalt ändern…*.
 
+<!-- hilfe: variabler-text -->
 ### Variabler Text, QR-Code und Barcode
 
 Texte und Code-Inhalte dürfen **Platzhalter** enthalten, die vor jedem Auftrag eingesetzt werden:
@@ -400,6 +425,7 @@ ASCII 32–126) als Gravur auf einer Füll-Ebene. Der Inhalt darf Platzhalter en
 `https://example.com/teil/{nr:05}`. Für zuverlässiges Scannen einen kleinen Zeilenabstand (höchstens ein Viertel
 der Modulbreite) und einen hellen Rand um den Code lassen und vor einer Serie mit dem Handy testen.
 
+<!-- hilfe: text-auf-pfad -->
 ### Text auf Pfad
 
 ![Text auf Pfad](screenshots/22_text_auf_pfad.png)
@@ -408,6 +434,7 @@ Kontur auswählen (Kreis, Bogen, Wellenlinie …) → *Werkzeuge → Text auf Pf
 Bei geschlossenen Konturen steht der Text außen und ist oben mittig lesbar; mit **Umdrehen** innen und unten.
 *Abstand* = Abstand der Schrift von der Kontur, *Versatz* = Verschiebung entlang der Kontur.
 
+<!-- hilfe: nachzeichnen -->
 ### Bild nachzeichnen
 
 ![Bild nachzeichnen](screenshots/25_nachzeichnen.png)
@@ -424,6 +451,7 @@ Konturen, z. B. um ein Logo zu schneiden.
 | Helligkeit / Kontrast | Bild vorher anpassen |
 | Bild behalten | Sonst wird das Bild durch die Konturen ersetzt |
 
+<!-- hilfe: box -->
 ### Box-Generator
 
 *Werkzeuge → Generatoren → Box-Generator…* (Strg+Umschalt+B) erzeugt einen Kasten mit Fingerzinken: Boden, vier
@@ -446,6 +474,7 @@ Lüftungsschlitze und Gravuren ergänzen (z. B. mit *Formen → Abziehen*). Die 
 
 Tipp: Erst eine kleine Probe-Box (z. B. 40 × 30 × 20 mm) schneiden und die Passung prüfen, dann den Kerf anpassen.
 
+<!-- hilfe: muster -->
 ### Muster in einer Fläche
 
 ![Biegescharnier, Lochmuster, Zinken, Zahnräder, Puzzle und Schablone](screenshots/muster_generatoren.png)
@@ -476,6 +505,7 @@ ideal für Lüftungsgitter in Gehäusewänden.
 Ziegel, Wellen), *Drehung* dreht das Muster. Hahnentritt und Fischgrät sind wie beim Stoff aus kleinen
 Quadraten aufgebaut.
 
+<!-- hilfe: fingerzinken -->
 ### Fingerzinken an Kante
 
 Verbindet zwei beliebige Teile mit Fingerzinken – z. B. eine selbst gezeichnete Rückwand mit einem
@@ -497,6 +527,7 @@ Boden. So geht es:
 
 Kurven der Teile werden dabei in feine Linienzüge umgewandelt.
 
+<!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
 
 **Zahnrad** (*Werkzeuge → Generatoren*) – Stirnrad mit Evolventenverzahnung. Wichtig ist das **Modul**:
@@ -517,6 +548,7 @@ Breite.
 
 ---
 
+<!-- hilfe: nesting -->
 ## 8. Nesting – Teile automatisch anordnen
 
 Nesting ordnet die ausgewählten Teile platzsparend auf einer rechteckigen Grundfläche an und hält dabei
@@ -566,6 +598,7 @@ Linienenden berühren.
 
 ---
 
+<!-- hilfe: ebenen -->
 ## 9. Ebenen und Laserparameter
 
 ![Ebenen](screenshots/05_ebenen.png)
@@ -582,6 +615,7 @@ markiert Farben, die schon eine andere Ebene benutzt; der Tooltip nennt Nummer, 
 werden die Farben der Datei auf die nächstliegende der 32 Farben abgebildet – reine Grundfarben (z. B.
 Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben landen dadurch auf derselben Ebene.
 
+<!-- hilfe: modi -->
 ### Modi
 
 | Modus | Wirkung |
@@ -591,6 +625,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | **Offset-Füllung (Konturen)** | Geschlossene Flächen werden mit Konturlinien im Zeilenabstand von außen nach innen gefüllt – weniger Hin-und-Her als Schraffur, gut für Schriften und schmale Formen |
 | **Rasterbild** | Bilder werden pixelweise graviert |
 
+<!-- hilfe: parameter -->
 ### Parameter
 
 | Parameter | Modi | Beschreibung |
@@ -617,12 +652,14 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 
 Die Vorschau eines Bildes auf der Arbeitsfläche zeigt bereits das Ergebnis des gewählten Bildmodus.
 
+<!-- hilfe: unterebenen -->
 ### Unterebenen
 
 Mit **+** neben *Arbeitsgang* erhält eine Ebene weitere Arbeitsgänge auf **derselben Geometrie**, jeweils mit
 eigenen Parametern – z. B. erst die Fläche gravieren, dann die Kontur ausschneiden. Über die Auswahl
 *Arbeitsgang* wird zwischen Haupt- und Unterebenen gewechselt; **−** entfernt die gewählte Unterebene.
 
+<!-- hilfe: kerf -->
 ### Kerf ermitteln
 
 1. Ein Quadrat von genau 20 × 20 mm zeichnen und mit Kerf 0 ausschneiden.
@@ -631,8 +668,10 @@ eigenen Parametern – z. B. erst die Fläche gravieren, dann die Kontur ausschn
 
 ---
 
+<!-- hilfe: presets-kapitel -->
 ## 10. Material-Presets und Materialtest
 
+<!-- hilfe: presets -->
 ### Presets
 
 Im Tab *Ebenen* unter **Material-Presets**:
@@ -644,6 +683,7 @@ Im Tab *Ebenen* unter **Material-Presets**:
 
 Der Tooltip eines Presets zeigt Material und Herkunft der Werte. Eigene Presets bleiben bei Updates erhalten.
 
+<!-- hilfe: materialtest -->
 ### Materialtest
 
 ![Materialtest](screenshots/26_materialtest.png)
@@ -663,6 +703,7 @@ Der Tooltip eines Presets zeigt Material und Herkunft der Werte. Eigene Presets 
 Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren…** (G-Code-Datei) und
 **An Laser senden**.
 
+<!-- hilfe: fokustest -->
 ### Fokustest
 
 *Werkzeuge → Fokustest…* findet den besten Abstand zwischen Laser und Material:
@@ -674,6 +715,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 - **Mit Z-Achse:** mehrere beschriftete Linien, jede mit einem anderen Z-Versatz (z. B. −2 bis +2 mm). Die
   schärfste Linie zeigt den besten Versatz.
 
+<!-- hilfe: zeilenabstandstest -->
 ### Zeilenabstandstest
 
 *Werkzeuge → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
@@ -685,8 +727,10 @@ Beide Tests bieten wie der Materialtest **Vorschau**, **Exportieren…** und **A
 
 ---
 
+<!-- hilfe: maschine -->
 ## 11. Maschine einrichten und verbinden
 
+<!-- hilfe: maschineneinstellungen -->
 ### Maschineneinstellungen
 
 ![Maschineneinstellungen](screenshots/20_maschine.png)
@@ -711,6 +755,7 @@ Beide Tests bieten wie der Materialtest **Vorschau**, **Exportieren…** und **A
 | Air Assist an/aus | Standard M8/M9 |
 | G-Code Anfang/Ende | Wird jedem Auftrag voran- bzw. nachgestellt |
 
+<!-- hilfe: verbindung -->
 ### Verbindung
 
 ![Verbindung](screenshots/12_verbindung.png)
@@ -739,6 +784,7 @@ Im Tab *Verbindung* liegen außerdem:
 | Nullpunkt hier | `G10 L20 P1 X0 Y0` | `G92 X0 Y0` |
 | Zu 0/0 fahren | `G0 X0 Y0` | `G0 X0 Y0` |
 
+<!-- hilfe: bewegen -->
 ### Bewegen
 
 ![Bewegen](screenshots/13_bewegen.png)
@@ -754,6 +800,7 @@ Im Tab *Verbindung* liegen außerdem:
   *Bearbeiten…* (auch *Maschine → Makros bearbeiten…*) legt Makros an: Name, G-Code (mehrere Zeilen möglich)
   und ein Tastenkürzel, das im ganzen Fenster gilt. Während ein Auftrag läuft, sind Makros gesperrt.
 
+<!-- hilfe: konsole -->
 ### Konsole
 
 ![Konsole](screenshots/14_konsole.png)
@@ -761,9 +808,10 @@ Im Tab *Verbindung* liegen außerdem:
 Zeigt alle Meldungen der Steuerung (`<<`) und gesendeten Befehle (`>>`). Unten können eigene Befehle
 eingegeben werden, z. B. `$$` (GRBL-Einstellungen anzeigen), `$I` (Version) oder `?` (Status).
 
+<!-- hilfe: grbl -->
 ### GRBL-Einstellungen
 
-*Maschine → GRBL-Einstellungen ($$)…* liest alle Einstellungen der Steuerung und zeigt sie mit deutscher
+*Maschine → GRBL-Einstellungen (\$\$)…* liest alle Einstellungen der Steuerung und zeigt sie mit deutscher
 Bedeutung, z. B. `$30` maximaler S-Wert, `$32` Lasermodus, `$110/$111` Höchstgeschwindigkeit,
 `$120/$121` Beschleunigung, `$130/$131` Verfahrweg. Werte in der Spalte *Wert* ändern und
 *Geänderte schreiben* drücken; TiLaser zeigt die Änderungen vorher noch einmal an und liest danach zur
@@ -771,6 +819,7 @@ Kontrolle neu. *Exportieren…* sichert alle Werte als Textdatei – das sollte 
 
 ---
 
+<!-- hilfe: lasern -->
 ## 12. Lasern: Rahmen, Start, Pause, Stopp, Fortsetzen
 
 Die **Auftragsleiste** rechts unten ist in jedem Tab sichtbar.
@@ -796,6 +845,7 @@ werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werde
 ---
 
 
+<!-- hilfe: weboberflaeche -->
 ### Weboberfläche (Handy, Tablet, PC)
 
 Unter *Maschine → Weboberfläche…* lässt sich TiLaser über den Browser eines anderen Geräts im selben Netz
@@ -825,6 +875,7 @@ links und die Bedienung rechts; dort gilt außerdem **Leertaste** = Pause/Fortse
 > Firewall beim ersten Start, ob TiLaser im privaten Netz erreichbar sein darf – das mit *Zulassen*
 > bestätigen. Auch mit Weboberfläche gilt: den Laser nie unbeaufsichtigt lassen.
 
+<!-- hilfe: auftragsprotokoll -->
 ### Auftragsprotokoll
 
 *Maschine → Auftragsprotokoll…* zeigt alle Aufträge: Start, Dauer, Ergebnis (fertig, gestoppt, Alarm …),
@@ -843,6 +894,7 @@ getrennt, so dass Excel und LibreOffice sie direkt öffnen. *Als CSV speichern�
 *Protokoll leeren…* löscht alle Einträge. Rahmenfahrten werden nicht protokolliert; das Protokollieren
 lässt sich im selben Dialog ausschalten.
 
+<!-- hilfe: vorschau -->
 ## 13. Vorschau und Simulation
 
 ![Werkzeugweg-Vorschau](screenshots/10_vorschau.png)
@@ -863,6 +915,7 @@ daneben wählbar.
 
 ---
 
+<!-- hilfe: kamera -->
 ## 14. Kamera
 
 Eine Webcam über dem Bett hat in TiLaser zwei Aufgaben: Sie zeigt **live**, was der Laser gerade macht
@@ -870,6 +923,7 @@ Eine Webcam über dem Bett hat in TiLaser zwei Aufgaben: Sie zeigt **live**, was
 Arbeitsfläche, damit Gravuren genau auf vorhandene Teile gesetzt werden können (Abschnitt *Ausrichten*).
 Beides nutzt dieselbe Kamera.
 
+<!-- hilfe: live-kamera -->
 ### Live-Kamera
 
 Der Tab **Kamera** in der Seitenleiste (oder *Maschine → Kamera → Live-Kamera*, Strg+Shift+K) zeigt das
@@ -899,6 +953,7 @@ Alle Einstellungen werden im Maschinenprofil gespeichert.
 Läuft das Live-Bild, verwenden *Kamera ausrichten* und *Kamerabild aktualisieren* direkt das aktuelle Bild,
 statt die Kamera ein zweites Mal zu öffnen.
 
+<!-- hilfe: flammenwaechter -->
 ### Flammenwächter
 
 Der Flammenwächter wertet während eines Auftrags das Live-Bild aus und schlägt Alarm, wenn irgendwo eine
@@ -936,6 +991,7 @@ läuft dann trotzdem.
 Tipp zum Einstellen: Einen typischen Auftrag mit *Erkannte Stellen rot zeigen* beobachten. Erscheinen dabei
 schon rote Stellen, die Empfindlichkeit senken oder die Zeit erhöhen.
 
+<!-- hilfe: kamera-ausrichten -->
 ### Ausrichten
 
 1. *Maschine → Kamera → Kamera wählen*: USB-Kamera oder **„Bild aus Datei“** (z. B. ein Handyfoto, das immer
@@ -955,6 +1011,7 @@ Wird die Kamera bewegt, muss sie neu ausgerichtet werden.
 
 ---
 
+<!-- hilfe: rotation -->
 ## 15. Rotationsachse
 
 Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle der Y-Achse angeschlossen wird:
@@ -968,6 +1025,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 
 ---
 
+<!-- hilfe: algolaser -->
 ## 16. Einrichtung AlgoLaser DIY KIT MK2 (20 W)
 
 1. *Maschine → Maschineneinstellungen → Maschinenvorlage* „AlgoLaser DIY KIT MK2 (20 W)“ → *Übernehmen* → OK.
@@ -982,6 +1040,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 
 ---
 
+<!-- hilfe: tasten -->
 ## 17. Tastenkürzel
 
 | Kürzel | Funktion | | Kürzel | Funktion |
@@ -1009,6 +1068,7 @@ Tastenkürzel bekommen.
 
 ---
 
+<!-- hilfe: fehler -->
 ## 18. Fehlerbehebung
 
 | Problem | Lösung |
@@ -1031,6 +1091,7 @@ Tastenkürzel bekommen.
 
 ---
 
+<!-- hilfe: speicherorte -->
 ## 19. Speicherorte und portable Version
 
 | Inhalt | Ort |
@@ -1042,6 +1103,7 @@ Tastenkürzel bekommen.
 | Eigener Ordner | Umgebungsvariable `TILASER_HOME` |
 | Projekte | Beliebig, Dateiendung `.tlp` |
 
+<!-- hilfe: lizenz -->
 ## 20. Lizenz und Markenhinweis
 
 TiLaser ist freie Software unter der GNU General Public License Version 3. Die verwendeten Bibliotheken und ihre Lizenzen stehen unter *Hilfe → Lizenzen…*.
@@ -1050,6 +1112,7 @@ LightBurn ist eine Marke der LightBurn Software LLC. TiLaser ist ein unabhängig
 
 ---
 
+<!-- hilfe: sprache -->
 ## 21. Sprache und Übersetzungen
 
 Die Oberfläche gibt es auf **Deutsch** und **Englisch**. Umgestellt wird unter *Ansicht → Sprache / Language*;
@@ -1083,3 +1146,526 @@ einzelne englische Texte korrigieren.
 Übersetzungen sind willkommen: die Datei als Issue auf GitHub schicken oder per Pull Request nach
 `tilaser/data/lang/<code>.json`. Entwickler sammeln alle Texte mit `python tools/i18n_extract.py`
 (`--missing en` zeigt fehlende Übersetzungen, `--update` trägt neue Texte in alle Sprachdateien ein).
+
+---
+
+<!-- hilfe: referenz -->
+## 22. Referenz: alle Menüs, Fenster und Bedienelemente
+
+Dieses Kapitel listet jedes Menü, jeden Knopf, jedes Feld und jedes Fenster von TiLaser mit seiner
+Bedeutung auf. Ausführliche Erklärungen mit Beispielen stehen in den vorigen Kapiteln; die Verweise führen
+dorthin. In TiLaser öffnet **F1** genau den passenden Abschnitt (siehe [Hilfe im Programm](#hilfe-im-programm)).
+
+<!-- hilfe: menu-datei -->
+### Menü Datei
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Neu | Strg+N | Leeres Projekt anlegen. Ungespeicherte Änderungen werden vorher abgefragt |
+| Projekt öffnen… | Strg+O | TiLaser-Projekt (`.tlp`) oder LightBurn-Datei (`.lbrn2`, `.lbrn`) öffnen; ersetzt das aktuelle Projekt |
+| Projekt speichern | Strg+S | Unter dem bisherigen Namen speichern (beim ersten Mal wie *Speichern unter*) |
+| Projekt speichern unter… | Strg+Umschalt+S | Unter neuem Namen als `.tlp` speichern |
+| Auswahl als Projekt speichern… | | Nur die ausgewählten Objekte mit ihren Ebenen als eigene `.tlp`-Datei speichern |
+| Importieren… | Strg+I | SVG, DXF, PDF/AI, EPS, LightBurn oder Bild zum Projekt hinzufügen ([Kapitel 5](#5-dateien-öffnen-importieren-und-exportieren)) |
+| Text einfügen… | Strg+T | Text aus einer Schrift einfügen ([Text](#text)) |
+| G-Code exportieren… | Strg+E | Auftrag als `.gcode`-Datei speichern; beachtet *Ursprung* und *Nur Auswahl* |
+| Als SVG exportieren… | | Alle Objekte als SVG (mm, Ebenen als Gruppen) |
+| Als DXF exportieren… | | Konturen als DXF, je Ebene ein DXF-Layer (ohne Bilder) |
+| Als LightBurn-Datei speichern… | | Projekt als `.lbrn2` speichern ([LightBurn-Projekte](#lightburn-projekte)) |
+| Beenden | Strg+Q | TiLaser schließen. Läuft ein Auftrag, wird vorher gefragt (der Laser wird dann gestoppt) |
+
+<!-- hilfe: menu-bearbeiten -->
+### Menü Bearbeiten
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Rückgängig | Strg+Z | Letzten Schritt zurücknehmen; der Menütext nennt den Schritt |
+| Wiederholen | Strg+Y | Zurückgenommenen Schritt wiederholen |
+| Ausschneiden | Strg+X | Auswahl in die Zwischenablage verschieben |
+| Kopieren | Strg+C | Auswahl in die Zwischenablage kopieren |
+| Einfügen | Strg+V | Aus der Zwischenablage einfügen, um 10 mm versetzt |
+| An Originalposition einfügen | Strg+Umschalt+V | Einfügen an der ursprünglichen Stelle |
+| Duplizieren | Strg+D | Kopie der Auswahl, um 10 mm versetzt |
+| Löschen | Entf | Ausgewählte Objekte löschen |
+| Alles auswählen | Strg+A | Alle Objekte auswählen |
+| Gruppieren | Strg+G | Ausgewählte Vektorobjekte zu einem Objekt zusammenfassen |
+| Gruppierung aufheben | Strg+Umschalt+G | In Einzelteile zerlegen; eine Außenkontur bleibt mit ihren Löchern zusammen |
+| Zentrieren | | Auswahl in die Mitte des Arbeitsbereichs setzen |
+| An 0/0 | | Linke untere Ecke der Auswahl an den Nullpunkt setzen |
+| Ebene zuweisen | | Untermenü: Auswahl auf eine vorhandene oder eine neue Ebene verschieben |
+
+<!-- hilfe: menu-anordnen -->
+### Menü Anordnen
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Links ausrichten | Strg+Umschalt+← | Linke Kanten auf die linke Kante der gesamten Auswahl |
+| Horizontal mittig ausrichten | | Mittelpunkte auf eine senkrechte Linie |
+| Rechts ausrichten | Strg+Umschalt+→ | Rechte Kanten bündig |
+| Oben ausrichten | Strg+Umschalt+↑ | Obere Kanten bündig |
+| Vertikal mittig ausrichten | | Mittelpunkte auf eine waagerechte Linie |
+| Unten ausrichten | Strg+Umschalt+↓ | Untere Kanten bündig |
+| Horizontal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken nebeneinander |
+| Vertikal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken übereinander |
+| Horizontal spiegeln | | An der senkrechten Mittellinie der Auswahl spiegeln |
+| Vertikal spiegeln | | An der waagerechten Mittellinie spiegeln |
+| 90° nach links drehen | Strg+L | Gegen den Uhrzeigersinn um die Mitte der Auswahl |
+| 90° nach rechts drehen | Strg+R | Im Uhrzeigersinn |
+| Array erstellen… | Strg+Umschalt+A | Kopien als Raster oder im Kreis ([Array](#array)) |
+| Nesting (Teile anordnen)… | Strg+Umschalt+N | Teile platzsparend anordnen ([Kapitel 8](#8-nesting--teile-automatisch-anordnen)) |
+| Zentrieren, An 0/0 | | wie im Menü *Bearbeiten* |
+| Schnittreihenfolge → Zuerst schneiden | Strg+Umschalt+Bild↑ | Auswahl an den Anfang der Projektreihenfolge |
+| Schnittreihenfolge → Früher schneiden | Strg+Bild↑ | Einen Platz nach vorn |
+| Schnittreihenfolge → Später schneiden | Strg+Bild↓ | Einen Platz nach hinten |
+| Schnittreihenfolge → Zuletzt schneiden | Strg+Umschalt+Bild↓ | Ans Ende |
+| Schnittreihenfolge → Reihenfolge anzeigen | | Nummern der Objekte auf der Arbeitsfläche ein-/ausblenden |
+
+Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Objekt* gewählt ist
+([Anordnen](#anordnen)).
+
+<!-- hilfe: menu-formen -->
+### Menü Formen
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Vereinigen | Strg+Umschalt+U | Ausgewählte geschlossene Formen zu einer Fläche verschmelzen |
+| Abziehen (größte Form minus andere) | Strg+Umschalt+D | Von der größten Form alle anderen abziehen |
+| Schnittmenge | Strg+Umschalt+I | Nur die gemeinsame Fläche behalten |
+| Ausschluss (XOR) | | Alles außer den Überlappungen (benötigt pyclipper) |
+| Offset… | Alt+O | Konturen versetzen ([Fenster Offset](#fenster-offset-kontur-versetzen)) |
+| Pfade verbinden / schließen… | Alt+J | Offene Linien mit gemeinsamen Endpunkten verbinden; fragt nach dem größten erlaubten Abstand der Endpunkte |
+
+<!-- hilfe: menu-werkzeuge -->
+### Menü Werkzeuge
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Bild nachzeichnen… | Alt+T | Bild in Vektorkonturen umwandeln ([Bild nachzeichnen](#bild-nachzeichnen)) |
+| Materialtest… | | Testraster Leistung × Geschwindigkeit ([Materialtest](#materialtest)) |
+| Text auf Pfad… | | Text entlang einer Kontur ([Text auf Pfad](#text-auf-pfad)) |
+| QR-Code / Barcode einfügen… | Strg+Umschalt+Q | QR-Code oder Code 128 als Gravur ([Variabler Text, QR-Code und Barcode](#variabler-text-qr-code-und-barcode)) |
+| Variable Texte… | | Startnummer und CSV-Datei für Platzhalter |
+| Generatoren → Box-Generator… | Strg+Umschalt+B | Kasten mit Fingerzinken ([Box-Generator](#box-generator)) |
+| Generatoren → Zahnrad… | | Evolventen-Zahnrad, optional mit Gegenrad |
+| Generatoren → Puzzle… | | Puzzle mit Rahmen |
+| Muster in Fläche → Biegescharnier… | | Schnittmuster zum Biegen ([Muster in einer Fläche](#muster-in-einer-fläche)) |
+| Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
+| Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
+| Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
+| Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
+| Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
+| Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |
+
+<!-- hilfe: menu-ansicht -->
+### Menü Ansicht
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Sprache / Language | | Sprache der Oberfläche wählen; *Eigene Übersetzung anlegen / bearbeiten…* legt eine Sprachdatei an ([Kapitel 21](#21-sprache-und-übersetzungen)) |
+| Alles zeigen | Strg+0 | Zoom auf alle Objekte und das Bett |
+| Werkzeugweg-Vorschau | Strg+P | Brenn- und Leerwege anzeigen ([Kapitel 13](#13-vorschau-und-simulation)) |
+| G-Code anzeigen… | | Fenster mit dem erzeugten G-Code (sehr lange Dateien werden gekürzt angezeigt; der Export ist vollständig) |
+| Am Raster fangen | Strg+Umschalt+F | Beim Verschieben und Zeichnen am Raster einrasten |
+| Gummiband-Rahmen anzeigen | | Linie des Gummiband-Rahmens dauerhaft zeigen (wird nicht gelasert) |
+| Rastermaß | | Untermenü: Rasterweite 0,5 / 1 / 5 / 10 mm |
+
+<!-- hilfe: menu-maschine -->
+### Menü Maschine
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Maschineneinstellungen… | | Firmware, Arbeitsbereich, Rahmen, Rotationsachse usw. ([Fenster Maschineneinstellungen](#fenster-maschineneinstellungen)) |
+| GRBL-Einstellungen (\$\$)… | | `$`-Werte der Steuerung anzeigen und ändern ([GRBL-Einstellungen](#grbl-einstellungen)) |
+| Makros bearbeiten… | | Eigene G-Code-Knöpfe ([Fenster Makros bearbeiten](#fenster-makros-bearbeiten)) |
+| Auftragsprotokoll… | | Liste aller Aufträge mit Kosten ([Auftragsprotokoll](#auftragsprotokoll)) |
+| Weboberfläche… | | Fernbedienung im Netz ([Weboberfläche](#weboberfläche-handy-tablet-pc)) |
+| Rotationsachse aktiv | | Y-Werte für die Rollen-Rotationsachse umrechnen ([Kapitel 15](#15-rotationsachse)) |
+| Laser zur Auswahl fahren | | Untermenü: Kopf zur Mitte oder zu einer Ecke der Auswahl fahren (Laser aus) |
+| Startpunkt auf gewählten Knoten setzen | | Im Knoten-Werkzeug: Schnitt dieser Kontur beginnt am markierten Knoten (Taste A) |
+| Kamera → Kamera wählen… | | USB-Kamera oder „Bild aus Datei“ zum Ausrichten wählen |
+| Kamera → Passmarken lasern | | 9 oder 4 Kreuze mit 10 % Leistung lasern ([Ausrichten](#ausrichten)) |
+| Kamera → Kamera ausrichten… | | Bild aufnehmen und Passmarken anklicken |
+| Kamera → Kamerabild aktualisieren | F5 | Neues entzerrtes Bild unter die Arbeitsfläche legen |
+| Kamera → Kamerabild anzeigen | | Kamerabild ein-/ausblenden |
+| Kamera → Live-Kamera | Strg+Umschalt+K | Tab *Kamera* zeigen und Live-Bild einschalten |
+| Kamera → Großes Kamerafenster | | Live-Bild in eigenem Fenster |
+
+<!-- hilfe: menu-hilfe -->
+### Menü Hilfe
+
+| Menüpunkt | Taste | Funktion |
+|---|---|---|
+| Bedienungsanleitung | F1 | Diese Anleitung im Hilfe-Fenster öffnen; F1 an einer Stelle des Programms öffnet den passenden Abschnitt |
+| Bedienungsanleitung als PDF | | Die PDF-Fassung mit dem Standardprogramm öffnen |
+| Lizenzen… | | Lizenzübersicht von TiLaser und den mitgelieferten Bibliotheken |
+| Über TiLaser | | Version, Lizenz und Markenhinweis |
+
+<!-- hilfe: kontextmenue -->
+### Kontextmenü der Arbeitsfläche
+
+Ein Klick mit der rechten Maustaste auf die Arbeitsfläche öffnet ein Menü. Mit Auswahl enthält es:
+*Inhalt ändern…* (bei Texten und Codes), *Gruppieren*, *Gruppierung aufheben*, *Ausschneiden*, *Kopieren*,
+*Einfügen*, *Ebene zuweisen*, *Zentrieren*, *An 0/0*, *Duplizieren*, *Array erstellen…*,
+*Nesting (Teile anordnen)…*, *Auswahl als Projekt speichern…*, bei einer Kontur *Text auf Pfad…*, bei einem
+Bild *Bild nachzeichnen…* und *Löschen*. Ohne Auswahl: *Einfügen*, *Importieren…*, *Text einfügen…*,
+*Alles auswählen* und *Alles zeigen*. Immer dabei sind **Laser hierher fahren (X… Y…)** – fährt den Kopf genau
+an die angeklickte Stelle – und mit Auswahl **Laser zur Auswahl fahren** (Mitte, Links unten, Links oben,
+Rechts oben, Rechts unten).
+
+<!-- hilfe: objektleiste -->
+### Objektleiste
+
+Die Leiste über der Arbeitsfläche zeigt die ausgewählten Objekte („Kein Objekt ausgewählt“, ein Name oder
+„n Objekte ausgewählt“) und ihre Werte. Eingaben gelten sofort:
+
+| Feld | Bedeutung |
+|---|---|
+| X, Y | Mittelpunkt der Auswahl in mm |
+| B, H | Breite und Höhe; beim Ändern bleibt das Seitenverhältnis erhalten |
+| Skal. | Skalierung in % |
+| ∠ | Drehung in Grad |
+| Spiegeln | Waagerecht spiegeln |
+| Ebene | Ebene, auf der die Auswahl liegt („— mehrere Ebenen —“ bei gemischter Auswahl) |
+
+<!-- hilfe: arbeitsflaeche -->
+### Arbeitsfläche und Zeichenleiste
+
+Die Arbeitsfläche zeigt das Bett mit 10-mm-Raster und dem Nullpunkt links unten (rote Ecke). Bedienung mit Maus
+und Tastatur: [Maus und Tastatur auf der Arbeitsfläche](#maus-und-tastatur-auf-der-arbeitsfläche). Links stehen
+die Zeichenwerkzeuge ([Zeichenwerkzeuge](#zeichenwerkzeuge)); darunter die Felder **Ecken** (Ecken für
+Polygon/Stern), **★** (Stern statt Polygon) und **r** (Eckenradius für Rechtecke in mm). Oben rechts in der
+Werkzeugleiste stehen **Leerwege** (Leerfahrten in der Vorschau zeigen), **▶** (Simulation abspielen), der
+Schieberegler (Simulation: Zeitpunkt im Auftrag) und die Abspielgeschwindigkeit.
+
+<!-- hilfe: tab-ebenen -->
+### Tab Ebenen
+
+| Bedienelement | Funktion |
+|---|---|
+| Ebenenliste | Alle Ebenen mit Farbe, Name, Modus und Werten. Häkchen = Ebene wird ausgegeben. Klick wählt die Ebene zum Bearbeiten und als Ziel für neue Formen |
+| ▲ / ▼ | Ebene früher bzw. später ausführen (Schneiden sollte zuletzt kommen) |
+| Farbe… | Ebenenfarbe aus der Palette mit 32 Farben wählen ([Fenster Ebenenfarbe](#fenster-ebenenfarbe)) |
+| Neu | Neue Ebene anlegen (Untermenü: Rasterbild, Schneiden / Kontur, Füllen) |
+| Leere entfernen | Ebenen ohne Objekte löschen |
+| **Material-Presets** | |
+| Maschinenfilter | Presets nach Maschine filtern („Alle Maschinen“) |
+| Presetliste | Gespeicherte Materialwerte; der Tooltip nennt Material und Herkunft |
+| Anwenden | Werte des Presets auf die gewählte Ebene bzw. Unterebene übernehmen |
+| Speichern… | Aktuelle Werte als eigenes Preset speichern (Name und Material / Notiz) |
+| Löschen | Gewähltes Preset löschen |
+| **Ebeneneinstellungen** | |
+| Arbeitsgang, **+**, **−** | Hauptarbeitsgang oder Unterebene wählen, Unterebene hinzufügen bzw. entfernen ([Unterebenen](#unterebenen)) |
+| Name, Modus | Name der Ebene; Modus *Schneiden / Linie*, *Füllen (Schraffur)*, *Offset-Füllung (Konturen)*, *Rasterbild* |
+| Leistung max, Leistung min | Laserleistung in %; *min* nur im Graustufen-Bildmodus |
+| Geschwindigkeit, Durchgänge | mm/min und Anzahl der Wiederholungen |
+| Zeilenabstand, Winkel, Kreuzschraffur | Abstand und Richtung der Füll-/Bildzeilen; zweite Schraffur um 90° gedreht |
+| Bildmodus, Schwellwert, Invertieren | Rasterbild: Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
+| Overscan | Anlaufweg vor/nach jeder Bildzeile |
+| Bidirektional | Hin und her gravieren |
+| Innen vor außen | Löcher vor der Außenkontur schneiden |
+| Kerf-Ausgleich | Schnittbreite in mm ([Kerf ermitteln](#kerf-ermitteln)) |
+| Haltestege, Stegbreite, Stege nur an Außenkonturen | Anzahl und Breite der Haltestege je Kontur |
+| Helligkeit, Kontrast, Gamma | Bildkorrektur vor dem Gravieren |
+| Z-Schritt je Durchgang, Z-Versatz | Fokus-Änderungen (nur mit motorisierter Z-Achse) |
+| Air Assist (M8/M9) | Luftunterstützung für diese Ebene |
+| Ausgeben | wie das Häkchen in der Liste |
+
+Ausführlich: [Kapitel 9](#9-ebenen-und-laserparameter) und [Kapitel 10](#10-material-presets-und-materialtest).
+
+<!-- hilfe: tab-verbindung -->
+### Tab Verbindung
+
+| Bedienelement | Funktion |
+|---|---|
+| Art | *USB / Seriell* oder *Netzwerk (TCP/Telnet)* |
+| Port, ↻, Baud | Serieller Anschluss, Portliste aktualisieren, Baudrate |
+| Adresse, TCP-Port | IP-Adresse und Port bei Netzwerkverbindung |
+| Verbinden / Trennen | Verbindung herstellen bzw. beenden |
+| Firmware | Erkannte Firmware |
+| Beim Start automatisch verbinden | Mit der zuletzt erfolgreichen Verbindung beim Programmstart verbinden |
+| **Maschine** | |
+| ⌂ Referenzfahrt | Referenzfahrt (`$H` bzw. `G28`) |
+| Entsperren | Alarm aufheben (`$X` bzw. `M999`) |
+| Nullpunkt hier | Aktuelle Kopfposition als Werkstück-Nullpunkt setzen |
+| Zu 0/0 fahren | Kopf zum Nullpunkt fahren |
+
+Ausführlich: [Verbindung](#verbindung).
+
+<!-- hilfe: tab-bewegen -->
+### Tab Bewegen
+
+| Bedienelement | Funktion |
+|---|---|
+| **Relativ** | Acht Richtungsknöpfe und ⌂ (Referenzfahrt), *Schritt (mm)* und *Vorschub* |
+| **Absolut (Werkstückkoordinaten)** | X/Y eingeben, *Fahren* fährt mit ausgeschaltetem Laser dorthin |
+| Aktuelle Position übernehmen | Felder mit der aktuellen Kopfposition füllen |
+| **Makros** | Eigene G-Code-Knöpfe; *Bearbeiten…* öffnet [Makros bearbeiten](#fenster-makros-bearbeiten) |
+
+Ausführlich: [Bewegen](#bewegen).
+
+<!-- hilfe: tab-konsole -->
+### Tab Konsole
+
+Zeigt alle Meldungen der Steuerung (`<<`) und gesendeten Befehle (`>>`), dazu Hinweise von TiLaser (`--`) und
+Warnungen (`!!`). Unten ein Eingabefeld: G-Code- oder `$`-Befehl eingeben, Enter sendet ihn.
+
+<!-- hilfe: tab-kamera -->
+### Tab Kamera
+
+| Bedienelement | Funktion |
+|---|---|
+| Kameraliste, ⟳ | Webcam wählen, Liste aktualisieren |
+| ▶ Einschalten / ■ Ausschalten | Live-Bild starten bzw. beenden |
+| Foto speichern, ● Video aufnehmen | Foto (JPG) bzw. Video (MP4) im Speicherort ablegen |
+| Großes Fenster | Live-Bild in eigenem Fenster |
+| Drehen 90° | Nur die Anzeige drehen |
+| Bei Auftragsstart automatisch einschalten | Kamera startet mit jedem Auftrag |
+| Jeden Auftrag als Video aufnehmen | Video je Auftrag |
+| Live-Bild als Hintergrund (entzerrt, alle 2 s) | Live-Bild unter der Arbeitsfläche (nur nach dem Ausrichten) |
+| Speicherort, Ordner… | Ordner für Fotos und Videos |
+| **Flammenwächter** | Flammen während des Auftrags erkennen, Bei Flamme, Empfindlichkeit, Auslösen nach, Erkannte Stellen rot zeigen, Testen – siehe [Flammenwächter](#flammenwächter) |
+
+Ausführlich: [Live-Kamera](#live-kamera).
+
+<!-- hilfe: auftragsleiste -->
+### Auftragsleiste
+
+| Bedienelement | Funktion |
+|---|---|
+| Status, Position | Zustand (Bereit, Läuft, Pausiert, Fertig, Gestoppt, Alarm …) und Kopfposition |
+| Rahmen | Umriss des Auftrags abfahren |
+| ▶ Start | Auftrag starten (mit Sicherheitsabfrage) |
+| ⏸ Pause / ▶ Fortsetzen | Anhalten bzw. weiterlaufen lassen |
+| ■ Stopp | Sofortiger Abbruch |
+| Fortschrittsbalken, Zeit | Prozent, Restzeit, Laufzeit / erwartete Gesamtzeit |
+| Ursprung | *Absolut* oder *Aktuelle Position* mit Ankerpunkt (↙ links unten … ↗ rechts oben) |
+| Nur Auswahl | Nur ausgewählte Objekte lasern bzw. umrahmen |
+| Gummiband, Anzeigen | Rahmen eng um die Teile; Linie dauerhaft zeigen |
+| Fortsetzen… | Abgebrochenen Auftrag ab einer Zeile fortsetzen ([Fenster Auftrag fortsetzen](#fenster-auftrag-fortsetzen)) |
+
+Ausführlich: [Kapitel 12](#12-lasern-rahmen-start-pause-stopp-fortsetzen).
+
+<!-- hilfe: fenster -->
+### Fenster und Dialoge
+
+Alle Fenster haben **OK** (übernehmen) und **Abbrechen** (verwerfen), sofern nicht anders angegeben, und einen
+Knopf **Hilfe**, der den passenden Abschnitt dieser Anleitung öffnet.
+
+<!-- hilfe: dlg-maschine -->
+#### Fenster Maschineneinstellungen
+
+Maschinenvorlage mit *Übernehmen*, Name, Firmware / Dialekt mit *Standardwerte für Firmware übernehmen*,
+S-Wert bei 100 %, Laser-Ein-Befehl, *S-Wert in jeder G1-Zeile (Inline-Leistung)*, *G0 mit Vorschub F (Marlin)*
+(manche Marlin-Versionen fahren G0 sonst mit dem zuletzt benutzten Vorschub), Eilgang, Arbeitsbereich Breite,
+Arbeitsbereich Tiefe, Rahmen: Leistung, Rahmen: Geschwindigkeit, Air Assist an, Air Assist aus, Durchgänge
+(*Bei mehreren Durchgängen jede Kontur fertig schneiden*), Doppelte Linien (*Übereinanderliegende Linien nur
+einmal schneiden*), Schnittreihenfolge, *Rotationsachse (Rolle) statt Y-Achse* mit Y-Weg je Rollenumdrehung und
+Rollendurchmesser, G-Code Anfang und G-Code Ende. Bedeutung der Felder: [Maschineneinstellungen](#maschineneinstellungen).
+
+<!-- hilfe: dlg-text -->
+#### Fenster Text einfügen
+
+Textfeld (mehrzeilig), Schrift (Liste der installierten Schriften, „…“ wählt eine Schriftdatei), Größe (Em-Höhe;
+Großbuchstaben sind etwa 70 % davon), Zeilenabstand, Zeichenabstand, Ausrichtung (Links, Zentriert, Rechts),
+Ebene (vorhandene Ebene, *Neue Ebene: Füllen (gravieren)* oder *Neue Ebene: Schneiden / Kontur*).
+Siehe [Text](#text).
+
+<!-- hilfe: dlg-gcode -->
+#### Fenster G-Code
+
+Zeigt den erzeugten G-Code nur zum Lesen. Bei sehr langen Aufträgen wird der Anfang gezeigt und vermerkt, wie
+viele Zeilen noch folgen; *Datei → G-Code exportieren* speichert immer alles.
+
+<!-- hilfe: dlg-array -->
+#### Fenster Array erstellen
+
+Art *Raster (Zeilen × Spalten)*: Spalten, Zeilen, Abstand X, Abstand Y und Bedeutung (*Abstand zwischen den
+Objekten* oder *Rastermaß (Mitte zu Mitte)*). Art *Kreis*: Anzahl (inkl. Original), Mittelpunkt X,
+Mittelpunkt Y, Gesamtwinkel und *Kopien mitdrehen*. Siehe [Array](#array).
+
+<!-- hilfe: dlg-trace -->
+#### Fenster Bild nachzeichnen
+
+Schwellwert, *Invertieren (helle Bereiche nachzeichnen)*, Glättung, Mindestgröße, Helligkeit, Kontrast, Ebene,
+*Bild behalten*. Siehe [Bild nachzeichnen](#bild-nachzeichnen).
+
+<!-- hilfe: dlg-materialtest -->
+#### Fenster Materialtest
+
+Modus (*Gravieren (Fläche füllen)* oder *Schneiden (Kontur)*), Leistung von / bis, Spalten, Geschwindigkeit von /
+bis, Zeilen, Feldgröße, Feldabstand, Zeilenabstand (Gravur), Durchgänge, Position X, Position Y, *Beschriften* mit
+Beschriftung Leistung und Beschriftung Geschwindigkeit. Knöpfe: **Vorschau**, **Ins Projekt**,
+**Exportieren…**, **An Laser senden**, **Schließen**. Siehe [Materialtest](#materialtest).
+
+<!-- hilfe: dlg-offset -->
+#### Fenster Offset (Kontur versetzen)
+
+Abstand (positiv = nach außen, negativ = nach innen), *Runde Ecken* (sonst spitz), *Original behalten*
+(sonst wird die Kontur ersetzt).
+
+<!-- hilfe: dlg-passmarken -->
+#### Fenster Passmarken anklicken
+
+Zeigt das Kamerabild. Die Passmarken in der angegebenen Reihenfolge anklicken; das Mausrad zoomt.
+*Zurücksetzen* löscht alle Klicks. OK ist möglich, sobald alle Marken gesetzt sind. Siehe [Ausrichten](#ausrichten).
+
+<!-- hilfe: dlg-textpfad -->
+#### Fenster Text auf Pfad
+
+Text, Schrift, Größe, Ausrichtung (*Am Anfang (bei Konturen: ab oben)* oder *Mittig (bei Konturen: oben
+mittig)*), Abstand (der Grundlinie von der Kontur), Versatz (entlang des Pfades), *Umdrehen (bei Konturen: innen,
+unten lesbar)*, Ebene. Siehe [Text auf Pfad](#text-auf-pfad).
+
+<!-- hilfe: dlg-nesting -->
+#### Fenster Nesting – Teile anordnen
+
+Grundfläche (*Arbeitsbereich*, *Eigene Maße* mit X (links), Y (unten), Breite, Höhe, oder *Größtes ausgewähltes
+Objekt (dessen Umriss)*), Mindestabstand, Randabstand, Drehungen (*Keine Drehung*, *0° / 180°*, *90°-Schritte*,
+*45°-Schritte*, *15°-Schritte (langsam)*), Kopien je Objekt, *Kleine Teile auch in Löcher größerer Teile setzen*,
+*Bei Abstand 0 bündig anlegen (gemeinsame Kanten)*, *Gründlich (mehrere Strategien, langsamer, meist dichter)*,
+*Grundfläche als Rahmen einzeichnen (Ebene ohne Ausgabe)*. Nach dem Anordnen: *Platzierte speichern…*,
+*Speichern und entfernen…*, *Schließen*. Siehe [Kapitel 8](#8-nesting--teile-automatisch-anordnen).
+
+<!-- hilfe: dlg-fokustest -->
+#### Fenster Fokustest
+
+Art (*Ohne Z-Achse: Rampe (Brett schräg legen)* oder *Mit Z-Achse: Linien in verschiedenen Höhen*), Linienlänge
+bzw. Z von / Z bis und Linien, Teilstriche alle, Leistung, Geschwindigkeit, Position X/Y, *Beschriftung*.
+Knöpfe wie beim Materialtest. Siehe [Fokustest](#fokustest).
+
+<!-- hilfe: dlg-box -->
+#### Fenster Box-Generator
+
+Maße (*Innenmaße* / *Außenmaße*), Breite (X), Tiefe (Y), Höhe (Z), Materialstärke, Zinkenbreite,
+Schnittbreite (Kerf), *Mit Deckel*, Leistung, Geschwindigkeit, Durchgänge, Abstand der Teile, Position X/Y,
+*Teile beschriften (Boden, Vorne, …)*. Darunter das Außenmaß und Hinweise. Knöpfe wie beim Materialtest.
+Siehe [Box-Generator](#box-generator).
+
+<!-- hilfe: dlg-zeilenabstand -->
+#### Fenster Zeilenabstandstest
+
+Zeilenabstand von / bis, Felder, Feldgröße, Leistung, Geschwindigkeit, Winkel, Position X/Y, *Beschriftung*.
+Knöpfe wie beim Materialtest. Siehe [Zeilenabstandstest](#zeilenabstandstest).
+
+<!-- hilfe: dlg-barcode -->
+#### Fenster QR-Code / Barcode einfügen
+
+Art (*QR-Code* oder *Barcode (Code 128)*), Inhalt (Platzhalter erlaubt), Kantenlänge und Fehlerkorrektur
+(QR: *L – 7 % (kleinster Code)*, *M – 15 % (Standard)*, *Q – 25 %*, *H – 30 % (robust)*), Breite und Höhe
+(Barcode), Ebene. Siehe [Variabler Text, QR-Code und Barcode](#variabler-text-qr-code-und-barcode).
+
+<!-- hilfe: dlg-variablen -->
+#### Fenster Variable Texte
+
+Nummer `{nr}` (nächster Wert), Schritt, CSV-Datei (*…* wählen, *✕* entfernen), Aktuelle Zeile, *Nach jedem
+Auftrag bzw. G-Code-Export weiterzählen*. Unten die Vorschau des nächsten Auftrags.
+
+<!-- hilfe: dlg-grbl -->
+#### Fenster GRBL-Einstellungen
+
+Tabelle mit Nr., Wert und Bedeutung aller `$`-Einstellungen. *Neu lesen* fragt die Werte erneut ab,
+*Exportieren…* sichert sie als Textdatei, *Änderungen schreiben* sendet geänderte Werte (mit Rückfrage).
+Siehe [GRBL-Einstellungen](#grbl-einstellungen).
+
+<!-- hilfe: dlg-makros -->
+#### Fenster Makros bearbeiten
+
+Links die Liste der Makros mit **+** (neues Makro), **−** (gewähltes löschen) und **↑/↓** (Reihenfolge der
+Knöpfe). Rechts für das gewählte Makro: Name, G-Code (jede Zeile wird an die Steuerung gesendet) und
+Tastenkürzel (in das Feld klicken und die gewünschte Tastenkombination drücken).
+
+<!-- hilfe: dlg-web -->
+#### Fenster Weboberfläche
+
+*Weboberfläche einschalten*, Port, PIN mit *Neue PIN*, *Aufträge aus der Ferne starten erlauben*, Adresse und
+QR-Code zum Scannen. Siehe [Weboberfläche](#weboberfläche-handy-tablet-pc).
+
+<!-- hilfe: dlg-protokoll -->
+#### Fenster Auftragsprotokoll
+
+Tabelle der Aufträge, Summenzeile, Stundensatz, Leistungsaufnahme, Strompreis, *Aufträge protokollieren*,
+*Als CSV speichern…*, *Protokoll leeren…*. Siehe [Auftragsprotokoll](#auftragsprotokoll).
+
+<!-- hilfe: dlg-generator -->
+#### Fenster der Generatoren und Muster
+
+*Biegescharnier*, *Lochmuster*, *Gravurmuster*, *Fingerzinken an Kante*, *Schablonen-Stege*, *Zahnrad* und
+*Puzzle* öffnen ein Fenster mit ihren Einstellungen und einer Ebenenwahl (vorhandene Ebene oder neue Ebene).
+Die Felder sind in [Muster in einer Fläche](#muster-in-einer-fläche),
+[Fingerzinken an Kante](#fingerzinken-an-kante) und [Zahnrad, Puzzle und Schablonen-Stege](#zahnrad-puzzle-und-schablonen-stege)
+beschrieben. Die zuletzt benutzten Werte bleiben bis zum Beenden erhalten.
+
+<!-- hilfe: dlg-farbe -->
+#### Fenster Ebenenfarbe
+
+Raster mit 32 Farben. Ein Punkt markiert Farben, die schon eine Ebene benutzt; der Tooltip nennt Nummer, Name
+und Ebene. Klick wählt die Farbe.
+
+<!-- hilfe: dlg-preset -->
+#### Preset speichern
+
+Fragt nach dem Preset-Namen und Material / Notiz. Das Preset gilt für die gewählte Maschine und erscheint
+danach in der Liste *Material-Presets*.
+
+<!-- hilfe: dlg-fortsetzen -->
+#### Fenster Auftrag fortsetzen
+
+Zeigt, nach welcher Zeile der Auftrag abgebrochen ist, und schlägt eine etwas frühere Zeile vor. Nach OK wird
+noch einmal bestätigt, dass das Werkstück nicht verschoben wurde.
+
+<!-- hilfe: dlg-startabfrage -->
+#### Sicherheitsabfrage beim Start
+
+Vor jedem Start nennt TiLaser die geschätzte Dauer, die Zahl der Zeilen, den Dialekt und Hinweise (z. B.
+Objekte außerhalb des Arbeitsbereichs). *Ja* startet, *Nein* bricht ab. Bei *Rahmen* mit Laserleistung erscheint
+eine eigene Abfrage.
+
+<!-- hilfe: dlg-flamme -->
+#### Meldung Flammenwächter
+
+Erscheint, wenn der Flammenwächter auslöst: *Auftrag stoppen*, *Weiter beobachten*,
+*Wächter für diesen Auftrag aus*. Siehe [Flammenwächter](#flammenwächter).
+
+<!-- hilfe: dlg-sprache -->
+#### Eigene Übersetzung
+
+Fragt nach dem Sprachcode (zwei Buchstaben, z. B. fr, nl, it, pl) und legt die Sprachdatei an. Siehe
+[Kapitel 21](#21-sprache-und-übersetzungen).
+
+<!-- hilfe: dlg-lizenzen -->
+#### Fenster Lizenzen und Über TiLaser
+
+*Über TiLaser* zeigt Version, Lizenz und Markenhinweis; *Lizenzen…* öffnet die Übersicht aller mitgelieferten
+Bibliotheken mit dem Ort der vollständigen Lizenztexte.
+
+<!-- hilfe: fenster-kamera -->
+#### Großes Kamerafenster
+
+Live-Bild in eigenem Fenster („TiLaser – Kamera“). **F11** oder Doppelklick: Vollbild, **Esc** beendet das
+Vollbild. Das Fenster kann auf einen zweiten Bildschirm gezogen werden.
+
+<!-- hilfe: hilfe -->
+### Hilfe im Programm
+
+*Hilfe → Bedienungsanleitung* (**F1**) öffnet diese Anleitung in einem eigenen Fenster:
+
+| Bedienelement | Funktion |
+|---|---|
+| Inhaltsverzeichnis (links) | Klick springt zum Kapitel bzw. Abschnitt |
+| ◀ / ▶ | Zurück und vor, wie im Browser |
+| Inhalt | Zum Anfang der Anleitung |
+| Suchfeld | Begriff eingeben, Enter sucht den nächsten Treffer, Umschalt+Enter den vorigen |
+| PDF | Die PDF-Fassung öffnen |
+| Online | Die Anleitung auf der Projektseite im Browser öffnen |
+| Links im Text | Verweise auf andere Abschnitte springen dorthin; Internetadressen öffnen den Browser |
+
+**Kontexthilfe:** **F1** öffnet immer den Abschnitt, der zu dem passt, was man gerade bedient:
+
+- im geöffneten Menü: zum markierten Menüpunkt,
+- über einem Knopf der Werkzeugleiste oder einem Bedienelement: zu dessen Beschreibung (die Maus darüber halten
+  und F1 drücken),
+- in einem Fenster: zum Abschnitt dieses Fensters – dafür hat jedes Fenster außerdem einen Knopf **Hilfe**,
+- auf der Arbeitsfläche: zur Bedienung der Arbeitsfläche, in einem Tab: zu diesem Tab.
+
+Die Anleitung erscheint in der eingestellten Sprache (Deutsch oder Englisch; andere Sprachen zeigen die
+englische Fassung).

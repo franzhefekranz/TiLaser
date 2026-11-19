@@ -65,7 +65,10 @@ def install(code: str):
     """Sprache setzen und Qt-Methoden einhängen."""
     global _installed
     tl = i18n.set_language(code)
-    if not tl.active or _installed:
+    if not tl.active:
+        _load_qt_translations(code)          # auch auf Deutsch: Qt-Knöpfe wie „Hilfe“, „Abbrechen“
+        return tl
+    if _installed:
         return tl
     _installed = True
     from PyQt6 import QtGui, QtWidgets as W

@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 LANG_DIR = os.path.join(ROOT, "tilaser", "data", "lang")
 
-SKIP_CORE = {"i18n.py", "webserver.py"}
+SKIP_CORE = {"i18n.py", "webserver.py", "manual.py"}
 
 
 def _letters(s):
@@ -33,11 +33,15 @@ def is_ui_text(s: str, core: bool) -> bool:
         return False
     if re.fullmatch(r"[a-z0-9_.\-/:]+", t) or re.fullmatch(r"[A-Z0-9_]+", t):
         return False                                      # Bezeichner, Schlüssel, Konstanten
+    if re.fullmatch(r"[A-Z][a-z]+(?:[A-Z][a-z]*)+", t) or re.match(r"https?://", t) \
+            or re.fullmatch(r"[\w\-]+\.(md|pdf|png|json|csv|txt|html)", t) or re.match(r"^[a-z\-]+:\s", t):
+        return False                                      # Klassennamen, Adressen, Dateinamen, CSS
     if any(x in s for x in ("<svg", "<path", "stroke=", "\\d", "(?", "%(", "{:")):
         return False
     if re.fullmatch(r"[#\w]*#[0-9a-fA-F]{3,8}", t) or re.fullmatch(r"\*?\.\w+( \*?\.\w+)*", t):
         return False
-    if re.match(r"^[GM]\d", t) or t.startswith("$") or re.fullmatch(r"[A-Z][A-Z0-9 ,.=\-+]*", t):
+    if (re.match(r"^[GM]\d", t) and not re.search(r"\b[a-zäöü]{3,}\b", t)) or t.startswith("$") \
+            or re.fullmatch(r"[A-Z][A-Z0-9 ,.=\-+]*", t):
         return False                                      # G-Code, GRBL-Befehle
     if core:                                              # im Kern nur echte Sätze/Meldungen
         return bool(re.search(r"[äöüÄÖÜß]", t) or " " in t) and bool(re.search(r"[A-ZÄÖÜ]", t[:3] + t))
