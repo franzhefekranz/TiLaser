@@ -134,6 +134,8 @@ class MainWindow(QMainWindow):
         self.canvas.shapeDrawn.connect(self._on_shape_drawn)
         self.canvas.nodesEdited.connect(self._on_nodes_edited)
         self.canvas.toolChanged.connect(self._on_tool_changed)
+        self.canvas.edgesPicked.connect(self._edges_picked)
+        self.canvas.edgeStep.connect(self._edge_step)
         self._grabber = None
         self._camera_img = None
         self._live_bg_timer = QTimer(self)
@@ -261,6 +263,11 @@ class MainWindow(QMainWindow):
         ar.addSeparator()
         ar.addAction(self._act("Horizontal verteilen (gleiche Abstände)", lambda: self.distribute_selected("x")))
         ar.addAction(self._act("Vertikal verteilen (gleiche Abstände)", lambda: self.distribute_selected("y")))
+        ar.addSeparator()
+        self.a_edge_align = self._act("Kanten aneinanderlegen", lambda: self.canvas.set_tool("edge"), "Alt+K",
+                                      "Erst eine Kante des Teils anklicken, das bewegt wird, dann die Zielkante am "
+                                      "anderen Teil: das erste Teil wird gedreht und bündig angelegt")
+        ar.addAction(self.a_edge_align)
         ar.addSeparator()
         ar.addAction(self._act("Horizontal spiegeln", lambda: self.mirror_selected("h")))
         ar.addAction(self._act("Vertikal spiegeln", lambda: self.mirror_selected("v")))
@@ -2019,12 +2026,44 @@ class MainWindow(QMainWindow):
         self.canvas.set_simulation_time(t)
         self.lbl_sim.setText(f"{fmt_time(t)} / {fmt_time(self.result.time_s)}")
 
+    # ------------------------------------------------------------ Kanten aneinanderlegen
+    def _edge_step(self, step):
+        if step == 0:
+            self.statusBar().showMessage("Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll "
+                                         "(Esc = abbrechen)")
+        else:
+            self.statusBar().showMessage("Jetzt die Zielkante am anderen Teil anklicken – Mitten bündig; mit "
+                                         "Umschalt: links bzw. unten bündig, mit Strg: rechts bzw. oben bündig")
+
+    def _edges_picked(self, moving, target, mods):
+        from ..core.edgealign import align_matrix, rotation_deg
+        it = self.project.item(moving.item_id)
+        if it is None:
+            return
+        mode = "center"
+        if mods & Qt.KeyboardModifier.ShiftModifier:
+            mode = "start"
+        elif mods & Qt.KeyboardModifier.ControlModifier:
+            mode = "end"
+        m = align_matrix(moving, target, mode)
+        self._checkpoint("Kanten aneinanderlegen")
+        nx, ny = g.apply_matrix(m, np.array([[it.x, it.y]]))[0]
+        it.x, it.y = float(nx), float(ny)
+        it.rotation = (it.rotation + rotation_deg(m) + 180.0) % 360.0 - 180.0
+        self._refresh_items([it])
+        self.canvas.set_tool("select")
+        self.canvas.select_only([it.id])
+        self.statusBar().showMessage("Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → "
+                                     "Fingerzinken an Kante… verzinkt sie.", 8000)
+
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):
         a = self.tool_actions.get(tool)
         if a and not a.isChecked():
             a.setChecked(True)
-        names = {"select": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
+        if tool == "edge":                       # Hinweis kommt über edgeStep
+            return
+        names = {"select": "", "edge": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
                  "polygon": "Polygon: ziehen", "line": "Linie: klicken, Doppelklick/Enter = fertig, Esc = abbrechen",
                  "node": "Knoten: ziehen = verschieben, Anfasser ziehen = Kurve formen (Alt: einzeln), "
                          "Doppelklick = einfügen, Entf = löschen, C = Kurve, L = Linie, S = glätten, "

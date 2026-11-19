@@ -312,6 +312,27 @@ The layer order still comes first in both cases.
 **Snap to grid:** *View → Snap to grid* (Ctrl+Shift+F). When moving, the bottom left object corner snaps to
 the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points snap while drawing, too.
 
+<!-- hilfe: kanten-anlegen -->
+### Placing edges together
+
+Places a part with one of its straight edges flush against the edge of another part – rotated to fit, without
+overlap. Handy before [joining with fingers](#finger-joint-on-edge) or to put parts together without a gap.
+
+1. *Arrange → Place edges together* (Alt+K). The status bar shows what to do.
+2. Move the mouse over an edge of the part that is to be **moved** – the edge is highlighted in orange – and
+   click. It stays marked in blue.
+3. Click the **target edge** on the other part. The first part is rotated and moved so that the two edges lie
+   exactly on top of each other and the parts lie side by side.
+
+| On the second click | Alignment along the edge |
+|---|---|
+| no key | centers flush |
+| with Shift | left or bottom flush |
+| with Ctrl | right or top flush |
+
+The whole straight piece counts as the edge, even if it consists of several points. For curves only the small
+piece under the mouse is used. Esc cancels, Ctrl+Z undoes the placement.
+
 <!-- hilfe: array -->
 ### Array
 
@@ -510,7 +531,7 @@ Joins any two parts with finger joints – e.g. a self-drawn back panel with a b
 the other exactly matching cut-outs. This is how:
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** (same line,
-   overlapping). Easiest with *Arrange → Align* or snapping to the grid.
+   overlapping). Easiest with [Placing edges together](#placing-edges-together) (Alt+K).
 2. Select both parts → *Tools → Finger joint on edge…*
 3. Under **Fingers on**, choose which part gets the fingers; the list names both parts with their position
    (e.g. “Bottom (bottom)”).
@@ -1051,7 +1072,7 @@ For cylindrical workpieces with a **roller rotary axis** that is connected inste
 | V R E P L N | Drawing tools | | Ctrl+Shift+←/→/↑/↓ | Align left/right/top/bottom |
 | Esc | Back to select | | Ctrl+Shift+U / D / I | Union / subtract / intersection |
 | Alt+T | Trace image | | Alt+O / Alt+J | Offset / join paths |
-| Ctrl+Shift+B | Box generator | | | |
+| Ctrl+Shift+B | Box generator | | Alt+K | Place edges together |
 
 In node mode: Del, C, L, S, B, A (see [Node editing](#node-editing)). Macros can get their own shortcuts.
 
@@ -1201,6 +1222,7 @@ section (see [Help in the program](#help-in-the-program)).
 | Center vertically | | Centers on one horizontal line |
 | Align bottom | Ctrl+Shift+↓ | Bottom edges flush |
 | Distribute horizontally (equal gaps) | | At least 3 objects side by side with equal gaps |
+| Place edges together | Alt+K | First click the edge of the part to be moved, then the target edge – the part is rotated and placed flush ([Placing edges together](#placing-edges-together)) |
 | Distribute vertically (equal gaps) | | At least 3 objects above each other with equal gaps |
 | Mirror horizontally | | Mirror at the vertical center line of the selection |
 | Mirror vertically | | Mirror at the horizontal center line |

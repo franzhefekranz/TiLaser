@@ -1318,5 +1318,11 @@
  "rechts": "right",
  "oben": "top",
  "unten": "bottom",
- "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Curves of the parts are converted into fine polylines."
+ "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Curves of the parts are converted into fine polylines.",
+ "Kanten aneinanderlegen": "Place edges together",
+ "Erst eine Kante des Teils anklicken, das bewegt wird, dann die Zielkante am anderen Teil: das erste Teil wird gedreht und bündig angelegt": "First click an edge of the part to be moved, then the target edge on the other part: the first part is rotated and placed flush",
+ "Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll (Esc = abbrechen)": "Place edges together: click the edge of the part to be moved (Esc = cancel)",
+ "Jetzt die Zielkante am anderen Teil anklicken – Mitten bündig; mit Umschalt: links bzw. unten bündig, mit Strg: rechts bzw. oben bündig": "Now click the target edge on the other part – centers flush; with Shift: left or bottom flush, with Ctrl: right or top flush",
+ "Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → Fingerzinken an Kante… verzinkt sie.": "Edges placed flush. Tip: select both parts and use Tools → Finger joint on edge… to join them.",
+ "Alt+K": "Alt+K"
 }

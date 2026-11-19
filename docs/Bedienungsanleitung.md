@@ -312,6 +312,28 @@ Die Ebenen-Reihenfolge gilt in beiden Fällen weiterhin zuerst.
 Objektecke auf das Raster ein. Rastermaß unter *Ansicht → Rastermaß* (0,5 / 1 / 5 / 10 mm).
 Beim Zeichnen rasten auch die Punkte ein.
 
+<!-- hilfe: kanten-anlegen -->
+### Kanten aneinanderlegen
+
+Legt ein Teil mit einer seiner geraden Kanten bündig an die Kante eines anderen Teils – passend gedreht,
+ohne Überlappung. Praktisch vor dem [Verzinken](#fingerzinken-an-kante) oder um Teile ohne Lücke
+aneinanderzusetzen.
+
+1. *Anordnen → Kanten aneinanderlegen* (Alt+K). Die Statuszeile zeigt, was zu tun ist.
+2. Mit der Maus über eine Kante des Teils fahren, das **bewegt** werden soll – die Kante wird orange
+   hervorgehoben – und klicken. Sie bleibt blau markiert.
+3. Die **Zielkante** am anderen Teil anklicken. Das erste Teil wird gedreht und verschoben, so dass die beiden
+   Kanten genau aufeinanderliegen und die Teile nebeneinander liegen.
+
+| Beim zweiten Klick | Ausrichtung entlang der Kante |
+|---|---|
+| ohne Taste | Mitten bündig |
+| mit Umschalt | links bzw. unten bündig |
+| mit Strg | rechts bzw. oben bündig |
+
+Als Kante zählt das ganze gerade Stück, auch wenn es aus mehreren Punkten besteht. Bei Kurven wird nur das
+kleine Stück unter der Maus genommen. Esc bricht ab, Strg+Z macht das Anlegen rückgängig.
+
 <!-- hilfe: array -->
 ### Array
 
@@ -512,7 +534,7 @@ Verzinkt zwei beliebige Teile miteinander – z. B. eine selbst gezeichnete Rüc
 eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
-   überlappend). Am einfachsten mit *Anordnen → Ausrichten* oder am Raster fangen.
+   überlappend). Am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
 2. Beide Teile auswählen → *Werkzeuge → Fingerzinken an Kante…*
 3. Unter **Zinken an** wählen, welches Teil die Zinken bekommt; die Liste nennt beide Teile mit ihrer Lage
    (z. B. „Boden (unten)“).
@@ -1066,7 +1088,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | V R E P L N | Zeichenwerkzeuge | | Strg+Shift+←/→/↑/↓ | Links/rechts/oben/unten ausrichten |
 | Esc | Zurück zum Auswählen | | Strg+Shift+U / D / I | Vereinigen / Abziehen / Schnittmenge |
 | Alt+T | Bild nachzeichnen | | Alt+O / Alt+J | Offset / Pfade verbinden |
-| Strg+Shift+B | Box-Generator | | | |
+| Strg+Shift+B | Box-Generator | | Alt+K | Kanten aneinanderlegen |
 
 Im Knotenmodus: Entf, C, L, S, B, A (siehe [Knotenbearbeitung](#knotenbearbeitung)). Makros können eigene
 Tastenkürzel bekommen.
@@ -1211,6 +1233,7 @@ dorthin. In TiLaser öffnet **F1** genau den passenden Abschnitt (siehe [Hilfe i
 | Vertikal mittig ausrichten | | Mittelpunkte auf eine waagerechte Linie |
 | Unten ausrichten | Strg+Umschalt+↓ | Untere Kanten bündig |
 | Horizontal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken nebeneinander |
+| Kanten aneinanderlegen | Alt+K | Erst die Kante des zu bewegenden Teils anklicken, dann die Zielkante – das Teil wird gedreht und bündig angelegt ([Kanten aneinanderlegen](#kanten-aneinanderlegen)) |
 | Vertikal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken übereinander |
 | Horizontal spiegeln | | An der senkrechten Mittellinie der Auswahl spiegeln |
 | Vertikal spiegeln | | An der waagerechten Mittellinie spiegeln |
