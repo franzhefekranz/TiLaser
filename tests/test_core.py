@@ -1619,6 +1619,13 @@ def test_finger_joint_edges():
     P = lambda rs: [g.Polyline(r, True) for r in rs]
     assert abs(_ring_area(ra) - (5000 + 6 * w * 3)) < 1e-6
     assert sum(abs(_ring_area([p])) for p in boolean(P(ra), P(rb), "intersection")) < 1e-6   # greifen ineinander
+    from tilaser.core.joints import sides
+    assert sides(A, B) == ("bottom", "top") and sides(B, A) == ("top", "bottom")
+    assert sides(A, [np.array([[100, 0], [150, 0], [150, 50], [100, 50.]])]) == ("left", "right")
+    assert sides(A, [r + [0, 20] for r in B]) is None
+    ra3, rb3, _ = finger_joint(A, B, 3, 10)                                   # Standard: ineinandergreifend
+    assert sum(abs(_ring_area([p])) for p in boolean(P(ra3), P(rb3), "intersection")) < 1e-6
+    assert abs(_ring_area(ra3) + _ring_area(rb3) - 8000) < 1e-6              # lückenlos, nichts doppelt
     ra2, rb2, _ = finger_joint(A, B, 3, 10, "corner", dogbone=1.0)
     assert len(rb2[0]) > len(rb[0]) and _ring_area(rb2) < 3000 - 6 * w * 3
     try:

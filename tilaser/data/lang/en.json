@@ -1308,5 +1308,15 @@
  "Contents": "Contents",
  "Hilfe": "Help",
  "Bedienungsanleitung öffnen – F1 zeigt überall den passenden Abschnitt": "Open the user manual – F1 shows the matching section everywhere",
- "Bedienungsanleitung als PDF": "User manual as PDF"
+ "Bedienungsanleitung als PDF": "User manual as PDF",
+ "Ineinandergreifend": "Interlocking",
+ "Eckverbindung": "Corner joint",
+ "Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen": "Interlocking: one part with fingers, the other with cut-outs",
+ "Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben": "Corner joint: both parts with offset cut-outs, outside dimensions stay",
+ "Zinken an": "Fingers on",
+ "links": "left",
+ "rechts": "right",
+ "oben": "top",
+ "unten": "bottom",
+ "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Curves of the parts are converted into fine polylines."
 }

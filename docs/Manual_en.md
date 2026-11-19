@@ -506,23 +506,29 @@ vent grilles in enclosure walls.
 <!-- hilfe: fingerzinken -->
 ### Finger joint on edge
 
-Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom. This is how:
+Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom: one part gets fingers,
+the other exactly matching cut-outs. This is how:
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** (same line,
    overlapping). Easiest with *Arrange → Align* or snapping to the grid.
 2. Select both parts → *Tools → Finger joint on edge…*
+3. Under **Fingers on**, choose which part gets the fingers; the list names both parts with their position
+   (e.g. “Bottom (bottom)”).
+
+![Interlocking and corner joint](screenshots/en/zinken_arten.png)
 
 | Setting | Effect |
 |---|---|
-| Type | *Corner joint*: both parts keep their outside dimensions, the cut-outs go inwards by the material thickness (like the box generator). *Fingers outwards*: part 1 gets protruding fingers, part 2 matching cut-outs; as drawn, they interlock exactly |
+| Type | **Interlocking: one part with fingers, the other with cut-outs** (default): the fingers protrude beyond the edge by the material thickness, the mating part gets equally deep cut-outs at the same places. As the parts lie, the fingers fill the cut-outs without gaps (left picture); the shared line is cut only once. For a 90° corner, draw the part with the fingers shorter by the material thickness. **Corner joint: both parts with offset cut-outs, outside dimensions stay**: like the box generator – both parts keep their outside dimensions and get alternating cut-outs (right picture). Lying flat side by side there are gaps; they only interlock when turned by 90° |
+| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay) |
 | Material thickness | Depth of the fingers/cut-outs |
 | Finger width | Desired width; an odd number of equally wide fingers is distributed along the edge |
 | Dogbone diameter | Relieves every **inner corner** with a small circle (“dogbone”) so that square fingers go in completely – important for thick material, a strongly tapered beam or milling. 0 = off |
 | Tolerance | How far apart the edges may be and still count as “touching” |
 | All shared edges | Otherwise only the longest shared edge is processed |
-| Start fingers on part 2 | Swaps which part has the fingers on the outside |
 
-Curves of the parts are converted into fine polylines.
+Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
+([Determining the kerf](#determining-the-kerf)).
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges

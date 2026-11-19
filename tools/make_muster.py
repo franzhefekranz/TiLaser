@@ -84,7 +84,7 @@ def main():
                  sc=2.3)
     a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40.]])]
     b = [np.array([[80, 70], [0, 70], [0, 40], [80, 40.]])]
-    ra, rb, _ = finger_joint(a, b, 4, 12, "corner", dogbone=2.0)
+    ra, rb, _ = finger_joint(a, b, 4, 12, "tabs", dogbone=1.5)
     shift = np.array([0, 12.0])
     joint = tile([g.Polyline(r, True) for r in ra] + [g.Polyline(r + shift, True) for r in rb], [],
                  "Fingerzinken mit Dogbones", False, sc=2.0)
@@ -96,7 +96,25 @@ def main():
     st, _ = stencil_bridges(txt, 2.0) if txt else ([], 0)
     sten = tile(st, [], "Schablonen-Stege", False, sc=1.9)
     sheet([hinge, holes, slots, joint, gears, puzzle, sten], 3, "muster_generatoren.png")
+    joint_types()
     print("Bilder in", OUT)
+
+
+def joint_types():
+    """Vergleich der beiden Zinkenarten: Teile wie gezeichnet, farbig gefüllt."""
+    a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40.]])]
+    b = [np.array([[0, 40], [80, 40], [80, 70], [0, 70.]])]
+    im = Image.new("RGB", (900, 400), "white")
+    d = ImageDraw.Draw(im)
+    sc = 3.6
+    for i, (kind, label) in enumerate((("tabs", "Ineinandergreifend"), ("corner", "Eckverbindung"))):
+        ra, rb, _ = finger_joint(a, b, 4, 12, kind, dogbone=0)
+        ox = 60 + i * 450
+        for rs, col in ((ra, HOLZ), (rb, (150, 190, 230))):
+            for r in rs:
+                d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
+        d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "zinken_arten.png"), optimize=True)
 
 
 if __name__ == "__main__":

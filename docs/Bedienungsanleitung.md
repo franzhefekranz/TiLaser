@@ -508,24 +508,29 @@ Quadraten aufgebaut.
 <!-- hilfe: fingerzinken -->
 ### Fingerzinken an Kante
 
-Verbindet zwei beliebige Teile mit Fingerzinken – z. B. eine selbst gezeichnete Rückwand mit einem
-Boden. So geht es:
+Verzinkt zwei beliebige Teile miteinander – z. B. eine selbst gezeichnete Rückwand mit einem Boden: Das
+eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
    überlappend). Am einfachsten mit *Anordnen → Ausrichten* oder am Raster fangen.
 2. Beide Teile auswählen → *Werkzeuge → Fingerzinken an Kante…*
+3. Unter **Zinken an** wählen, welches Teil die Zinken bekommt; die Liste nennt beide Teile mit ihrer Lage
+   (z. B. „Boden (unten)“).
+
+![Ineinandergreifend und Eckverbindung](screenshots/zinken_arten.png)
 
 | Einstellung | Wirkung |
 |---|---|
-| Art | *Eckverbindung*: Beide Teile behalten ihr Außenmaß, Aussparungen gehen um die Materialstärke hinein (wie beim Box-Generator). *Zinken nach außen*: Teil 1 bekommt herausragende Zinken, Teil 2 passende Aussparungen; so wie gezeichnet greifen sie genau ineinander |
+| Art | **Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen** (Standard): Die Zinken ragen um die Materialstärke über die Kante hinaus, das Gegenstück bekommt an denselben Stellen gleich tiefe Aussparungen. So wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos (Bild links); die gemeinsame Linie wird nur einmal geschnitten. Für eine 90°-Ecke zeichnet man das Teil mit den Zinken um die Materialstärke kürzer. **Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben**: wie beim Box-Generator – beide Teile behalten ihr Außenmaß und bekommen abwechselnd Aussparungen (Bild rechts). Flach nebeneinander bleiben Lücken; erst um 90° gedreht greifen sie ineinander |
+| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben) |
 | Materialstärke | Tiefe der Zinken/Aussparungen |
 | Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt |
 | Dogbone-Durchmesser | Rundet jede **Innenecke** mit einem kleinen Kreis frei („Hundeknochen“), damit eckige Zinken ganz hineinpassen – wichtig bei dickem Material, starker Kegelform des Strahls oder beim Fräsen. 0 = aus |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 | Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
-| Zinken bei Teil 2 beginnen | Vertauscht, welches Teil außen die Zinken hat |
 
-Kurven der Teile werden dabei in feine Linienzüge umgewandelt.
+Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
+nutzen ([Kerf ermitteln](#kerf-ermitteln)).
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
