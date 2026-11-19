@@ -1328,5 +1328,13 @@
  "Alt+K": "Alt+K",
  "Normal": "Normal",
  "Dreifach versetzt": "Triple offset",
- "Wellenschlitze": "Wave slits"
+ "Wellenschlitze": "Wave slits",
+ "Lasermodus aus": "Laser mode off",
+ "GRBL meldet $32=0 – der Lasermodus ist ausgeschaltet. In diesem Zustand brennt der Laser auch bei Leerfahrten und im Stillstand.\n\nBitte in der Konsole '$32=1' senden (oder unter GRBL-Einstellungen ändern) und den Auftrag dann erneut starten.": "GRBL reports $32=0 – laser mode is switched off. In this state the laser also fires during rapid moves and while standing still.\n\nPlease send '$32=1' in the console (or change it under GRBL settings) and then start the job again.",
+ "Die DXF-Datei ist zu komplex (mehr als {0} Elemente nach dem Auflösen der Blöcke).": "The DXF file is too complex (more than {0} elements after resolving the blocks).",
+ "Ungültiger Zahlenwert im G-Code: {0} – bitte die Objekte prüfen.": "Invalid number in the G-code: {0} – please check the objects.",
+ "Ebene '{0}': {1} Kontur(en) kleiner als die Schnittbreite ({2} mm) – durch den Kerf-Ausgleich entfallen, sie werden nicht geschnitten.": "Layer '{0}': {1} contour(s) smaller than the kerf width ({2} mm) – removed by the kerf compensation, they will not be cut.",
+ "{0} Pfad(e) mit ungültigen Koordinaten (NaN/unendlich) wurden ausgelassen.": "{0} path(s) with invalid coordinates (NaN/infinite) were skipped.",
+ "!! Fehler bei Zeile {0} des Auftrags – Auftrag angehalten. Prüfen, dann fortsetzen oder stoppen.": "!! Error at line {0} of the job – job paused. Check, then resume or stop.",
+ "Die SVG-Datei ist zu komplex (mehr als {0} Elemente nach dem Auflösen von <use>-Verweisen).": "The SVG file is too complex (more than {0} elements after resolving <use> references)."
 }

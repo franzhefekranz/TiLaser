@@ -493,8 +493,19 @@ class MachinePanel(QWidget):
         elif self.send(t):
             self.cmd.clear()
 
-    def run_job(self, lines: list[str]):
+    def laser_mode_off(self) -> bool:
+        """GRBL meldet $32=0 (Lasermodus aus): Leerfahrten und Stillstand würden brennen."""
+        return self._grbl() and str(self.grbl_settings.get(32, "")).strip() in ("0", "0.0", "0.000")
+
+    def run_job(self, lines: list[str]) -> bool:
         clean = [c for c in (sender.clean_line(l) for l in lines) if c]
+        if self.laser_mode_off() and any(re.match(r"M0*[34]\b", c.upper()) for c in clean):
+            QMessageBox.critical(self, "Lasermodus aus",
+                                 "GRBL meldet $32=0 – der Lasermodus ist ausgeschaltet. In diesem Zustand "
+                                 "brennt der Laser auch bei Leerfahrten und im Stillstand.\n\n"
+                                 "Bitte in der Konsole '$32=1' senden (oder unter GRBL-Einstellungen "
+                                 "ändern) und den Auftrag dann erneut starten.")
+            return False
         try:
             self._cum = line_times(clean, self.profile)
         except Exception:
@@ -504,6 +515,7 @@ class MachinePanel(QWidget):
         self.job_start = time.time()
         self.jobStarted.emit()
         self._update_time()
+        return True
 
     # ------------------------------------------------------------ Laufzeit
     @staticmethod
@@ -574,6 +586,7 @@ class MachinePanel(QWidget):
 
     def _stop(self):
         if self.conn.connected:
+            self.conn.air_off = self.profile.air_off or ""
             self.conn.stop()
             self.btn_pause.setText("⏸ Pause")
             if self._grbl():
@@ -677,6 +690,10 @@ class MachinePanel(QWidget):
         labels = {"idle": "Bereit", "running": "Läuft", "paused": "Pausiert", "done": "Fertig",
                   "stopped": "Gestoppt", "alarm": "ALARM", "error": "Verbindungsfehler", "disconnected": "Getrennt"}
         self.lbl_state.setText(labels.get(s, s))
+        if s == "paused":                         # auch bei Pause durch Fehler oder Flammenwächter
+            self.btn_pause.setText("▶ Fortsetzen")
+        elif s in ("running", "done", "stopped", "alarm", "error", "idle"):
+            self.btn_pause.setText("⏸ Pause")
         if s == "paused" and self._pause_t0 is None:
             self._pause_t0 = time.time()
         elif s != "paused" and self._pause_t0 is not None:

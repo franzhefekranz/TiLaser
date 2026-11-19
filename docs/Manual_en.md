@@ -52,7 +52,10 @@ fires.
 - **Stop** (in the job bar) halts the machine immediately. With GRBL a soft reset is sent; the laser turns
   off at once.
 - With GRBL, **laser mode must be active** (`$32=1`), otherwise the laser keeps burning during travel moves.
-  TiLaser warns you when connecting if this is not the case.
+  TiLaser warns you when connecting if this is not the case, and then does not start any job that switches
+  the laser on. In addition, with GRBL TiLaser explicitly sets the power to `S0` before every travel move.
+- If the controller reports an error during a job (`error:…`), the job is **paused** instead of continuing
+  with the next line. The console shows at which line; then *Resume* or *Stop*.
 
 ---
 
@@ -684,7 +687,7 @@ of the file are mapped to the closest of the 32 colors – pure primary colors (
 | Overscan | raster | Run-up before/after each line against dark edges |
 | Bidirectional | fill, raster | Engrave back and forth (faster) |
 | Inside before outside | cut | Cut holes before the outer contour so that parts do not come loose too early |
-| **Kerf compensation** | cut | Kerf in mm. Outer contours are offset outwards by half of it, holes inwards – the parts keep their size. Important for plug-in and press fits. |
+| **Kerf compensation** | cut | Kerf in mm. Outer contours are offset outwards by half of it, holes inwards – the parts keep their size. Important for plug-in and press fits. Holes smaller than the kerf disappear; TiLaser reports this as a note when starting. |
 | **Tabs** | cut | Number of tabs per contour and tab width. The parts stay attached to the material and do not fall through the honeycomb table. Optionally only on outer contours. |
 | Z step per pass | all | Lower the focus after each pass (only with a motorized Z axis) |
 | Z offset | all | Before this layer, Z moves by the value (+ = higher), and back afterwards – e.g. to engrave slightly defocused (only with a motorized Z axis) |
@@ -871,8 +874,8 @@ The **job bar** at the bottom right is visible in every tab.
 | **Frame** | Traces the outline of the job (with the frame power from the machine settings) |
 | **Rubber band** | Check box below *Selection only*: the frame follows the parts tightly (convex hull) instead of the enclosing rectangle – like a rubber band stretched around all parts. With round or slanted parts you see more precisely where the laser will work, and the head does not travel over empty corners. The traced line is shown dashed in orange on the work area for a few seconds. With the **Show** check box next to it (or *View → Show rubber band frame*) it stays visible and follows the parts when they are moved – with *Selection only* only the selected ones. The line is for display only and is never lasered. Both settings are saved |
 | **▶ Start** | Generates the G-code and starts after a safety prompt (with estimated time and notes) |
-| **⏸ Pause / Resume** | Pauses or resumes (GRBL: feed hold `!` / `~`) |
-| **■ Stop** | Immediate abort (GRBL: soft reset); then *Unlock* if needed |
+| **⏸ Pause / Resume** | Pauses or resumes (GRBL: feed hold `!` / `~`). With Marlin/Smoothie TiLaser sends `M5` immediately – the controller still finishes the moves already buffered, but the laser does not keep burning while standing still; on resume it is switched on again |
+| **■ Stop** | Immediate abort (GRBL: soft reset); then *Unlock* if needed. With Marlin/Smoothie immediately `M410` (quick stop), `M5` and the *air off* command |
 | Progress and time | While lasering: bar with percent and **remaining time** (“~4:12 left”), next to it **elapsed time / expected total time** (e.g. “3:05 / ~7:17”, minutes:seconds, from one hour hours:minutes:seconds). The first estimate comes from the distance and feed of each G-code line; as soon as part of the job is done, it is adjusted to the actual speed of the machine (acceleration, slower corners). Pauses do not count. After the end, the actual duration is shown, in the console together with the original estimate |
 | **Origin** | *Absolute*: coordinates as on the work area. *Current position*: the chosen **anchor point** (e.g. bottom left) of the job is placed where the laser head is right now – handy for positioning by jogging |
 | **Selection only** | Only laser or frame the selected objects |
@@ -1020,7 +1023,9 @@ If the guard is on but no camera is available, a warning appears in the console.
 
 > **Important:** the flame guard is an additional safeguard and **no substitute for supervision**. It only
 > sees what the camera sees and can miss a flame under the workpiece or in the smoke. With GRBL in laser mode
-> (`$32=1`) the laser turns off during *Pause*; air assist keeps running.
+> (`$32=1`) the laser turns off during *Pause*; air assist keeps running. With Marlin and Smoothieware the
+> guard **stops** the job even if *Pause* is set, because these controllers still execute buffered moves
+> after a pause.
 
 Tip for adjusting: watch a typical job with *Show detected spots in red*. If red spots already appear,
 lower the sensitivity or increase the time.

@@ -2456,6 +2456,8 @@ class MainWindow(QMainWindow):
         cp = self.camera_panel
         test = cp._flame_test
         action = "warn" if test else getattr(self.profile, "flame_action", "pause")
+        if action == "pause" and self.machine.conn.protocol != "grbl":
+            action = "stop"       # Marlin/Smoothie: Pause hält den Planner nicht sofort an – sicherer stoppen
         did = ""
         if action == "pause" and self.machine.pause_job():
             did = "Der Auftrag wurde pausiert."

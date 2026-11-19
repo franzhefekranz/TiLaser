@@ -140,6 +140,7 @@ class WebServer:
 def _make_handler(srv: WebServer):
     class Handler(BaseHTTPRequestHandler):
         server_version = "TiLaser"
+        timeout = 10                         # langsame oder hängende Verbindungen nicht ewig offen halten
 
         def log_message(self, *_a):          # keine Ausgabe auf der Konsole
             pass
@@ -171,8 +172,13 @@ def _make_handler(srv: WebServer):
             self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"), extra=extra)
 
         def _body(self) -> dict:
-            n = min(int(self.headers.get("Content-Length") or 0), 4096)
-            raw = self.rfile.read(n) if n else b""
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return {}
+            if not 0 < n <= 4096:            # negativ hieße "bis zum Verbindungsende lesen"
+                return {}
+            raw = self.rfile.read(n)
             try:
                 return json.loads(raw.decode("utf-8") or "{}")
             except (ValueError, UnicodeDecodeError):

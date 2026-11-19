@@ -339,6 +339,9 @@ def _element_polys(el, tag, m, tol) -> list[g.Polyline]:
     return []
 
 
+MAX_ELEMENTS = 500_000      # Obergrenze für Elemente inkl. aufgelöster <use>-Verweise
+
+
 def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath], list[str]]:
     """Liest eine SVG-Datei. Rückgabe: (Pfade in mm, Y nach oben), Warnungen."""
     tree = ET.parse(path)
@@ -368,11 +371,16 @@ def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
     ids = {el.get("id"): el for el in root.iter() if el.get("id")}
     result: list[ImportedPath] = []
     skipped_text = [0]
+    budget = [MAX_ELEMENTS]
 
     def walk(el, m, inherited: dict, depth=0):
         tag = _local(el.tag)
         if tag in SKIP_TAGS or depth > 50:
             return
+        budget[0] -= 1                       # schützt vor <use>-Ketten, die sich exponentiell vervielfachen
+        if budget[0] < 0:
+            raise ValueError(f"Die SVG-Datei ist zu komplex (mehr als {MAX_ELEMENTS} Elemente nach dem "
+                             "Auflösen von <use>-Verweisen).")
         st = dict(inherited)
         st.update(parse_style(el))
         if st.get("display") == "none" or st.get("visibility") == "hidden":

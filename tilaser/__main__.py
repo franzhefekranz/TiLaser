@@ -2,6 +2,23 @@
 import sys
 
 
+def _install_excepthook():
+    """Unbehandelte Ausnahmen in Qt-Slots anzeigen statt das Programm zu beenden (PyQt6 bricht sonst ab)."""
+    import traceback
+
+    def hook(etype, value, tb):
+        text = "".join(traceback.format_exception(etype, value, tb))
+        sys.stderr.write(text)
+        try:
+            from PyQt6.QtWidgets import QMessageBox
+            box = QMessageBox(QMessageBox.Icon.Critical, "TiLaser", str(value) or etype.__name__)
+            box.setDetailedText(text)
+            box.exec()
+        except Exception:
+            pass
+    sys.excepthook = hook
+
+
 def main():
     try:
         from PyQt6.QtWidgets import QApplication
@@ -11,6 +28,7 @@ def main():
     from .gui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    _install_excepthook()
     app.setApplicationName("TiLaser")
     app.setStyle("Fusion")
     import os

@@ -130,6 +130,8 @@ class GResult:
 
 
 def fmt(v: float, decimals: int = 3) -> str:
+    if not math.isfinite(v) or abs(v) > 1e7:
+        raise ValueError(f"Ungültiger Zahlenwert im G-Code: {v!r} – bitte die Objekte prüfen.")
     s = f"{v:.{decimals}f}"
     if "." in s:
         s = s.rstrip("0").rstrip(".")
@@ -180,6 +182,10 @@ class GWriter:
         self.laser_off()
         d = self._dist(x, y)
         cmd = f"G0 X{fmt(x)} Y{fmt(y * self.ys)}"
+        if self.p.inline_power and self.s:
+            # Leistung bei Leerfahrten ausdrücklich auf 0 – schützt auch, falls GRBL ohne Lasermodus ($32=0) läuft
+            cmd += " S0"
+            self.s = 0.0
         if self.p.rapid_with_feed:
             cmd += f" F{fmt(self.p.travel_speed, 0)}"
             self.feed = None          # G0 F verändert das modale F – nächstes G1 muss F setzen
@@ -289,12 +295,13 @@ def ordered_paths(paths: list[g.Polyline], start, inner_first: bool, by_objects:
     return out
 
 
-def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
+def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: list[str] | None = None):
     by_obj = w.p.cut_order == "objects"
+    lost: list[g.Polyline] = []
 
     def prep(ps):
         if layer.kerf:
-            ps = apply_kerf(ps, layer.kerf)
+            ps = apply_kerf(ps, layer.kerf, lost)
         if layer.tabs > 0:
             ps = add_tabs(ps, layer.tabs, layer.tab_width, layer.tabs_outer_only)
         return ps
@@ -313,6 +320,9 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         paths, saved = remove_overlaps(paths)
         if saved > 0.01:
             w.comment(f"Doppelte Linien ausgelassen: {saved:.1f} mm")
+    if lost and warnings is not None:
+        warnings.append(f"Ebene '{layer.name}': {len(lost)} Kontur(en) kleiner als die Schnittbreite "
+                        f"({layer.kerf:g} mm) – durch den Kerf-Ausgleich entfallen, sie werden nicht geschnitten.")
     s = w.s_val(layer.power)
     passes = max(1, layer.passes)
     if passes > 1 and w.p.passes_per_path:
@@ -505,6 +515,7 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
     warnings: list[str] = []
     w.start()
     any_output = False
+    bad = 0
     for layer in project.layers:
         if not layer.output:
             continue
@@ -515,6 +526,9 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 rasters.append(it)
             elif it.kind == "vector":
                 for p in it.world_paths(layer.id):
+                    if not np.isfinite(p.pts).all():
+                        bad += 1
+                        continue
                     p._order = idx                      # Objektreihenfolge für 'Schnittreihenfolge: Objekte'
                     paths.append(p)
         if not paths and not rasters:
@@ -535,7 +549,7 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 w.laser_off()
                 w.comment(f"Unterebene {k}: {op.mode} | {op.power:g}% | {op.speed:g} mm/min | {op.passes}x")
             if op.mode == "cut":
-                _layer_cut(w, op, paths)
+                _layer_cut(w, op, paths, warnings)
             elif op.mode == "fill":
                 _layer_fill(w, op, paths, warnings)
             elif op.mode == "offset":
@@ -556,6 +570,8 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
         if layer.air and prof.air_off:
             w.emit(prof.air_off)
     w.finish()
+    if bad:
+        warnings.append(f"{bad} Pfad(e) mit ungültigen Koordinaten (NaN/unendlich) wurden ausgelassen.")
     if prof.rotary:
         warnings.append(f"Rotationsachse aktiv: Y wird mit Faktor {prof.y_scale:.4f} skaliert.")
     if not any_output:

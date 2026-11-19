@@ -51,7 +51,11 @@ schädigen und Brände auslösen.
 - **Stopp** (in der Auftragsleiste) hält die Maschine sofort an. Bei GRBL wird dafür ein Soft-Reset gesendet;
   der Laser schaltet sofort ab.
 - Bei GRBL muss der **Lasermodus aktiv** sein (`$32=1`), sonst brennt der Laser auch bei Leerfahrten weiter.
-  TiLaser warnt beim Verbinden, wenn das nicht der Fall ist.
+  TiLaser warnt beim Verbinden, wenn das nicht der Fall ist, und startet dann keinen Auftrag, der den Laser
+  einschaltet. Zusätzlich setzt TiLaser bei GRBL vor jeder Leerfahrt die Leistung ausdrücklich auf `S0`.
+- Meldet die Steuerung während eines Auftrags einen Fehler (`error:…`), wird der Auftrag **angehalten**
+  statt mit der nächsten Zeile weiterzumachen. In der Konsole steht, bei welcher Zeile; danach *Fortsetzen*
+  oder *Stopp*.
 
 ---
 
@@ -693,7 +697,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Overscan | Raster | Anlaufweg vor/nach jeder Zeile gegen dunkle Ränder |
 | Bidirektional | Füllen, Raster | Hin und zurück gravieren (schneller) |
 | Innen vor außen | Schneiden | Löcher vor der Außenkontur schneiden, damit sich Teile nicht vorher lösen |
-| **Kerf-Ausgleich** | Schneiden | Schnittbreite in mm. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt – die Teile werden maßhaltig. Wichtig für Steck- und Presspassungen. |
+| **Kerf-Ausgleich** | Schneiden | Schnittbreite in mm. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt – die Teile werden maßhaltig. Wichtig für Steck- und Presspassungen. Löcher, die kleiner als die Schnittbreite sind, verschwinden dabei; TiLaser meldet das beim Start als Hinweis. |
 | **Haltestege** | Schneiden | Anzahl Stege je Kontur und Stegbreite. Die Teile bleiben im Material hängen und fallen nicht durch den Wabentisch. Optional nur an Außenkonturen. |
 | Z-Schritt je Durchgang | alle | Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |
 | Z-Versatz | alle | Vor dieser Ebene fährt Z um den Wert (+ = höher), danach zurück – z. B. leicht defokussiert gravieren (nur mit motorisierter Z-Achse) |
@@ -881,8 +885,8 @@ Die **Auftragsleiste** rechts unten ist in jedem Tab sichtbar.
 | **Rahmen** | Fährt den Umriss des Auftrags ab (mit der Rahmen-Leistung aus den Maschineneinstellungen) |
 | **Gummiband** | Häkchen unter *Nur Auswahl*: Der Rahmen folgt eng den Teilen (konvexe Hülle) statt dem umschließenden Rechteck – wie ein um alle Teile gespanntes Gummiband. Bei runden oder schräg liegenden Teilen sieht man so genauer, wo gelasert wird, und der Kopf fährt nicht über leere Ecken. Die abgefahrene Linie wird auf der Arbeitsfläche einige Sekunden orange gestrichelt angezeigt. Mit dem Häkchen **Anzeigen** daneben (oder *Ansicht → Gummiband-Rahmen anzeigen*) bleibt sie dauerhaft eingeblendet und folgt beim Verschieben den Teilen – bei *Nur Auswahl* nur den ausgewählten. Die Linie ist reine Anzeige und wird nie gelasert. Beide Einstellungen bleiben gespeichert |
 | **▶ Start** | Erzeugt den G-Code und startet nach einer Sicherheitsabfrage (mit geschätzter Dauer und Hinweisen) |
-| **⏸ Pause / Fortsetzen** | Hält an bzw. setzt fort (GRBL: Feed-Hold `!` / `~`) |
-| **■ Stopp** | Sofortiger Abbruch (GRBL: Soft-Reset); danach ggf. *Entsperren* |
+| **⏸ Pause / Fortsetzen** | Hält an bzw. setzt fort (GRBL: Feed-Hold `!` / `~`). Bei Marlin/Smoothie sendet TiLaser sofort `M5` – die Steuerung fährt die schon gepufferten Bewegungen noch zu Ende, der Laser brennt danach aber nicht im Stillstand weiter; beim Fortsetzen wird er wieder eingeschaltet |
+| **■ Stopp** | Sofortiger Abbruch (GRBL: Soft-Reset); danach ggf. *Entsperren*. Bei Marlin/Smoothie sofort `M410` (Quickstop), `M5` und der Befehl *Luft aus* |
 | Fortschritt und Zeit | Während des Laserns: Balken mit Prozent und **Restzeit** („noch ~4:12“), daneben **bisherige Laufzeit / erwartete Gesamtzeit** (z. B. „3:05 / ~7:17“, Minuten:Sekunden, ab einer Stunde Stunden:Minuten:Sekunden). Die erste Schätzung kommt aus Weg und Vorschub jeder G-Code-Zeile; sobald ein Teil gelasert ist, wird sie an das tatsächliche Tempo der Maschine angepasst (Beschleunigung, langsamere Ecken). Pausen zählen nicht mit. Nach dem Ende steht die tatsächliche Dauer da, in der Konsole zusammen mit der ursprünglichen Schätzung |
 | **Ursprung** | *Absolut*: Koordinaten wie auf der Arbeitsfläche. *Aktuelle Position*: der gewählte **Ankerpunkt** (z. B. links unten) des Auftrags liegt dort, wo der Laserkopf gerade steht – praktisch zum Positionieren per Jog |
 | **Nur Auswahl** | Nur die ausgewählten Objekte lasern bzw. umrahmen |
@@ -1037,7 +1041,9 @@ läuft dann trotzdem.
 
 > **Wichtig:** Der Flammenwächter ist eine zusätzliche Absicherung und **kein Ersatz für die Aufsicht**. Er
 > sieht nur, was die Kamera sieht, und kann eine Flamme unter dem Werkstück oder im Rauch übersehen. Bei
-> GRBL schaltet der Laser bei *Pause* im Lasermodus (`$32=1`) ab; Air Assist läuft weiter.
+> GRBL schaltet der Laser bei *Pause* im Lasermodus (`$32=1`) ab; Air Assist läuft weiter. Bei Marlin und
+> Smoothieware **stoppt** der Wächter den Auftrag auch dann, wenn *Pausieren* eingestellt ist, weil diese
+> Steuerungen gepufferte Bewegungen nach einer Pause noch ausführen.
 
 Tipp zum Einstellen: Einen typischen Auftrag mit *Erkannte Stellen rot zeigen* beobachten. Erscheinen dabei
 schon rote Stellen, die Empfindlichkeit senken oder die Zeit erhöhen.
