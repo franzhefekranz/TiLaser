@@ -40,46 +40,78 @@ HINGE_STYLES = {"straight": "Gerade Schlitze", "double": "Doppelte Schlitze (wei
 
 def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float = 1.5, margin: float = 3.0,
                  angle: float = 0.0, style: str = "straight") -> list[g.Polyline]:
-    """Versetzte Schnittlinien. Biegeachse parallel zu den Schlitzen (angle 0 = waagerechte Schlitze)."""
+    """Versetzte Schnittlinien. Biegeachse parallel zu den Schlitzen (angle 0 = waagerechte Schlitze).
+
+    Symmetrisch aufgebaut: Die Reihen liegen mittig in der Fläche, die äußeren Reihen und jede zweite
+    dazwischen halten den Randabstand ein (geschlossene Reihen). Die Reihen dazwischen sind um eine halbe
+    Teilung versetzt – ihre Stege liegen genau mittig unter den Schlitzen der Nachbarreihen – und laufen
+    bis an den Rand durch. Die Schlitzlänge wird minimal angepasst, damit jede Reihe aufgeht.
+    """
     if slit <= 0 or spacing <= 0 or bridge <= 0:
         raise ValueError("Schlitzlänge, Steg und Abstand müssen größer als 0 sein.")
     rings = _region(region)
     cx, cy = _center(rings)
     rr = _rot(rings, -angle, cx, cy)
     x0, y0, x1, y1 = g.bbox(rr)
-    period = slit + bridge
-    lines = []
-    k = 0
-    y = y0 + margin + JITTER[1]
-    while y <= y1 - margin + 1e-9:
-        off = (k % 2) * period / 2
-        if style == "double" and k % 2 == 1:
-            off = period / 2
-        x = x0 - period + off + JITTER[0]
-        while x < x1 + period:
-            lines.append(g.Polyline(np.array([[x, y], [x + slit, y]]), False))
-            x += period
-        y += spacing
-        k += 1
-    pieces = clip_lines(lines, rr)
+    rows = int(math.floor((y1 - y0 - 2 * margin) / spacing + 1e-9)) + 1
+    if rows < 1:
+        return []
+    if rows % 2 == 0:                                     # ungerade Zahl: außen beidseitig geschlossene Reihen
+        rows -= 1
+    ym = (y0 + y1) / 2 + JITTER[1]
     out = []
-    step = min(0.25, max(0.05, spacing / 4))
-    for p in pieces:
-        a, b = p.pts[0], p.pts[-1]
-        n = max(2, int(math.ceil(np.hypot(*(b - a)) / step)) + 1)
-        ts = np.linspace(0, 1, n)
-        pts = a + (b - a) * ts[:, None]
-        ok = distance_to_edges(pts, rr) >= margin - 1e-9
-        start = None
-        for i, v in enumerate(list(ok) + [False]):
-            if v and start is None:
-                start = i
-            elif not v and start is not None:
-                seg = pts[[start, i - 1]]
-                if np.hypot(*(seg[1] - seg[0])) >= max(1.0, bridge):
-                    out.append(g.Polyline(seg, False))
-                start = None
+    for k in range(rows):
+        y = ym + (k - (rows - 1) / 2) * spacing
+        closed = k % 2 == 0
+        span = [g.Polyline(np.array([[x0 - 1, y], [x1 + 1, y]]), False)]
+        for piece in clip_lines(span, rr):
+            a, b = sorted((float(piece.pts[0][0]), float(piece.pts[-1][0])))
+            usable = b - a - 2 * margin
+            if usable <= 0:
+                continue
+            n = max(1, int(round((usable + bridge) / (slit + bridge))))
+            s = (usable - (n - 1) * bridge) / n
+            if s <= 0:
+                n, s = 1, usable
+            starts = a + margin + np.arange(n) * (s + bridge)
+            if closed:
+                segs = [(x, x + s) for x in starts]
+            else:
+                mids = starts + s / 2
+                cuts = [a] + [c for m in mids for c in (m - bridge / 2, m + bridge / 2)] + [b]
+                segs = [(cuts[i], cuts[i + 1]) for i in range(0, len(cuts), 2)]
+            for u, v in segs:
+                if v - u < 0.3:
+                    continue
+                pts = np.array([[u, y], [v, y]])
+                if closed:                                # schräge Ränder: Randabstand auch seitlich/oben
+                    pts = _trim_margin(pts, rr, margin, bridge)
+                    if pts is None:
+                        continue
+                out.append(g.Polyline(pts, False))
     return _rot(out, angle, cx, cy)
+
+
+def _trim_margin(seg, rr, margin, min_len):
+    """Längstes Stück der Strecke, das mindestens margin von allen Kanten entfernt ist."""
+    a, b = seg
+    n = max(2, int(math.ceil(np.hypot(*(b - a)) / 0.1)) + 1)
+    pts = a + (b - a) * np.linspace(0, 1, n)[:, None]
+    ok = distance_to_edges(pts, rr) >= margin - 1e-6
+    if ok.all():
+        return seg
+    best, start = None, None
+    for i, v in enumerate(list(ok) + [False]):
+        if v and start is None:
+            start = i
+        elif not v and start is not None:
+            if best is None or i - start > best[1] - best[0]:
+                best = (start, i)
+            start = None
+    if best is None:
+        return None
+    piece = pts[[best[0], best[1] - 1]]
+    return piece if np.hypot(*(piece[1] - piece[0])) >= max(1.0, min_len) else None
 
 
 # --------------------------------------------------------------------------- Lochmuster

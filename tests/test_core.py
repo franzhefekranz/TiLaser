@@ -1589,8 +1589,22 @@ def test_patterns_in_region():
     from tilaser.core.clip import distance_to_edges, inside
     rect = [g.Polyline(np.array([[0, 0], [120, 0], [120, 50], [0, 50]], float), True)]
     hinge = pt.living_hinge(rect, 20, 3, 1.5, 3)
-    pts = np.vstack([p.pts for p in hinge])
-    assert len(hinge) > 50 and (distance_to_edges(pts, rect) >= 3 - 1e-6).all()
+    rows = {}
+    for p in hinge:
+        rows.setdefault(round(float(p.pts[0, 1]), 4), []).append(sorted(p.pts[:, 0]))
+    ys = sorted(rows)
+    assert len(ys) % 2 == 1 and abs(ys[0] - 3 - (50 - 3 - ys[-1])) < 1e-3        # mittig, ungerade Zahl
+    for i, y in enumerate(ys):
+        xs = np.array(sorted(rows[y]))
+        assert np.allclose(xs[:, 0] + xs[::-1, 1], 120, atol=1e-3)               # spiegelsymmetrisch
+        if i % 2 == 0:                                                           # geschlossen: Randabstand
+            assert xs.min() >= 3 - 1e-6 and xs.max() <= 117 + 1e-6
+        else:                                                                    # offen: bis zum Rand
+            assert xs.min() < 1e-3 and xs.max() > 120 - 1e-3
+    closed_mids = [(u + v) / 2 for u, v in sorted(rows[ys[0]])]
+    o = sorted(rows[ys[1]])
+    open_bridges = [(o[i][1] + o[i + 1][0]) / 2 for i in range(len(o) - 1)]
+    assert np.allclose(closed_mids, open_bridges, atol=1e-3)                     # Stege mittig versetzt
     holes = pt.hole_pattern(rect, "hex", 6, 2, "offset", 3)
     pts = np.vstack([p.pts for p in holes])
     assert len(holes) > 40 and inside(pts, rect).all() and (distance_to_edges(pts, rect) >= 3 - 1e-6).all()
