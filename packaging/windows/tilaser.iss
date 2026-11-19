@@ -1,10 +1,10 @@
 ﻿; Inno-Setup-Skript für TiLaser
 ; Voraussetzung: PyInstaller-Build in dist\TiLaser (packaging\build_windows.ps1)
-; Aufruf:  iscc /DMyAppVersion=0.1.0 packaging\windows\tilaser.iss
+; Aufruf:  iscc /DMyAppVersion=0.9.0 packaging\windows\tilaser.iss
 
 #define MyAppName "TiLaser"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.9.0"
 #endif
 #define MyAppPublisher "franzhefekranz"
 #define MyAppURL "https://github.com/franzhefekranz/TiLaser"
