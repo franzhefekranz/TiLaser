@@ -510,8 +510,14 @@ cut out as usual.
 | Type | *Straight slits* or *double slits* (softer) |
 | Slit length, bridge | Length of the cuts and of the bridges left between them |
 | Row spacing | Smaller = more flexible, but more fragile. 3 mm plywood: about 1.5 mm |
-| Distance to the edge | A strip without cuts around the area |
+| Distance to the edge | Distance of the slits from the edge (see below) |
 | Direction of the slits | 0° = horizontal; the bending axis is parallel to the slits |
+
+The pattern is symmetric: the rows are centred in the area, and each row is built the same on the left
+and right. The two outer rows and every second row in between keep the *distance to the edge*. The rows
+in between are offset by half a pitch: their bridges sit exactly in the middle of the slits of the
+neighbouring rows, and they run through to the edge. The slit length is adjusted slightly so that every
+row works out evenly. In round or slanted areas, each row follows its own width.
 
 **Hole pattern / vent grille** – circles, hexagons, squares or slots, as a grid or offset (honeycomb).
 Only whole holes are placed that lie completely inside the area including the edge margin – ideal for

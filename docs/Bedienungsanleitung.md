@@ -512,8 +512,15 @@ Kontur selbst bleibt unverändert und wird wie gewohnt ausgeschnitten.
 | Art | *Gerade Schlitze* oder *Doppelte Schlitze* (weicher) |
 | Schlitzlänge, Steg | Länge der Schnitte und der stehen bleibenden Stege dazwischen |
 | Abstand der Reihen | Kleiner = biegsamer, aber zerbrechlicher. 3-mm-Sperrholz: etwa 1,5 mm |
-| Abstand zum Rand | Ein Streifen ohne Schnitte um die Fläche herum |
+| Abstand zum Rand | Abstand der Schlitze zum Rand (siehe unten) |
 | Richtung der Schlitze | 0° = waagerecht; die Biegeachse liegt parallel zu den Schlitzen |
+
+Das Muster ist symmetrisch: Die Reihen liegen mittig in der Fläche, und jede Reihe ist links und rechts
+gleich aufgebaut. Die beiden äußeren Reihen und jede zweite Reihe dazwischen halten den *Abstand zum Rand*
+ein. Die Reihen dazwischen sind um eine halbe Teilung versetzt: Ihre Stege liegen genau in der Mitte der
+Schlitze der Nachbarreihen, und sie laufen bis an den Rand durch. Damit jede Reihe aufgeht, wird die
+Schlitzlänge minimal angepasst. In runden oder schrägen Flächen richtet sich jede Reihe nach ihrer eigenen
+Breite.
 
 **Lochmuster / Lüftungsgitter** – Kreise, Sechsecke, Quadrate oder Langlöcher, als Raster oder versetzt
 (Waben). Es werden nur ganze Löcher gesetzt, die mit dem Randabstand vollständig in der Fläche liegen –
