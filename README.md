@@ -138,6 +138,7 @@ ein GitHub-Release an.
 | Muster in Fläche | *Werkzeuge → Muster in Fläche*: Biegescharnier, Lochmuster/Lüftungsgitter, Gravurmuster (Hahnentritt, Fischgrät, Waben …) |
 | Fingerzinken an Kante | Zwei Teile mit berührenden Kanten verzinken, als Eckverbindung oder ineinandergreifend, optional mit Dogbone-Ecken |
 | Zahnrad, Puzzle, Schablone | *Werkzeuge → Generatoren*: Evolventen-Zahnrad (auch als Paar), Puzzle; *Schablonen-Stege* für Innenteile |
+| Hilfe | Bedienungsanleitung im Programm (*Hilfe → Bedienungsanleitung*) mit Inhaltsverzeichnis und Suche; **F1** öffnet kontextsensitiv den Abschnitt zum gerade benutzten Menüpunkt, Fenster oder Bedienelement, jedes Fenster hat einen Knopf *Hilfe* |
 | Sprachen | Deutsch und Englisch (*Ansicht → Sprache / Language*); weitere Sprachen über eine Textdatei je Sprache (`lang/<code>.json`), siehe Kapitel 21 der Anleitung |
 | Auftragsprotokoll | *Maschine → Auftragsprotokoll*: Dauer, Ergebnis, Ebenen und Kosten jedes Auftrags, CSV |
 | Box-Generator | *Werkzeuge → Generatoren → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |

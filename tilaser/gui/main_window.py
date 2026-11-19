@@ -32,6 +32,7 @@ from .dialogs import (ArrayDialog, BarcodeDialog, BoxDialog, ParamDialog, Camera
 from .camera_live import CameraPanel, LiveCamera
 from ..core import vartext as vt
 from ..core.i18n import tr as i18n_tr
+from . import help as help_mod
 from ..core.eps_import import import_eps
 from ..core.lbrn_export import export_lbrn
 from ..core.lbrn_import import load_lbrn
@@ -166,6 +167,7 @@ class MainWindow(QMainWindow):
         self._web_timer.setInterval(300)
         self._web_timer.timeout.connect(self._web_tick)
         QTimer.singleShot(1000, self._web_apply)
+        help_mod.install(self)                      # F1-Kontexthilfe (vor der Übersetzung der Menütexte)
         self.machine.rubber_show.toggled.connect(self._set_rubber_show)
         self.machine.only_sel.toggled.connect(lambda _: self._update_rubber())
         self.layers.set_machine(self.profile.name)
@@ -404,6 +406,12 @@ class MainWindow(QMainWindow):
                                "Live-Bild in einem eigenen Fenster, z. B. auf dem zweiten Bildschirm"))
 
         h = mb.addMenu("&Hilfe")
+        self.a_manual = self._act("Bedienungsanleitung", lambda: help_mod.show_help(None), "F1",
+                                  "Bedienungsanleitung öffnen – F1 zeigt überall den passenden Abschnitt")
+        self.a_manual.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)    # F1 übernimmt die Kontexthilfe
+        h.addAction(self.a_manual)
+        h.addAction(self._act("Bedienungsanleitung als PDF", help_mod.open_pdf))
+        h.addSeparator()
         h.addAction(self._act("Lizenzen…", self.show_licenses, None, "Lizenzen von TiLaser und der mitgelieferten Bibliotheken"))
         h.addAction(self._act("Über TiLaser", self.about))
 

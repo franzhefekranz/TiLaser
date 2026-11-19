@@ -1703,6 +1703,46 @@ def test_translations():
         i18n.USER_DIR = old
 
 
+def test_manual_complete_and_help_links():
+    """Jedes Bedienelement steht in beiden Anleitungen, alle internen Links und Hilfe-Kennungen stimmen."""
+    import ast as _ast
+    import importlib.util
+    import re as _re
+    from tilaser.core import manual
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    spec = importlib.util.spec_from_file_location("doc_audit", os.path.join(ROOT, "tools", "doc_audit.py"))
+    audit = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(audit)
+    for lang in ("de", "en"):
+        miss = audit.missing(lang)
+        assert not miss, f"{lang}: {len(miss)} Bedienelemente nicht beschrieben, z. B. {miss[:3]} – python tools/doc_audit.py {lang}"
+    # Hilfe-Kennungen aus gui/help.py
+    tree = _ast.parse(open(os.path.join(ROOT, "tilaser", "gui", "help.py"), encoding="utf-8").read())
+    used = set()
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Dict):
+            used |= {v.value for v in node.values if isinstance(v, _ast.Constant) and isinstance(v.value, str)}
+        if isinstance(node, _ast.Tuple) and len(node.elts) == 2 and all(isinstance(e, _ast.Constant) for e in node.elts):
+            v = node.elts[1].value
+            if isinstance(v, str) and _re.fullmatch(r"[a-z]+(-[a-z]+)*", v):
+                used.add(v)
+    used |= {"referenz", "oberflaeche", "zeichenwerkzeuge", "fenster", "dlg-generator", "hilfe"}
+    used = {u for u in used if _re.fullmatch(r"[a-z]+(-[a-z0-9]+)*", u) and u not in ("de", "en")}
+    for doc in ("Bedienungsanleitung.md", "Manual_en.md"):
+        md = open(os.path.join(ROOT, "docs", doc), encoding="utf-8").read()
+        ids = manual.help_ids(md)
+        assert used <= ids, f"{doc}: Kennungen fehlen: {sorted(used - ids)}"
+        text, heads = manual.prepare(md, os.path.join(ROOT, "docs"))
+        slugs = {h[2] for h in heads}
+        links = set(_re.findall(r"\]\(#([^)]+)\)", md))
+        assert not links - slugs, f"{doc}: tote Links {sorted(links - slugs)[:5]}"
+        assert "<!--" not in text and all(h[3] for h in heads if h[1].startswith("22."))
+    de = manual.help_ids(open(os.path.join(ROOT, "docs", "Bedienungsanleitung.md"), encoding="utf-8").read())
+    en = manual.help_ids(open(os.path.join(ROOT, "docs", "Manual_en.md"), encoding="utf-8").read())
+    assert de == en                                  # beide Sprachen springen an dieselben Stellen
+    assert manual.slug("8. Nesting – Teile automatisch anordnen") == "8-nesting--teile-automatisch-anordnen"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

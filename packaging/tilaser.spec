@@ -17,7 +17,12 @@ hidden = (
 a = Analysis(
     [os.path.join(ROOT, "main.py")],
     pathex=[ROOT],
-    datas=[(os.path.join(ROOT, "tilaser", "data"), os.path.join("tilaser", "data"))],
+    datas=[(os.path.join(ROOT, "tilaser", "data"), os.path.join("tilaser", "data"))] + [
+        # Bedienungsanleitung für die Hilfe im Programm (F1)
+        (os.path.join(ROOT, "docs", f), "docs") for f in
+        ("Bedienungsanleitung.md", "Manual_en.md", "TiLaser-Bedienungsanleitung.pdf", "TiLaser-Manual.pdf")
+        if os.path.exists(os.path.join(ROOT, "docs", f))] + [
+        (os.path.join(ROOT, "docs", "screenshots"), os.path.join("docs", "screenshots"))],
     hiddenimports=hidden,
     excludes=["tkinter", "matplotlib", "scipy", "pandas", "IPython", "pytest",
               "PyQt6.QtWebEngineCore", "PyQt6.QtWebEngineWidgets", "PyQt6.QtQml", "PyQt6.QtQuick",

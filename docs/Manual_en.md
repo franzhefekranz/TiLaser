@@ -32,9 +32,11 @@ from the first start to the finished workpiece.
 19. [Storage locations and portable version](#19-storage-locations-and-portable-version)
 20. [License and trademark notice](#20-license-and-trademark-notice)
 21. [Language and translations](#21-language-and-translations)
+22. [Reference: all menus, windows and controls](#22-reference-all-menus-windows-and-controls)
 
 ---
 
+<!-- hilfe: sicherheit -->
 ## 1. Safety
 
 Class 4 lasers – practically all diode lasers from about 5 W – can permanently damage eyes and start
@@ -54,6 +56,7 @@ fires.
 
 ---
 
+<!-- hilfe: installation -->
 ## 2. Installation
 
 ### Windows
@@ -101,6 +104,7 @@ The language of the user interface is chosen under *View → Sprache / Language*
 
 ---
 
+<!-- hilfe: schnellstart -->
 ## 3. Quick start: the first workpiece
 
 1. **Set up the machine:** *Machine → Machine settings*. Under *Machine template* choose a suitable
@@ -121,6 +125,7 @@ The language of the user interface is chosen under *View → Sprache / Language*
 
 ---
 
+<!-- hilfe: oberflaeche -->
 ## 4. The user interface
 
 ![Main window](screenshots/en/01_hauptfenster.png)
@@ -135,6 +140,8 @@ The language of the user interface is chosen under *View → Sprache / Language*
 | **Side bar** (right) | Tabs *Layers*, *Connection*, *Move*, *Console*, *Camera* |
 | **Job bar** (bottom right) | Status, position, Frame, Start, Pause, Stop, Origin, Selection only, Resume, Rubber band |
 | **Status bar** (bottom) | Mouse position in mm, job size, estimated time, number of lines |
+
+**Help:** *Help → User manual* or **F1** opens this manual in the program – F1 jumps straight to the section that matches the menu item, window or control you are using ([Help in the program](#help-in-the-program)). Chapter 22 describes every control individually.
 
 The toolbars show icons. Hovering over them shows the name and shortcut; the menus use the same icons.
 
@@ -177,6 +184,7 @@ Esc always switches back to *Select*.
 
 ![Object bar](screenshots/en/03_objektleiste.png)
 
+<!-- hilfe: maus -->
 ### Mouse and keyboard on the work area
 
 | Action | How |
@@ -195,8 +203,10 @@ Files can be dragged directly from Explorer or the file manager onto the work ar
 
 ---
 
+<!-- hilfe: dateien -->
 ## 5. Opening, importing and exporting files
 
+<!-- hilfe: projekte -->
 ### Projects
 
 *File → Save project* (Ctrl+S) creates a `.tlp` file. It contains all objects, layers with parameters and
@@ -204,6 +214,7 @@ embedded images. Curves are saved as real curves.
 *File → Save selection as project…* (also in the right-click menu) saves only the selected objects with
 their layers as a separate `.tlp` file, in the same position.
 
+<!-- hilfe: lightburn -->
 ### LightBurn projects
 
 TiLaser reads and writes LightBurn files (`.lbrn2`, and reads the older `.lbrn` too).
@@ -223,6 +234,7 @@ TiLaser reads and writes LightBurn files (`.lbrn2`, and reads the older `.lbrn` 
 When saving, each layer gets the LightBurn color closest to its color; more than 30 layers do not fit.
 Sub-layers (except *fill + cut*) are lost in LightBurn.
 
+<!-- hilfe: import -->
 ### Import
 
 | Format | Notes |
@@ -235,6 +247,7 @@ Sub-layers (except *fill + cut*) are lost in LightBurn.
 
 If an imported object lies outside the work area, it is placed in the center.
 
+<!-- hilfe: export -->
 ### Export
 
 | Menu item | Result |
@@ -247,8 +260,10 @@ If an imported object lies outside the work area, it is placed in the center.
 
 ---
 
+<!-- hilfe: objekte -->
 ## 6. Editing objects
 
+<!-- hilfe: auswahl -->
 ### Selection, handles and object bar
 
 ![Selection with handles](screenshots/en/07_auswahl_anfasser.png)
@@ -261,6 +276,7 @@ A dashed frame with handles appears around the selection:
 The **object bar** lets you enter exact values: X/Y (center), width, height (proportional), scaling in %,
 rotation, mirroring and the layer.
 
+<!-- hilfe: rueckgaengig -->
 ### Undo, copy, paste
 
 | Function | Shortcut |
@@ -272,6 +288,7 @@ rotation, mirroring and the layer.
 
 The *Edit* menu always shows what will be undone. Up to 60 steps are kept.
 
+<!-- hilfe: anordnen -->
 ### Arrange
 
 **Arrange** menu:
@@ -295,6 +312,7 @@ The layer order still comes first in both cases.
 **Snap to grid:** *View → Snap to grid* (Ctrl+Shift+F). When moving, the bottom left object corner snaps to
 the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points snap while drawing, too.
 
+<!-- hilfe: array -->
 ### Array
 
 ![Array](screenshots/en/23_array.png)
@@ -304,6 +322,7 @@ the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points sna
 - **Circle:** count (including the original), center, total angle (360° = full circle) and whether the
   copies are rotated.
 
+<!-- hilfe: gruppieren -->
 ### Grouping and assigning layers
 
 ![Context menu](screenshots/en/09_kontextmenue.png)
@@ -316,8 +335,10 @@ the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points sna
 
 ---
 
+<!-- hilfe: zeichnen -->
 ## 7. Drawing, shapes and text
 
+<!-- hilfe: zeichenwerkzeuge -->
 ### Drawing tools
 
 ![Drawing tools](screenshots/en/04_zeichenwerkzeuge.png)
@@ -333,6 +354,7 @@ the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points sna
 
 New shapes go to the layer currently selected in the *Layers* tab. **Esc** returns to the select tool.
 
+<!-- hilfe: knoten -->
 ### Node editing
 
 ![Node editing](screenshots/en/08_knoten.png)
@@ -354,6 +376,7 @@ The **curve handles** (circles) appear at the selected node.
 
 Curves from SVG, PDF, DXF, fonts and the drawing tools stay real Bézier curves with few nodes.
 
+<!-- hilfe: formen -->
 ### Combining shapes
 
 **Shapes** menu (select at least two closed vector objects):
@@ -369,6 +392,7 @@ Curves from SVG, PDF, DXF, fonts and the drawing tools stay real Bézier curves 
 
 ![Offset](screenshots/en/24_offset.png)
 
+<!-- hilfe: text -->
 ### Text
 
 ![Insert text](screenshots/en/21_text.png)
@@ -378,6 +402,7 @@ via “…”), size in mm, line and letter spacing, alignment and layer. New la
 (engraving) or **cut/line** by default. You can change the content of an inserted text later with right
 click → *Edit content…*.
 
+<!-- hilfe: variabler-text -->
 ### Variable text, QR code and barcode
 
 Texts and code contents may contain **placeholders** that are filled in before every job:
@@ -399,6 +424,7 @@ as an engraving on a fill layer. The content may contain placeholders, e.g.
 `https://example.com/part/{nr:05}`. For reliable scanning, use a small line interval (at most a quarter of
 the module width) and leave a light margin around the code; test with a phone before a series.
 
+<!-- hilfe: text-auf-pfad -->
 ### Text on path
 
 ![Text on path](screenshots/en/22_text_auf_pfad.png)
@@ -408,6 +434,7 @@ With closed contours the text is on the outside and readable at the top center; 
 the inside and at the bottom. *Distance* = distance of the text from the contour, *Offset* = shift along
 the contour.
 
+<!-- hilfe: nachzeichnen -->
 ### Trace image
 
 ![Trace image](screenshots/en/25_nachzeichnen.png)
@@ -423,6 +450,7 @@ Select an image → *Tools → Trace image* (Alt+T). Dark areas become closed co
 | Brightness / contrast | Adjust the image beforehand |
 | Keep image | Otherwise the image is replaced by the contours |
 
+<!-- hilfe: box -->
 ### Box generator
 
 *Tools → Generators → Box generator…* (Ctrl+Shift+B) creates a box with finger joints: bottom, four walls
@@ -445,6 +473,7 @@ holes, vent slots and engravings (e.g. with *Shapes → Subtract*). The fingers 
 
 Tip: first cut a small test box (e.g. 40 × 30 × 20 mm) and check the fit, then adjust the kerf.
 
+<!-- hilfe: muster -->
 ### Patterns in an area
 
 ![Living hinge, hole pattern, finger joints, gears, puzzle and stencil](screenshots/en/muster_generatoren.png)
@@ -474,6 +503,7 @@ vent grilles in enclosure walls.
 *Size* is the repeat, *gap* the distance between the elements (diamonds, dots, honeycomb, bricks, waves),
 *rotation* rotates the pattern. Houndstooth and herringbone are built from small squares, like in fabric.
 
+<!-- hilfe: fingerzinken -->
 ### Finger joint on edge
 
 Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom. This is how:
@@ -494,6 +524,7 @@ Joins any two parts with finger joints – e.g. a self-drawn back panel with a b
 
 Curves of the parts are converted into fine polylines.
 
+<!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
 
 **Gear** (*Tools → Generators*) – spur gear with involute teeth. The **module** is important:
@@ -513,6 +544,7 @@ horizontal) of the set width through each inner part.
 
 ---
 
+<!-- hilfe: nesting -->
 ## 8. Nesting – arranging parts automatically
 
 Nesting arranges the selected parts on a rectangular sheet to save space while keeping a **minimum gap**.
@@ -559,6 +591,7 @@ drawings) are recognized as closed parts if the line ends touch.
 
 ---
 
+<!-- hilfe: ebenen -->
 ## 9. Layers and laser parameters
 
 ![Layers](screenshots/en/05_ebenen.png)
@@ -575,6 +608,7 @@ colors that another layer already uses; the tooltip shows the number, name and l
 of the file are mapped to the closest of the 32 colors – pure primary colors (e.g. red `#ff0000`, blue
 `#0000ff`) to the one with the same name. Very similar colors therefore end up on the same layer.
 
+<!-- hilfe: modi -->
 ### Modes
 
 | Mode | Effect |
@@ -584,6 +618,7 @@ of the file are mapped to the closest of the 32 colors – pure primary colors (
 | **Offset fill (contours)** | Closed areas are filled with contour lines at the line interval from outside to inside – less back and forth than hatching, good for lettering and narrow shapes |
 | **Raster image** | Images are engraved pixel by pixel |
 
+<!-- hilfe: parameter -->
 ### Parameters
 
 | Parameter | Modes | Description |
@@ -610,12 +645,14 @@ of the file are mapped to the closest of the 32 colors – pure primary colors (
 
 The preview of an image on the work area already shows the result of the chosen image mode.
 
+<!-- hilfe: unterebenen -->
 ### Sub-layers
 
 With **+** next to *Operation*, a layer gets further operations on **the same geometry**, each with its own
 parameters – e.g. engrave the area first, then cut out the contour. The *Operation* selection switches between
 the main layer and sub-layers; **−** removes the selected sub-layer.
 
+<!-- hilfe: kerf -->
 ### Determining the kerf
 
 1. Draw a square of exactly 20 × 20 mm and cut it out with kerf 0.
@@ -624,8 +661,10 @@ the main layer and sub-layers; **−** removes the selected sub-layer.
 
 ---
 
+<!-- hilfe: presets-kapitel -->
 ## 10. Material presets and material test
 
+<!-- hilfe: presets -->
 ### Presets
 
 In the *Layers* tab under **Material presets**:
@@ -637,6 +676,7 @@ In the *Layers* tab under **Material presets**:
 
 The tooltip of a preset shows the material and the origin of the values. Your own presets are kept during updates.
 
+<!-- hilfe: materialtest -->
 ### Material test
 
 ![Material test](screenshots/en/26_materialtest.png)
@@ -655,6 +695,7 @@ The tooltip of a preset shows the material and the origin of the values. Your ow
 
 Buttons: **Preview** (toolpath on the work area), **Export…** (G-code file) and **Send to laser**.
 
+<!-- hilfe: fokustest -->
 ### Focus test
 
 *Tools → Focus test…* finds the best distance between laser and material:
@@ -666,6 +707,7 @@ Buttons: **Preview** (toolpath on the work area), **Export…** (G-code file) an
 - **With Z axis:** several labeled lines, each with a different Z offset (e.g. −2 to +2 mm). The sharpest
   line shows the best offset.
 
+<!-- hilfe: zeilenabstandstest -->
 ### Line interval test
 
 *Tools → Line interval test…* engraves filled squares with increasing line interval (e.g. 0.05–0.30 mm) and
@@ -677,8 +719,10 @@ Like the material test, both tests offer **Preview**, **Export…** and **Send t
 
 ---
 
+<!-- hilfe: maschine -->
 ## 11. Setting up and connecting the machine
 
+<!-- hilfe: maschineneinstellungen -->
 ### Machine settings
 
 ![Machine settings](screenshots/en/20_maschine.png)
@@ -703,6 +747,7 @@ Like the material test, both tests offer **Preview**, **Export…** and **Send t
 | Air assist on/off | Default M8/M9 |
 | Start/end G-code | Added before or after every job |
 
+<!-- hilfe: verbindung -->
 ### Connection
 
 ![Connection](screenshots/en/12_verbindung.png)
@@ -731,6 +776,7 @@ The *Connection* tab also contains:
 | Origin here | `G10 L20 P1 X0 Y0` | `G92 X0 Y0` |
 | Go to 0/0 | `G0 X0 Y0` | `G0 X0 Y0` |
 
+<!-- hilfe: bewegen -->
 ### Move
 
 ![Move](screenshots/en/13_bewegen.png)
@@ -746,6 +792,7 @@ The *Connection* tab also contains:
   *Edit…* (also *Machine → Edit macros…*) creates macros: name, G-code (several lines possible) and a
   shortcut that works in the whole window. Macros are locked while a job is running.
 
+<!-- hilfe: konsole -->
 ### Console
 
 ![Console](screenshots/en/14_konsole.png)
@@ -753,9 +800,10 @@ The *Connection* tab also contains:
 Shows all messages from the controller (`<<`) and sent commands (`>>`). Your own commands can be entered
 at the bottom, e.g. `$$` (show GRBL settings), `$I` (version) or `?` (status).
 
+<!-- hilfe: grbl -->
 ### GRBL settings
 
-*Machine → GRBL settings ($$)…* reads all settings of the controller and shows them with their meaning,
+*Machine → GRBL settings (\$\$)…* reads all settings of the controller and shows them with their meaning,
 e.g. `$30` maximum S value, `$32` laser mode, `$110/$111` maximum speed, `$120/$121` acceleration,
 `$130/$131` travel. Change values in the *Value* column and press *Write changes*; TiLaser shows the changes
 once more beforehand and reads them back afterwards to check. *Export…* backs up all values as a text file –
@@ -763,6 +811,7 @@ you should do that before every change.
 
 ---
 
+<!-- hilfe: lasern -->
 ## 12. Lasering: frame, start, pause, stop, resume
 
 The **job bar** at the bottom right is visible in every tab.
@@ -785,6 +834,7 @@ buffers some commands in advance, it restarts about 15 lines earlier by default 
 twice. Position, feed, power and air assist are restored.
 **The workpiece must not have been moved in between.**
 
+<!-- hilfe: weboberflaeche -->
 ### Web interface (phone, tablet, PC)
 
 Under *Machine → Web interface…* TiLaser can be watched and controlled from the browser of another device on
@@ -815,6 +865,7 @@ the language set in TiLaser.
 > firewall asks on first start whether TiLaser may be reachable on the private network – confirm with
 > *Allow*. The web interface does not change the rule: never leave the laser unattended.
 
+<!-- hilfe: auftragsprotokoll -->
 ### Job log
 
 *Machine → Job log…* shows all jobs: start, duration, result (done, stopped, alarm …), type (job or test
@@ -834,6 +885,7 @@ Frame runs are not logged; logging can be turned off in the same dialog.
 
 ---
 
+<!-- hilfe: vorschau -->
 ## 13. Preview and simulation
 
 ![Toolpath preview](screenshots/en/10_vorschau.png)
@@ -853,12 +905,14 @@ paths already lasered appear bold. The playback speed (1× to 500×) can be chos
 
 ---
 
+<!-- hilfe: kamera -->
 ## 14. Camera
 
 A webcam above the bed has two jobs in TiLaser: it shows **live** what the laser is doing right now (section
 *Live camera*), and – once aligned – it places an undistorted image of the workpiece under the work area so
 that engravings can be placed exactly on existing parts (section *Alignment*). Both use the same camera.
 
+<!-- hilfe: live-kamera -->
 ### Live camera
 
 The **Camera** tab in the side bar (or *Machine → Camera → Live camera*, Ctrl+Shift+K) shows the live image.
@@ -886,6 +940,7 @@ All settings are saved in the machine profile.
 While the live image is running, *Align camera* and *Update camera image* use the current image directly
 instead of opening the camera a second time.
 
+<!-- hilfe: flammenwaechter -->
 ### Flame guard
 
 The flame guard analyzes the live image during a job and raises an alarm when a flame stays somewhere.
@@ -921,6 +976,7 @@ If the guard is on but no camera is available, a warning appears in the console.
 Tip for adjusting: watch a typical job with *Show detected spots in red*. If red spots already appear,
 lower the sensitivity or increase the time.
 
+<!-- hilfe: kamera-ausrichten -->
 ### Alignment
 
 1. *Machine → Camera → Choose camera*: USB camera or **“Image from file”** (e.g. a phone photo that is always
@@ -939,6 +995,7 @@ If the camera is moved, it has to be aligned again.
 
 ---
 
+<!-- hilfe: rotation -->
 ## 15. Rotary axis
 
 For cylindrical workpieces with a **roller rotary axis** that is connected instead of the Y axis:
@@ -952,6 +1009,7 @@ For cylindrical workpieces with a **roller rotary axis** that is connected inste
 
 ---
 
+<!-- hilfe: algolaser -->
 ## 16. Setting up the AlgoLaser DIY KIT MK2 (20 W)
 
 1. *Machine → Machine settings → Machine template* “AlgoLaser DIY KIT MK2 (20 W)” → *Apply* → OK.
@@ -966,6 +1024,7 @@ For cylindrical workpieces with a **roller rotary axis** that is connected inste
 
 ---
 
+<!-- hilfe: tasten -->
 ## 17. Keyboard shortcuts
 
 | Shortcut | Function | | Shortcut | Function |
@@ -992,6 +1051,7 @@ In node mode: Del, C, L, S, B, A (see [Node editing](#node-editing)). Macros can
 
 ---
 
+<!-- hilfe: fehler -->
 ## 18. Troubleshooting
 
 | Problem | Solution |
@@ -1015,6 +1075,7 @@ In node mode: Del, C, L, S, B, A (see [Node editing](#node-editing)). Macros can
 
 ---
 
+<!-- hilfe: speicherorte -->
 ## 19. Storage locations and portable version
 
 | Content | Location |
@@ -1028,6 +1089,7 @@ In node mode: Del, C, L, S, B, A (see [Node editing](#node-editing)). Macros can
 
 ---
 
+<!-- hilfe: lizenz -->
 ## 20. License and trademark notice
 
 TiLaser is free software under the GNU General Public License version 3. The libraries used and their licenses
@@ -1040,6 +1102,7 @@ Inkscape) are trademarks of their respective owners.
 
 ---
 
+<!-- hilfe: sprache -->
 ## 21. Language and translations
 
 The user interface is available in **German** and **English**. Change the language under
@@ -1072,3 +1135,517 @@ can also correct individual English texts this way.
 Translations are welcome: send the file as an issue on GitHub or as a pull request to
 `tilaser/data/lang/<code>.json`. Developers can collect all texts with `python tools/i18n_extract.py`
 (`--missing en` lists missing translations, `--update` adds new texts to all language files).
+
+---
+
+<!-- hilfe: referenz -->
+## 22. Reference: all menus, windows and controls
+
+This chapter lists every menu, button, field and window of TiLaser with its meaning. Detailed explanations with
+examples are in the previous chapters; the links lead there. In TiLaser, **F1** opens exactly the matching
+section (see [Help in the program](#help-in-the-program)).
+
+<!-- hilfe: menu-datei -->
+### File menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| New | Ctrl+N | Create an empty project. You are asked about unsaved changes first |
+| Open project… | Ctrl+O | Open a TiLaser project (`.tlp`) or LightBurn file (`.lbrn2`, `.lbrn`); replaces the current project |
+| Save project | Ctrl+S | Save under the current name (the first time like *Save as*) |
+| Save project as… | Ctrl+Shift+S | Save under a new name as `.tlp` |
+| Save selection as project… | | Save only the selected objects with their layers as a separate `.tlp` file |
+| Import… | Ctrl+I | Add SVG, DXF, PDF/AI, EPS, LightBurn or an image to the project ([chapter 5](#5-opening-importing-and-exporting-files)) |
+| Insert text… | Ctrl+T | Insert text from a font ([Text](#text)) |
+| Export G-code… | Ctrl+E | Save the job as a `.gcode` file; takes *Origin* and *Selection only* into account |
+| Export as SVG… | | All objects as SVG (mm, layers as groups) |
+| Export as DXF… | | Contours as DXF, one DXF layer per layer (without images) |
+| Save as LightBurn file… | | Save the project as `.lbrn2` ([LightBurn projects](#lightburn-projects)) |
+| Quit | Ctrl+Q | Close TiLaser. If a job is running, you are asked first (the laser is then stopped) |
+
+<!-- hilfe: menu-bearbeiten -->
+### Edit menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Undo | Ctrl+Z | Undo the last step; the menu text names the step |
+| Redo | Ctrl+Y | Redo an undone step |
+| Cut | Ctrl+X | Move the selection to the clipboard |
+| Copy | Ctrl+C | Copy the selection to the clipboard |
+| Paste | Ctrl+V | Paste from the clipboard, offset by 10 mm |
+| Paste in place | Ctrl+Shift+V | Paste at the original position |
+| Duplicate | Ctrl+D | Copy of the selection, offset by 10 mm |
+| Delete | Del | Delete the selected objects |
+| Select all | Ctrl+A | Select all objects |
+| Group | Ctrl+G | Combine the selected vector objects into one object |
+| Ungroup | Ctrl+Shift+G | Split into parts; an outer contour stays together with its holes |
+| Center | | Put the selection in the middle of the work area |
+| To 0/0 | | Put the bottom left corner of the selection at the origin |
+| Assign layer | | Submenu: move the selection to an existing or a new layer |
+
+<!-- hilfe: menu-anordnen -->
+### Arrange menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Align left | Ctrl+Shift+← | Left edges to the left edge of the whole selection |
+| Center horizontally | | Centers on one vertical line |
+| Align right | Ctrl+Shift+→ | Right edges flush |
+| Align top | Ctrl+Shift+↑ | Top edges flush |
+| Center vertically | | Centers on one horizontal line |
+| Align bottom | Ctrl+Shift+↓ | Bottom edges flush |
+| Distribute horizontally (equal gaps) | | At least 3 objects side by side with equal gaps |
+| Distribute vertically (equal gaps) | | At least 3 objects above each other with equal gaps |
+| Mirror horizontally | | Mirror at the vertical center line of the selection |
+| Mirror vertically | | Mirror at the horizontal center line |
+| Rotate 90° left | Ctrl+L | Counterclockwise around the center of the selection |
+| Rotate 90° right | Ctrl+R | Clockwise |
+| Create array… | Ctrl+Shift+A | Copies as a grid or in a circle ([Array](#array)) |
+| Nesting (arrange parts)… | Ctrl+Shift+N | Arrange parts to save space ([chapter 8](#8-nesting--arranging-parts-automatically)) |
+| Center, To 0/0 | | as in the *Edit* menu |
+| Cut order → Cut first | Ctrl+Shift+PgUp | Move the selection to the start of the project order |
+| Cut order → Cut earlier | Ctrl+PgUp | One place forward |
+| Cut order → Cut later | Ctrl+PgDown | One place back |
+| Cut order → Cut last | Ctrl+Shift+PgDown | To the end |
+| Cut order → Show order | | Show/hide the numbers of the objects on the work area |
+
+The cut order takes effect when *Object by object* is chosen in the machine settings ([Arrange](#arrange)).
+
+<!-- hilfe: menu-formen -->
+### Shapes menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Union | Ctrl+Shift+U | Merge the selected closed shapes into one area |
+| Subtract (largest shape minus the others) | Ctrl+Shift+D | Subtract all other shapes from the largest one |
+| Intersection | Ctrl+Shift+I | Keep only the shared area |
+| Exclusion (XOR) | | Everything except the overlaps (requires pyclipper) |
+| Offset… | Alt+O | Offset contours ([Offset window](#offset-shift-outline-window)) |
+| Join / close paths… | Alt+J | Join open lines with shared end points; asks for the largest allowed distance of the end points |
+
+<!-- hilfe: menu-werkzeuge -->
+### Tools menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Trace image… | Alt+T | Convert an image into vector contours ([Trace image](#trace-image)) |
+| Material test… | | Test grid power × speed ([Material test](#material-test)) |
+| Text on path… | | Text along a contour ([Text on path](#text-on-path)) |
+| Insert QR code / barcode… | Ctrl+Shift+Q | QR code or Code 128 as an engraving ([Variable text, QR code and barcode](#variable-text-qr-code-and-barcode)) |
+| Variable text… | | Start number and CSV file for placeholders |
+| Generators → Box generator… | Ctrl+Shift+B | Box with finger joints ([Box generator](#box-generator)) |
+| Generators → Gear… | | Involute gear, optionally with a mating gear |
+| Generators → Puzzle… | | Puzzle with frame |
+| Patterns in area → Living hinge… | | Cut pattern for bending ([Patterns in an area](#patterns-in-an-area)) |
+| Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
+| Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
+| Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
+| Stencil bridges… | | Bridges for inner parts of letters |
+| Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
+| Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |
+
+<!-- hilfe: menu-ansicht -->
+### View menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Sprache / Language | | Choose the language of the user interface; *Create / edit own translation…* creates a language file ([chapter 21](#21-language-and-translations)) |
+| Show all | Ctrl+0 | Zoom to all objects and the bed |
+| Toolpath preview | Ctrl+P | Show burn and travel moves ([chapter 13](#13-preview-and-simulation)) |
+| Show G-code… | | Window with the generated G-code (very long files are shown shortened; the export is complete) |
+| Snap to grid | Ctrl+Shift+F | Snap to the grid when moving and drawing |
+| Show rubber band frame | | Always show the rubber band frame line (it is not lasered) |
+| Grid size | | Submenu: grid size 0.5 / 1 / 5 / 10 mm |
+
+<!-- hilfe: menu-maschine -->
+### Machine menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| Machine settings… | | Firmware, work area, frame, rotary axis etc. ([Machine settings window](#machine-settings-window)) |
+| GRBL settings (\$\$)… | | Show and change the `$` values of the controller ([GRBL settings](#grbl-settings)) |
+| Edit macros… | | Your own G-code buttons ([Edit macros window](#edit-macros-window)) |
+| Job log… | | List of all jobs with cost ([Job log](#job-log)) |
+| Web interface… | | Remote control on the network ([Web interface](#web-interface-phone-tablet-pc)) |
+| Rotary axis active | | Convert Y values for the roller rotary axis ([chapter 15](#15-rotary-axis)) |
+| Move laser to selection | | Submenu: move the head to the center or a corner of the selection (laser off) |
+| Set start point on selected node | | In the node tool: the cut of this contour starts at the marked node (key A) |
+| Camera → Choose camera… | | Choose a USB camera or “Image from file” for alignment |
+| Camera → Laser registration marks | | Laser 9 or 4 crosses with 10 % power ([Alignment](#alignment)) |
+| Camera → Align camera… | | Capture an image and click the registration marks |
+| Camera → Update camera image | F5 | Place a new undistorted image under the work area |
+| Camera → Show camera image | | Show/hide the camera image |
+| Camera → Live camera | Ctrl+Shift+K | Show the *Camera* tab and turn on the live image |
+| Camera → Large camera window | | Live image in a separate window |
+
+<!-- hilfe: menu-hilfe -->
+### Help menu
+
+| Menu item | Key | Function |
+|---|---|---|
+| User manual | F1 | Open this manual in the help window; F1 anywhere in the program opens the matching section |
+| User manual as PDF | | Open the PDF version with the default program |
+| Licenses… | | License overview of TiLaser and the included libraries |
+| About TiLaser | | Version, license and trademark notice |
+
+<!-- hilfe: kontextmenue -->
+### Context menu of the work area
+
+A right click on the work area opens a menu. With a selection it contains: *Edit content…* (for texts and
+codes), *Group*, *Ungroup*, *Cut*, *Copy*, *Paste*, *Assign layer*, *Center*, *To 0/0*, *Duplicate*,
+*Create array…*, *Nesting (arrange parts)…*, *Save selection as project…*, for a contour *Text on path…*, for an
+image *Trace image…* and *Delete*. Without a selection: *Paste*, *Import…*, *Insert text…*, *Select all* and
+*Show all*. Always included is **Move laser here (X… Y…)** – moves the head exactly to the clicked spot – and,
+with a selection, **Move laser to selection** (center, bottom left, top left, top right, bottom right).
+
+<!-- hilfe: objektleiste -->
+### Object bar
+
+The bar above the work area shows the selected objects (“No object selected”, a name or “n objects selected”)
+and their values. Entries take effect immediately:
+
+| Field | Meaning |
+|---|---|
+| X, Y | Center of the selection in mm |
+| B, H | Width and height; the aspect ratio is kept when changing them |
+| Skal. | Scaling in % |
+| ∠ | Rotation in degrees |
+| Mirror | Mirror horizontally |
+| Layer | Layer of the selection (“— several layers —” for a mixed selection) |
+
+<!-- hilfe: arbeitsflaeche -->
+### Work area and drawing bar
+
+The work area shows the bed with a 10 mm grid and the origin at the bottom left (red corner). Mouse and keyboard:
+[Mouse and keyboard on the work area](#mouse-and-keyboard-on-the-work-area). On the left are the drawing tools
+([Drawing tools](#drawing-tools)); below them the fields **corners** (corners for polygon/star), **★** (star
+instead of polygon) and **r** (corner radius for rectangles in mm). At the top right of the toolbar are
+**Travel moves** (show travel moves in the preview), **▶** (play simulation), the slider (simulation: point in
+time in the job) and the playback speed.
+
+<!-- hilfe: tab-ebenen -->
+### Layers tab
+
+| Control | Function |
+|---|---|
+| Layer list | All layers with color, name, mode and values. Check mark = layer is output. A click selects the layer for editing and as the target for new shapes |
+| ▲ / ▼ | Run layer earlier or later (cutting should come last) |
+| Color… | Choose the layer color from the palette with 32 colors ([Layer color window](#layer-color-window)) |
+| New | Create a new layer (submenu: raster image, cut / line, fill) |
+| Remove empty | Delete layers without objects |
+| **Material presets** | |
+| Machine filter | Filter presets by machine (“All machines”) |
+| Preset list | Saved material values; the tooltip names the material and source |
+| Apply | Copy the values of the preset to the selected layer or sub-layer |
+| Save… | Save the current values as your own preset (name and material / note) |
+| Delete | Delete the selected preset |
+| **Layer settings** | |
+| Operation, **+**, **−** | Choose the main operation or a sub-layer, add or remove a sub-layer ([Sub-layers](#sub-layers)) |
+| Name, Mode | Name of the layer; mode *Cut / line*, *Fill (hatch)*, *Offset fill (contours)*, *Raster image* |
+| Power max, Power min | Laser power in %; *min* only in grayscale image mode |
+| Speed, Passes | mm/min and number of repetitions |
+| Line interval, Angle, Crosshatch | Spacing and direction of the fill/image lines; second hatching rotated by 90° |
+| Image mode, Threshold, Invert | Raster image: Floyd-Steinberg, Jarvis, Stucki, Atkinson, threshold, grayscale |
+| Overscan | Run-up before/after each image line |
+| Bidirectional | Engrave back and forth |
+| Inside before outside | Cut holes before the outer contour |
+| Kerf compensation | Kerf in mm ([Determining the kerf](#determining-the-kerf)) |
+| Tabs, Tab width, Tabs on outer contours only | Number and width of the tabs per contour |
+| Brightness, Contrast, Gamma | Image correction before engraving |
+| Z step per pass, Z offset | Focus changes (only with a motorized Z axis) |
+| Air assist (M8/M9) | Air assist for this layer |
+| Output | like the check mark in the list |
+
+Details: [chapter 9](#9-layers-and-laser-parameters) and [chapter 10](#10-material-presets-and-material-test).
+
+<!-- hilfe: tab-verbindung -->
+### Connection tab
+
+| Control | Function |
+|---|---|
+| Type | *USB / serial* or *Network (TCP/Telnet)* |
+| Port, ↻, Baud | Serial port, refresh the port list, baud rate |
+| Address, TCP port | IP address and port for a network connection |
+| Connect / Disconnect | Establish or end the connection |
+| Firmware | Detected firmware |
+| Connect automatically at startup | Connect with the last successful connection when the program starts |
+| **Machine** | |
+| ⌂ Home | Homing (`$H` or `G28`) |
+| Unlock | Clear an alarm (`$X` or `M999`) |
+| Origin here | Set the current head position as work origin |
+| Go to 0/0 | Move the head to the origin |
+
+Details: [Connection](#connection).
+
+<!-- hilfe: tab-bewegen -->
+### Move tab
+
+| Control | Function |
+|---|---|
+| **Relative** | Eight direction buttons and ⌂ (homing), *Step (mm)* and *Feed* |
+| **Absolute (work coordinates)** | Enter X/Y, *Move* moves there with the laser off |
+| Use current position | Fill the fields with the current head position |
+| **Macros** | Your own G-code buttons; *Edit…* opens [Edit macros](#edit-macros-window) |
+
+Details: [Move](#move).
+
+<!-- hilfe: tab-konsole -->
+### Console tab
+
+Shows all messages from the controller (`<<`) and sent commands (`>>`), plus notes from TiLaser (`--`) and
+warnings (`!!`). At the bottom an input field: enter a G-code or `$` command, Enter sends it.
+
+<!-- hilfe: tab-kamera -->
+### Camera tab
+
+| Control | Function |
+|---|---|
+| Camera list, ⟳ | Choose the webcam, refresh the list |
+| ▶ Turn on / ■ Turn off | Start or stop the live image |
+| Save photo, ● Record video | Save a photo (JPG) or video (MP4) in the location |
+| Large window | Live image in a separate window |
+| Rotate 90° | Only rotate the display |
+| Turn on automatically when a job starts | The camera starts with every job |
+| Record every job as a video | One video per job |
+| Live image as background (undistorted, every 2 s) | Live image under the work area (only after alignment) |
+| Location, Folder… | Folder for photos and videos |
+| **Flame guard** | Detect flames during the job, On flame, Sensitivity, Trigger after, Show detected spots in red, Test – see [Flame guard](#flame-guard) |
+
+Details: [Live camera](#live-camera).
+
+<!-- hilfe: auftragsleiste -->
+### Job bar
+
+| Control | Function |
+|---|---|
+| Status, position | State (Ready, Running, Paused, Done, Stopped, Alarm …) and head position |
+| Frame | Trace the outline of the job |
+| ▶ Start | Start the job (with safety prompt) |
+| ⏸ Pause / ▶ Resume | Hold or continue |
+| ■ Stop | Immediate abort |
+| Progress bar, time | Percent, remaining time, elapsed time / expected total time |
+| Origin | *Absolute* or *Current position* with anchor point (↙ bottom left … ↗ top right) |
+| Selection only | Only laser or frame the selected objects |
+| Rubber band, Show | Frame tightly around the parts; always show the line |
+| Resume… | Resume an aborted job from a line ([Resume job window](#resume-job-window)) |
+
+Details: [chapter 12](#12-lasering-frame-start-pause-stop-resume).
+
+<!-- hilfe: fenster -->
+### Windows and dialogs
+
+Unless stated otherwise, all windows have **OK** (apply) and **Cancel** (discard), and a **Help** button that
+opens the matching section of this manual.
+
+<!-- hilfe: dlg-maschine -->
+#### Machine settings window
+
+Machine template with *Apply*, Name, Firmware / dialect with *Apply firmware defaults*, S value at 100 %,
+Laser on command, *S value in every G1 line (inline power)*, *G0 with feed F (Marlin)* (some Marlin versions
+otherwise move G0 with the last used feed), Rapid speed, Work area width, Work area depth, Frame: power,
+Frame: speed, Air assist on, Air assist off, Passes (*With several passes, finish each contour completely*),
+Double lines (*Cut overlapping lines only once*), Cut order, *Rotary axis (roller) instead of Y axis* with
+Y travel per roller turn and Roller diameter, Start G-code and End G-code. Meaning of the fields:
+[Machine settings](#machine-settings).
+
+<!-- hilfe: dlg-text -->
+#### Insert text window
+
+Text field (several lines), Font (list of installed fonts, “…” chooses a font file), Size (em height; capital
+letters are about 70 % of it), Line spacing, Letter spacing, Alignment (Left, Centered, Right), Layer (an existing
+layer, *New layer: fill (engrave)* or *New layer: cut / line*). See [Text](#text).
+
+<!-- hilfe: dlg-gcode -->
+#### G-code window
+
+Shows the generated G-code read-only. For very long jobs the beginning is shown together with the number of
+lines that follow; *File → Export G-code* always saves everything.
+
+<!-- hilfe: dlg-array -->
+#### Create array window
+
+Type *Grid (rows × columns)*: Columns, Rows, Spacing X, Spacing Y and Meaning (*Gap between the objects* or
+*Grid pitch (center to center)*). Type *Circle*: Count (incl. original), Center X, Center Y, Total angle and
+*Rotate copies*. See [Array](#array).
+
+<!-- hilfe: dlg-trace -->
+#### Trace image window
+
+Threshold, *Invert (trace light areas)*, Smoothing, Minimum size, Brightness, Contrast, Layer, *Keep image*.
+See [Trace image](#trace-image).
+
+<!-- hilfe: dlg-materialtest -->
+#### Material test window
+
+Mode (*Engrave (fill area)* or *Cut (outline)*), Power from / to, Columns, Speed from / to, Rows, Field size,
+Field gap, Line interval (engraving), Passes, Position X, Position Y, *Labels* with Label power and Label speed.
+Buttons: **Preview**, **Add to project**, **Export…**, **Send to laser**, **Close**. See
+[Material test](#material-test).
+
+<!-- hilfe: dlg-offset -->
+#### Offset (shift outline) window
+
+Distance (positive = outwards, negative = inwards), *Round corners* (otherwise sharp), *Keep original* (otherwise
+the contour is replaced).
+
+<!-- hilfe: dlg-passmarken -->
+#### Click the registration marks window
+
+Shows the camera image. Click the registration marks in the order shown; the mouse wheel zooms. *Reset* clears all
+clicks. OK becomes available once all marks are set. See [Alignment](#alignment).
+
+<!-- hilfe: dlg-textpfad -->
+#### Text on path window
+
+Text, Font, Size, Alignment (*At the start (for closed contours: from the top)* or *Centered (for closed
+contours: top center)*), Distance (of the baseline from the contour), Offset (along the path), *Flip (for closed
+contours: inside, readable at the bottom)*, Layer. See [Text on path](#text-on-path).
+
+<!-- hilfe: dlg-nesting -->
+#### Nesting – arrange parts window
+
+Sheet (*Work area*, *Custom size* with X (left), Y (bottom), Width, Height, or *Largest selected object (its
+outline)*), Minimum gap, Edge margin, Rotations (*No rotation*, *0° / 180°*, *90° steps*, *45° steps*,
+*15° steps (slow)*), Copies per object, *Also place small parts in holes of larger parts*, *With gap 0, place
+flush (shared edges)*, *Thorough (several strategies, slower, usually denser)*, *Draw the sheet as a frame
+(layer without output)*. After arranging: *Save placed parts…*, *Save and remove…*, *Close*. See
+[chapter 8](#8-nesting--arranging-parts-automatically).
+
+<!-- hilfe: dlg-fokustest -->
+#### Focus test window
+
+Type (*Without Z axis: ramp (place the board at an angle)* or *With Z axis: lines at different heights*), Length
+or Z from / Z to, Lines and Line length, Tick marks every, Power, Speed, Position X/Y, *Labels*. Buttons as for the
+material test. See [Focus test](#focus-test).
+
+<!-- hilfe: dlg-box -->
+#### Box generator window
+
+Dimensions (*Inside dimensions* / *Outside dimensions*), Width (X), Depth (Y), Height (Z), Material thickness,
+Finger width, Kerf, *With lid*, Power, Speed, Passes, Gap between parts, Position X/Y, *Label the parts
+(bottom, front, …)*. Below, the outside size and notes. Buttons as for the material test. See
+[Box generator](#box-generator).
+
+<!-- hilfe: dlg-zeilenabstand -->
+#### Line interval test window
+
+Line interval from / to, Fields, Field size, Power, Speed, Angle, Position X/Y, *Labels*. Buttons as for the
+material test. See [Line interval test](#line-interval-test).
+
+<!-- hilfe: dlg-barcode -->
+#### Insert QR code / barcode window
+
+Type (*QR code* or *Barcode (Code 128)*), Content (placeholders allowed), Edge length and Error correction (QR:
+*L – 7 % (smallest code)*, *M – 15 % (standard)*, *Q – 25 %*, *H – 30 % (robust)*), Width and Height (barcode),
+Layer. See [Variable text, QR code and barcode](#variable-text-qr-code-and-barcode).
+
+<!-- hilfe: dlg-variablen -->
+#### Variable text window
+
+Number `{nr}` (next value), Step, CSV file (*…* chooses, *✕* removes), Current row, *Count up after every job or
+G-code export*. Below, the preview of the next job.
+
+<!-- hilfe: dlg-grbl -->
+#### GRBL settings window
+
+Table with No., value and meaning of all `$` settings. *Read again* queries the values again, *Export…* backs them
+up as a text file, *Write changes* sends changed values (with confirmation). See [GRBL settings](#grbl-settings).
+
+<!-- hilfe: dlg-makros -->
+#### Edit macros window
+
+On the left, the list of macros with **+** (new macro), **−** (delete the selected one) and **↑/↓** (order of the
+buttons). On the right, for the selected macro: Name, G-code (each line is sent to the controller) and Shortcut
+(click into the field and press the desired key combination).
+
+<!-- hilfe: dlg-web -->
+#### Web interface window
+
+*Turn on web interface*, Port, PIN with *New PIN*, *Allow starting jobs remotely*, address and QR code to scan.
+See [Web interface](#web-interface-phone-tablet-pc).
+
+<!-- hilfe: dlg-protokoll -->
+#### Job log window
+
+Table of jobs, totals line, Hourly rate, Power consumption, Electricity price, *Log jobs*, *Save as CSV…*,
+*Clear log…*. See [Job log](#job-log).
+
+<!-- hilfe: dlg-generator -->
+#### Generator and pattern windows
+
+*Living hinge*, *Hole pattern*, *Engraving pattern*, *Finger joint on edge*, *Stencil bridges*, *Gear* and *Puzzle*
+open a window with their settings and a layer choice (an existing layer or a new layer). The fields are described
+in [Patterns in an area](#patterns-in-an-area), [Finger joint on edge](#finger-joint-on-edge) and
+[Gear, puzzle and stencil bridges](#gear-puzzle-and-stencil-bridges). The values last used are kept until you quit.
+
+<!-- hilfe: dlg-farbe -->
+#### Layer color window
+
+Grid with 32 colors. A dot marks colors already used by a layer; the tooltip shows the number, name and layer.
+A click chooses the color.
+
+<!-- hilfe: dlg-preset -->
+#### Save preset
+
+Asks for the preset name and material / note. The preset applies to the selected machine and then appears in the
+*Material presets* list.
+
+<!-- hilfe: dlg-fortsetzen -->
+#### Resume job window
+
+Shows after which line the job was aborted and suggests a slightly earlier line. After OK you confirm once more
+that the workpiece has not been moved.
+
+<!-- hilfe: dlg-startabfrage -->
+#### Safety prompt at start
+
+Before every start, TiLaser shows the estimated duration, the number of lines, the dialect and notes (e.g. objects
+outside the work area). *Yes* starts, *No* cancels. *Frame* with laser power has its own prompt.
+
+<!-- hilfe: dlg-flamme -->
+#### Flame guard message
+
+Appears when the flame guard triggers: *Stop job*, *Keep watching*, *Guard off for this job*. See
+[Flame guard](#flame-guard).
+
+<!-- hilfe: dlg-sprache -->
+#### Own translation
+
+Asks for the language code (two letters, e.g. fr, nl, it, pl) and creates the language file. See
+[chapter 21](#21-language-and-translations).
+
+<!-- hilfe: dlg-lizenzen -->
+#### Licenses and About TiLaser windows
+
+*About TiLaser* shows the version, license and trademark notice; *Licenses…* opens the overview of all included
+libraries with the location of the full license texts.
+
+<!-- hilfe: fenster-kamera -->
+#### Large camera window
+
+Live image in a separate window (“TiLaser – Camera”). **F11** or a double click: full screen, **Esc** ends full
+screen. The window can be dragged to a second screen.
+
+<!-- hilfe: hilfe -->
+### Help in the program
+
+*Help → User manual* (**F1**) opens this manual in a separate window:
+
+| Control | Function |
+|---|---|
+| Table of contents (left) | A click jumps to the chapter or section |
+| ◀ / ▶ | Back and forward, like in a browser |
+| Contents | To the start of the manual |
+| Search field | Enter a term; Enter finds the next match, Shift+Enter the previous one |
+| PDF | Open the PDF version |
+| Online | Open the manual on the project page in the browser |
+| Links in the text | References to other sections jump there; web addresses open the browser |
+
+**Context help:** **F1** always opens the section that matches what you are using right now:
+
+- in an open menu: the highlighted menu item,
+- over a toolbar button or a control: its description (hold the mouse over it and press F1),
+- in a window: the section of that window – every window also has a **Help** button for this,
+- on the work area: how to use the work area; in a tab: that tab.
+
+The manual appears in the language set (German or English; other languages show the English version).
