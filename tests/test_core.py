@@ -1605,6 +1605,16 @@ def test_patterns_in_region():
     o = sorted(rows[ys[1]])
     open_bridges = [(o[i][1] + o[i + 1][0]) / 2 for i in range(len(o) - 1)]
     assert np.allclose(closed_mids, open_bridges, atol=1e-3)                     # Stege mittig versetzt
+    for style in ("triple", "wave"):                                             # punktsymmetrisch zur Mitte
+        hs = pt.living_hinge(rect, 20, 3, 1.5, 3, 0, style)
+        pts = np.vstack([p.pts for p in hs])
+        assert inside(pts * 0.9999 + np.array([60, 25]) * 0.0001, rect).all()
+        ends = np.round(np.vstack([np.r_[p.pts[0], p.pts[-1]] for p in hs]), 2)
+        flip = np.round(np.vstack([[120 - p.pts[-1][0], 50 - p.pts[-1][1], 120 - p.pts[0][0], 50 - p.pts[0][1]]
+                                   for p in hs]), 2)
+        assert {tuple(e) for e in ends} == {tuple(f) for f in flip}, style
+        far = [p for p in hs if np.ptp(p.pts[:, 0]) > 0 and p.pts[:, 0].min() > 1e-3 and p.pts[:, 0].max() < 120 - 1e-3]
+        assert far and (distance_to_edges(np.vstack([p.pts for p in far]), rect) >= 0.5).all()
     holes = pt.hole_pattern(rect, "hex", 6, 2, "offset", 3)
     pts = np.vstack([p.pts for p in holes])
     assert len(holes) > 40 and inside(pts, rect).all() and (distance_to_edges(pts, rect) >= 3 - 1e-6).all()

@@ -97,6 +97,7 @@ def main():
     sten = tile(st, [], "Schablonen-Stege", False, sc=1.9)
     sheet([hinge, holes, slots, joint, gears, puzzle, sten], 3, "muster_generatoren.png")
     joint_types()
+    hinge_types()
     print("Bilder in", OUT)
 
 
@@ -115,6 +116,14 @@ def joint_types():
                 d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
         d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "zinken_arten.png"), optimize=True)
+
+
+def hinge_types():
+    """Die drei Arten des Biegescharniers nebeneinander."""
+    rect = [g.Polyline(np.array([[0, 0], [70, 0], [70, 40], [0, 40]], float), True)]
+    tiles = [tile(pt.living_hinge(rect, 14, 2.5, 2.0, 3, 0, k), rect, label, False, size=(300, 200), sc=3.8)
+             for k, label in (("straight", "Normal"), ("triple", "Dreifach versetzt"), ("wave", "Wellenschlitze"))]
+    sheet(tiles, 3, "scharnier_arten.png")
 
 
 if __name__ == "__main__":

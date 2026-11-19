@@ -507,7 +507,7 @@ cut out as usual.
 
 | Setting | Effect |
 |---|---|
-| Type | *Straight slits* or *double slits* (softer) |
+| Type | *Normal* (straight slits), *Triple offset* (softer) or *Wave slits* (softer, decorative), see below |
 | Slit length, bridge | Length of the cuts and of the bridges left between them |
 | Row spacing | Smaller = more flexible, but more fragile. 3 mm plywood: about 1.5 mm |
 | Distance to the edge | Distance of the slits from the edge (see below) |
@@ -518,6 +518,22 @@ and right. The two outer rows and every second row in between keep the *distance
 in between are offset by half a pitch: their bridges sit exactly in the middle of the slits of the
 neighbouring rows, and they run through to the edge. The slit length is adjusted slightly so that every
 row works out evenly. In round or slanted areas, each row follows its own width.
+
+How soft the hinge becomes depends on the wood strips between the rows: when bending, they twist between
+the bridges. The longer the free length and the narrower the strip, the softer.
+
+![The three types of living hinge](screenshots/en/scharnier_arten.png)
+
+- **Normal** – straight slits, each row offset by half a pitch (as described above). Every row is mirror
+  symmetric.
+- **Triple offset** – each row is offset by a third of a pitch against the previous one. The bridges of
+  neighbouring rows are therefore further apart, and the strips can twist over a longer distance:
+  noticeably softer, but still stable – good for box lids and round corners. Here too the outer rows and
+  every second row keep the edge distance. Because a third of a pitch cannot be mirrored, the pattern is
+  point symmetric about the centre (it looks the same rotated by 180°).
+- **Wave slits** – built like *Normal*, but the slits are waves (height 40 % of the row spacing, two waves
+  per pitch). All waves run parallel, so the distance between the rows is kept. The longer strips spread
+  the stress better and the wood breaks less often; lasering takes a little longer. Also point symmetric.
 
 **Hole pattern / vent grille** – circles, hexagons, squares or slots, as a grid or offset (honeycomb).
 Only whole holes are placed that lie completely inside the area including the edge margin – ideal for
