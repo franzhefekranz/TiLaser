@@ -193,9 +193,9 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
     """Pfaddaten -> Polylinien mit Bézier-Darstellung in Weltkoordinaten (Matrix m angewendet)."""
     sc = _Scanner(d)
     bb = g.BezBuilder(tol)
-    pos = np.zeros(2)
-    start = np.zeros(2)
-    last_ctrl = None
+    pos: np.ndarray = np.zeros(2)       # bewusst ohne Form-Typ: Ergebnisse von base + [...] haben andere Formen
+    start: np.ndarray = np.zeros(2)
+    last_ctrl: np.ndarray | None = None
     last_cmd = ""
     cmd = None
 

@@ -25,6 +25,8 @@ jobs:
       - name: Lint (ruff)
         run: ruff check --select F,E9 --ignore F401 tilaser tools tests
       - name: Typprüfung (mypy, tilaser/core)
+        # nur einmal: die Typangaben von NumPy unterscheiden sich je nach Python-/NumPy-Version
+        if: matrix.python == '3.12'
         run: python -m mypy
       - name: Tests
         run: python -m pytest -q tests
