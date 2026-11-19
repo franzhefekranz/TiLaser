@@ -1,6 +1,8 @@
 """Bildverarbeitung für Rastergravur: Laden, Skalieren, Dithering."""
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -11,7 +13,7 @@ def load_image_gray(path: str) -> tuple[np.ndarray, float, float]:
     Rückgabe: (Array, Breite mm, Höhe mm) – Größe aus DPI-Angabe, sonst 254 dpi (0,1 mm/Pixel)
     begrenzt auf 100 mm Breite.
     """
-    im = Image.open(path)
+    im: Image.Image = Image.open(path)
     im = ImageOps.exif_transpose(im)
     dpi = im.info.get("dpi", (0, 0))[0] or 0
     if im.mode in ("RGBA", "LA", "P"):
@@ -88,8 +90,13 @@ def dither(gray: np.ndarray, mode: str = "floyd", threshold: int = 128, invert: 
     return _floyd(v)
 
 
+def _rows(v: np.ndarray) -> list[list[float]]:
+    """Bild als verschachtelte Python-Listen (für die Fehlerverteilung deutlich schneller als NumPy-Einzelzugriffe)."""
+    return cast("list[list[float]]", v.astype(np.float64).tolist())
+
+
 def _diffuse(v: np.ndarray, kernel, div) -> np.ndarray:
-    img = v.astype(np.float64).tolist()
+    img: list[list[float]] = _rows(v)
     h, w = len(img), len(img[0])
     out = np.zeros((h, w), dtype=np.float32)
     k = [(dy, dx, wt / div) for dy, dx, wt in kernel]
@@ -112,7 +119,7 @@ def _diffuse(v: np.ndarray, kernel, div) -> np.ndarray:
 
 
 def _floyd(v: np.ndarray) -> np.ndarray:
-    img = v.astype(np.float64).tolist()        # Python-Listen sind hier deutlich schneller
+    img: list[list[float]] = _rows(v)        # Python-Listen sind hier deutlich schneller
     h, w = len(img), len(img[0])
     out = np.zeros((h, w), dtype=np.float32)
     for y in range(h):
@@ -143,7 +150,7 @@ def _floyd(v: np.ndarray) -> np.ndarray:
 
 
 def _atkinson(v: np.ndarray) -> np.ndarray:
-    img = v.astype(np.float64).tolist()
+    img: list[list[float]] = _rows(v)
     h, w = len(img), len(img[0])
     out = np.zeros((h, w), dtype=np.float32)
     offs = ((0, 1), (0, 2), (1, -1), (1, 0), (1, 1), (2, 0))

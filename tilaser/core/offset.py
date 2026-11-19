@@ -63,14 +63,28 @@ def offset_closed(pts: np.ndarray, d: float) -> list[np.ndarray]:
                     pyclipper.JT_MITER, pyclipper.ET_CLOSEDPOLYGON)
         res = pco.Execute(d * SCALE)
         return [np.array(r, float) / SCALE for r in res if len(r) >= 3]
+    p = np.asarray(pts, float)
+    if d < 0 and min(np.ptp(p[:, 0]), np.ptp(p[:, 1])) <= -2 * d:
+        return []                    # schmaler als der doppelte Versatz: Kontur verschwindet ganz
     r = _offset_simple(pts, d)
-    return [r] if len(r) >= 3 else []
+    if len(r) < 3:
+        return []
+    a0, a1 = _signed_area(pts), _signed_area(r)
+    if d < 0 and (a0 * a1 <= 0 or abs(a1) >= abs(a0)):
+        return []                    # Kontur kleiner als der Versatz: umgestülptes Polygon statt Leere
+    return [r]
 
 
-def apply_kerf(polys: list[g.Polyline], kerf: float) -> list[g.Polyline]:
+def _signed_area(pts) -> float:
+    p = np.asarray(pts, float)
+    return 0.5 * float(np.sum(p[:, 0] * np.roll(p[:, 1], -1) - np.roll(p[:, 0], -1) * p[:, 1]))
+
+
+def apply_kerf(polys: list[g.Polyline], kerf: float, lost: list | None = None) -> list[g.Polyline]:
     """Kerf-Ausgleich: Außenkonturen um kerf/2 nach außen, Löcher um kerf/2 nach innen.
 
     Offene Pfade bleiben unverändert. kerf < 0 kehrt die Richtung um (z. B. für Gravuren).
+    Konturen, die dabei verschwinden (kleiner als die Schnittbreite), werden an ``lost`` angehängt.
     """
     if abs(kerf) < 1e-9:
         return polys
@@ -81,7 +95,10 @@ def apply_kerf(polys: list[g.Polyline], kerf: float) -> list[g.Polyline]:
             out.append(p)
             continue
         d = kerf / 2 if dep % 2 == 0 else -kerf / 2
-        for r in offset_closed(p.pts, d):
+        rings = offset_closed(p.pts, d)
+        if not rings and lost is not None:
+            lost.append(p)
+        for r in rings:
             out.append(g.Polyline(r, True))
     return out
 

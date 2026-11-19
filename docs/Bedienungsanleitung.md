@@ -51,7 +51,11 @@ schädigen und Brände auslösen.
 - **Stopp** (in der Auftragsleiste) hält die Maschine sofort an. Bei GRBL wird dafür ein Soft-Reset gesendet;
   der Laser schaltet sofort ab.
 - Bei GRBL muss der **Lasermodus aktiv** sein (`$32=1`), sonst brennt der Laser auch bei Leerfahrten weiter.
-  TiLaser warnt beim Verbinden, wenn das nicht der Fall ist.
+  TiLaser warnt beim Verbinden, wenn das nicht der Fall ist, und startet dann keinen Auftrag, der den Laser
+  einschaltet. Zusätzlich setzt TiLaser bei GRBL vor jeder Leerfahrt die Leistung ausdrücklich auf `S0`.
+- Meldet die Steuerung während eines Auftrags einen Fehler (`error:…`), wird der Auftrag **angehalten**
+  statt mit der nächsten Zeile weiterzumachen. In der Konsole steht, bei welcher Zeile; danach *Fortsetzen*
+  oder *Stopp*.
 
 ---
 
@@ -687,13 +691,14 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Durchgänge | alle | Wie oft der Arbeitsgang wiederholt wird |
 | Zeilenabstand | Füllen, Offset-Füllung, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
 | Winkel, Kreuzschraffur | Füllen | Richtung der Schraffur; zweite Schraffur um 90° gedreht |
+| Überlappende Objekte vereinigen | Füllen | Aus (Standard): Überlappen sich zwei Objekte derselben Ebene, bleibt die Überlappung frei – wie bei Löchern (Even-Odd-Regel). An: überlappende Objekte werden zu einer gemeinsamen Fläche zusammengefasst. Löcher innerhalb eines Objekts (z. B. in Buchstaben) bleiben in beiden Fällen Löcher |
 | Bildmodus | Raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (Dithering), Schwellwert, Graustufen |
 | Schwellwert, Invertieren | Raster | |
 | Helligkeit, Kontrast, Gamma | Raster | Bild vor dem Gravieren anpassen |
 | Overscan | Raster | Anlaufweg vor/nach jeder Zeile gegen dunkle Ränder |
 | Bidirektional | Füllen, Raster | Hin und zurück gravieren (schneller) |
 | Innen vor außen | Schneiden | Löcher vor der Außenkontur schneiden, damit sich Teile nicht vorher lösen |
-| **Kerf-Ausgleich** | Schneiden | Schnittbreite in mm. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt – die Teile werden maßhaltig. Wichtig für Steck- und Presspassungen. |
+| **Kerf-Ausgleich** | Schneiden | Schnittbreite in mm. Außenkonturen werden um die Hälfte nach außen, Löcher nach innen versetzt – die Teile werden maßhaltig. Wichtig für Steck- und Presspassungen. Löcher, die kleiner als die Schnittbreite sind, verschwinden dabei; TiLaser meldet das beim Start als Hinweis. |
 | **Haltestege** | Schneiden | Anzahl Stege je Kontur und Stegbreite. Die Teile bleiben im Material hängen und fallen nicht durch den Wabentisch. Optional nur an Außenkonturen. |
 | Z-Schritt je Durchgang | alle | Fokus nach jedem Durchgang absenken (nur mit motorisierter Z-Achse) |
 | Z-Versatz | alle | Vor dieser Ebene fährt Z um den Wert (+ = höher), danach zurück – z. B. leicht defokussiert gravieren (nur mit motorisierter Z-Achse) |
@@ -881,16 +886,18 @@ Die **Auftragsleiste** rechts unten ist in jedem Tab sichtbar.
 | **Rahmen** | Fährt den Umriss des Auftrags ab (mit der Rahmen-Leistung aus den Maschineneinstellungen) |
 | **Gummiband** | Häkchen unter *Nur Auswahl*: Der Rahmen folgt eng den Teilen (konvexe Hülle) statt dem umschließenden Rechteck – wie ein um alle Teile gespanntes Gummiband. Bei runden oder schräg liegenden Teilen sieht man so genauer, wo gelasert wird, und der Kopf fährt nicht über leere Ecken. Die abgefahrene Linie wird auf der Arbeitsfläche einige Sekunden orange gestrichelt angezeigt. Mit dem Häkchen **Anzeigen** daneben (oder *Ansicht → Gummiband-Rahmen anzeigen*) bleibt sie dauerhaft eingeblendet und folgt beim Verschieben den Teilen – bei *Nur Auswahl* nur den ausgewählten. Die Linie ist reine Anzeige und wird nie gelasert. Beide Einstellungen bleiben gespeichert |
 | **▶ Start** | Erzeugt den G-Code und startet nach einer Sicherheitsabfrage (mit geschätzter Dauer und Hinweisen) |
-| **⏸ Pause / Fortsetzen** | Hält an bzw. setzt fort (GRBL: Feed-Hold `!` / `~`) |
-| **■ Stopp** | Sofortiger Abbruch (GRBL: Soft-Reset); danach ggf. *Entsperren* |
-| Fortschritt und Zeit | Während des Laserns: Balken mit Prozent und **Restzeit** („noch ~4:12“), daneben **bisherige Laufzeit / erwartete Gesamtzeit** (z. B. „3:05 / ~7:17“, Minuten:Sekunden, ab einer Stunde Stunden:Minuten:Sekunden). Die erste Schätzung kommt aus Weg und Vorschub jeder G-Code-Zeile; sobald ein Teil gelasert ist, wird sie an das tatsächliche Tempo der Maschine angepasst (Beschleunigung, langsamere Ecken). Pausen zählen nicht mit. Nach dem Ende steht die tatsächliche Dauer da, in der Konsole zusammen mit der ursprünglichen Schätzung |
+| **⏸ Pause / Fortsetzen** | Hält an bzw. setzt fort (GRBL: Feed-Hold `!` / `~`). Bei Marlin/Smoothie sendet TiLaser sofort `M5` – die Steuerung fährt die schon gepufferten Bewegungen noch zu Ende, der Laser brennt danach aber nicht im Stillstand weiter; beim Fortsetzen wird er wieder eingeschaltet |
+| **■ Stopp** | Sofortiger Abbruch (GRBL: Soft-Reset); danach ggf. *Entsperren*. Bei Marlin/Smoothie sofort `M410` (Quickstop), `M5` und der Befehl *Luft aus* |
+| Fortschritt und Zeit | Während des Laserns: Balken mit Prozent und **Restzeit** („noch ~4:12“), daneben **bisherige Laufzeit / erwartete Gesamtzeit** (z. B. „3:05 / ~7:17“, Minuten:Sekunden, ab einer Stunde Stunden:Minuten:Sekunden). Die erste Schätzung kommt aus Weg und Vorschub jeder G-Code-Zeile; sobald ein Teil gelasert ist, wird sie an das tatsächliche Tempo der Maschine angepasst (Beschleunigung, langsamere Ecken). Pausen zählen nicht mit. Nach dem Ende steht die tatsächliche Dauer da, in der Konsole zusammen mit der ursprünglichen Schätzung. *Fertig* meldet TiLaser erst, wenn die Maschine wirklich steht: bei GRBL, sobald sie nach der letzten Zeile *Idle* meldet, bei Marlin/Smoothie über ein angehängtes `M400` (wartet auf das Ende aller Bewegungen) |
 | **Ursprung** | *Absolut*: Koordinaten wie auf der Arbeitsfläche. *Aktuelle Position*: der gewählte **Ankerpunkt** (z. B. links unten) des Auftrags liegt dort, wo der Laserkopf gerade steht – praktisch zum Positionieren per Jog |
 | **Nur Auswahl** | Nur die ausgewählten Objekte lasern bzw. umrahmen |
 | **Fortsetzen…** | Nach Stopp, Alarm oder Verbindungsabbruch ab einer wählbaren Zeile weitermachen |
 
 **Fortsetzen:** TiLaser merkt sich, bis zu welcher Zeile die Steuerung den Auftrag bestätigt hat. Weil die
 Steuerung einige Befehle im Voraus puffert, wird standardmäßig etwa 15 Zeilen früher begonnen – kurze Stücke
-werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werden wiederhergestellt.
+werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werden wiederhergestellt, ebenso ein
+Fokus-Versatz der Z-Achse (Z-Versatz der Ebene, Absenken je Durchgang). Verstellt der Auftrag Z, fragt TiLaser,
+ob der Kopf noch auf der Höhe beim Abbruch steht oder der Fokus neu auf die Ausgangshöhe eingestellt wurde.
 **Das Werkstück darf dazwischen nicht verschoben worden sein.**
 
 ---
@@ -907,7 +914,7 @@ Arbeitsplatz-PC aus der Nachbarecke. TiLaser selbst muss dafür laufen.
 |---|---|
 | Weboberfläche einschalten | Startet den Webserver (bleibt auch nach einem Neustart von TiLaser an) |
 | Port | Standard 8080 |
-| PIN | Wird im Browser abgefragt. Die Anmeldung gilt bis zu 24 Stunden, endet aber, wenn TiLaser neu startet oder dieser Dialog mit OK geschlossen wird. Nach 10 falschen Eingaben ist die Anmeldung 5 Minuten gesperrt. Leer = ohne Anmeldung (nicht empfohlen) |
+| PIN | Wird im Browser abgefragt. Die Anmeldung gilt bis zu 24 Stunden, endet aber, wenn TiLaser neu startet oder dieser Dialog mit OK geschlossen wird. Nach 10 falschen Eingaben ist die Anmeldung 5 Minuten gesperrt. Die PIN ist Pflicht und muss mindestens 4 Zeichen haben; ist sie leer oder kürzer, erzeugt TiLaser eine neue. Aufrufe über fremde Rechnernamen (statt IP-Adresse oder eigenem Rechnernamen) werden abgewiesen – das schützt vor Webseiten, die den Browser auf TiLaser umleiten |
 | Aufträge aus der Ferne starten erlauben | Zeigt einen Knopf *Auftrag starten*, der das aktuell geöffnete Projekt mit den Einstellungen der Auftragsleiste startet. Standardmäßig aus |
 
 Der Dialog zeigt die Adresse (z. B. `http://192.168.1.20:8080/`) und einen QR-Code, den man mit der
@@ -1037,7 +1044,9 @@ läuft dann trotzdem.
 
 > **Wichtig:** Der Flammenwächter ist eine zusätzliche Absicherung und **kein Ersatz für die Aufsicht**. Er
 > sieht nur, was die Kamera sieht, und kann eine Flamme unter dem Werkstück oder im Rauch übersehen. Bei
-> GRBL schaltet der Laser bei *Pause* im Lasermodus (`$32=1`) ab; Air Assist läuft weiter.
+> GRBL schaltet der Laser bei *Pause* im Lasermodus (`$32=1`) ab; Air Assist läuft weiter. Bei Marlin und
+> Smoothieware **stoppt** der Wächter den Auftrag auch dann, wenn *Pausieren* eingestellt ist, weil diese
+> Steuerungen gepufferte Bewegungen nach einer Pause noch ausführen.
 
 Tipp zum Einstellen: Einen typischen Auftrag mit *Erkannte Stellen rot zeigen* beobachten. Erscheinen dabei
 schon rote Stellen, die Empfindlichkeit senken oder die Zeit erhöhen.
@@ -1411,6 +1420,7 @@ Schieberegler (Simulation: Zeitpunkt im Auftrag) und die Abspielgeschwindigkeit.
 | Leistung max, Leistung min | Laserleistung in %; *min* nur im Graustufen-Bildmodus |
 | Geschwindigkeit, Durchgänge | mm/min und Anzahl der Wiederholungen |
 | Zeilenabstand, Winkel, Kreuzschraffur | Abstand und Richtung der Füll-/Bildzeilen; zweite Schraffur um 90° gedreht |
+| Überlappende Objekte vereinigen | Füllen: überlappende Objekte als eine Fläche statt mit ausgesparter Überlappung |
 | Bildmodus, Schwellwert, Invertieren | Rasterbild: Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Overscan | Anlaufweg vor/nach jeder Bildzeile |
 | Bidirektional | Hin und her gravieren |

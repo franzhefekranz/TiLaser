@@ -85,7 +85,7 @@ class MachineProfile:
     flame_show: bool = True           # erkannte Stellen im Live-Bild markieren
     web_enabled: bool = False         # Weboberfläche zur Fernbedienung
     web_port: int = 8080
-    web_pin: str = ""                 # leer = ohne Anmeldung (nicht empfohlen)
+    web_pin: str = ""                 # leer = beim Einschalten wird eine PIN erzeugt
     web_allow_start: bool = False     # Aufträge aus der Ferne starten erlauben
     job_log: bool = True              # Aufträge im Protokoll (auftraege.csv) festhalten
     job_rate: float = 0.0             # Maschinenstundensatz für die Kostenrechnung
@@ -130,6 +130,8 @@ class GResult:
 
 
 def fmt(v: float, decimals: int = 3) -> str:
+    if not math.isfinite(v) or abs(v) > 1e7:
+        raise ValueError(f"Ungültiger Zahlenwert im G-Code: {v!r} – bitte die Objekte prüfen.")
     s = f"{v:.{decimals}f}"
     if "." in s:
         s = s.rstrip("0").rstrip(".")
@@ -153,6 +155,7 @@ class GWriter:
         self.moves: list = []
         self.color_ids: dict[str, int] = {}
         self.s_decimals = 3 if prof.s_max <= 1.0 else (1 if prof.s_max < 100 else 0)
+        self.record = True            # False: Bewegungen nicht einzeln für Vorschau/Simulation merken (Raster)
 
     def s_val(self, pct: float) -> float:
         return round(max(0.0, min(100.0, pct)) / 100.0 * self.p.s_max, self.s_decimals)
@@ -175,25 +178,29 @@ class GWriter:
             self.s = None
 
     def travel(self, x: float, y: float):
-        if self.x is not None and abs(x - self.x) < 1e-6 and abs(y - self.y) < 1e-6:
+        if self.x is not None and self.y is not None and abs(x - self.x) < 1e-6 and abs(y - self.y) < 1e-6:
             return
         self.laser_off()
         d = self._dist(x, y)
         cmd = f"G0 X{fmt(x)} Y{fmt(y * self.ys)}"
+        if self.p.inline_power and self.s:
+            # Leistung bei Leerfahrten ausdrücklich auf 0 – schützt auch, falls GRBL ohne Lasermodus ($32=0) läuft
+            cmd += " S0"
+            self.s = 0.0
         if self.p.rapid_with_feed:
             cmd += f" F{fmt(self.p.travel_speed, 0)}"
             self.feed = None          # G0 F verändert das modale F – nächstes G1 muss F setzen
         self.emit(cmd)
-        if self.x is not None:
+        if self.x is not None and self.record:
             self.travel_segs.append((self.x, self.y, x, y))
         self.t_min += d / max(self.p.travel_speed, 1)
-        if self.x is not None:
+        if self.x is not None and self.record:
             self.moves.append((self.x, self.y, x, y, -1, self.t_min * 60))
         self.x, self.y = x, y
 
     def burn(self, x: float, y: float, speed: float, s: float):
         """Bewegung mit Laserleistung s (S-Einheiten). s == 0 -> Bewegung ohne Brennen."""
-        if self.x is not None and abs(x - self.x) < 1e-6 and abs(y - self.y) < 1e-6:
+        if self.x is not None and self.y is not None and abs(x - self.x) < 1e-6 and abs(y - self.y) < 1e-6:
             return
         if s <= 0 and not self.p.inline_power:
             self.travel(x, y)
@@ -213,6 +220,10 @@ class GWriter:
                 self.laser_on = True
                 self.s = s
         self.emit(" ".join(parts))
+        if not self.record:
+            self.t_min += d / max(speed, 1)
+            self.x, self.y = x, y
+            return
         if s > 0 and self.x is not None:
             self.burn_segs.setdefault(self.color, []).append((self.x, self.y, x, y))
         elif self.x is not None:
@@ -289,12 +300,13 @@ def ordered_paths(paths: list[g.Polyline], start, inner_first: bool, by_objects:
     return out
 
 
-def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
+def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: list[str] | None = None):
     by_obj = w.p.cut_order == "objects"
+    lost: list[g.Polyline] = []
 
     def prep(ps):
         if layer.kerf:
-            ps = apply_kerf(ps, layer.kerf)
+            ps = apply_kerf(ps, layer.kerf, lost)
         if layer.tabs > 0:
             ps = add_tabs(ps, layer.tabs, layer.tab_width, layer.tabs_outer_only)
         return ps
@@ -313,6 +325,9 @@ def _layer_cut(w: GWriter, layer: Layer, paths: list[g.Polyline]):
         paths, saved = remove_overlaps(paths)
         if saved > 0.01:
             w.comment(f"Doppelte Linien ausgelassen: {saved:.1f} mm")
+    if lost and warnings is not None:
+        warnings.append(f"Ebene '{layer.name}': {len(lost)} Kontur(en) kleiner als die Schnittbreite "
+                        f"({layer.kerf:g} mm) – durch den Kerf-Ausgleich entfallen, sie werden nicht geschnitten.")
     s = w.s_val(layer.power)
     passes = max(1, layer.passes)
     if passes > 1 and w.p.passes_per_path:
@@ -341,14 +356,15 @@ def _layer_fill(w: GWriter, layer: Layer, paths: list[g.Polyline], warnings: lis
     open_count = sum(1 for p in paths if not p.closed)
     if open_count:
         warnings.append(f"Ebene '{layer.name}': {open_count} offene Pfade können nicht gefüllt werden.")
-    segs = hatch(paths, layer.interval, layer.angle, layer.bidirectional)
+    groups = [_order_key(p) for p in paths] if getattr(layer, "fill_union", False) else None
+    segs = hatch(paths, layer.interval, layer.angle, layer.bidirectional, groups)
     if layer.crosshatch:
-        segs += hatch(paths, layer.interval, layer.angle + 90, layer.bidirectional)
+        segs += hatch(paths, layer.interval, layer.angle + 90, layer.bidirectional, groups)
     s = w.s_val(layer.power)
     for n in range(max(1, layer.passes)):
         for seg in segs:
-            w.travel(*seg[0])
-            w.burn(*seg[1], layer.speed, s)
+            w.travel(float(seg[0][0]), float(seg[0][1]))
+            w.burn(float(seg[1][0]), float(seg[1][1]), layer.speed, s)
         _z_between(w, layer, n)
     _z_restore(w, layer)
 
@@ -359,7 +375,7 @@ def offset_rings(paths: list[g.Polyline], interval: float, max_rings: int = 5000
     closed = [p for p in paths if p.closed and len(p.pts) >= 3]
     if not closed or interval <= 0:
         return []
-    bb = g.bbox(closed)
+    bb = g.bbox_of(closed)
     n_max = min(max_rings, int(max(bb[2] - bb[0], bb[3] - bb[1]) / interval) + 2)
     from .offset import pyclipper
     A = np.vstack([p.loop_pts()[:-1] for p in closed])
@@ -448,6 +464,7 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
                 continue
             y = ytop - (r + 0.5) * iv
             first, last = int(nz[0]), int(nz[-1])
+            w.record = False              # Zeile als ein Stück merken: spart bei großen Bildern viel Speicher
             seg = row[first:last + 1]
             # Läufe gleicher Leistung
             change = np.flatnonzero(np.diff(seg) != 0) + 1
@@ -468,6 +485,13 @@ def _layer_raster(w: GWriter, layer: Layer, item, warnings: list[str]):
                 for a, b, sv in reversed(runs):
                     w.burn(x0 + a * iv, y, layer.speed, sv)
                 w.burn(x0 + first * iv - ov, y, layer.speed, 0.0)
+            w.record = True
+            xa, xb = x0 + first * iv, x0 + (last + 1) * iv
+            if not (forward or not layer.bidirectional):
+                xa, xb = xb, xa
+            w.burn_segs.setdefault(w.color, []).append((xa, y, xb, y))
+            ci = w.color_ids.setdefault(w.color, len(w.color_ids))
+            w.moves.append((xa, y, xb, y, ci, w.t_min * 60))
             if layer.bidirectional:
                 forward = not forward
     _z_restore(w, layer)
@@ -505,6 +529,7 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
     warnings: list[str] = []
     w.start()
     any_output = False
+    bad = 0
     for layer in project.layers:
         if not layer.output:
             continue
@@ -515,6 +540,9 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 rasters.append(it)
             elif it.kind == "vector":
                 for p in it.world_paths(layer.id):
+                    if not np.isfinite(p.pts).all():
+                        bad += 1
+                        continue
                     p._order = idx                      # Objektreihenfolge für 'Schnittreihenfolge: Objekte'
                     paths.append(p)
         if not paths and not rasters:
@@ -535,7 +563,7 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
                 w.laser_off()
                 w.comment(f"Unterebene {k}: {op.mode} | {op.power:g}% | {op.speed:g} mm/min | {op.passes}x")
             if op.mode == "cut":
-                _layer_cut(w, op, paths)
+                _layer_cut(w, op, paths, warnings)
             elif op.mode == "fill":
                 _layer_fill(w, op, paths, warnings)
             elif op.mode == "offset":
@@ -556,6 +584,8 @@ def generate(project: Project, prof: MachineProfile, only_ids=None, offset=(0.0,
         if layer.air and prof.air_off:
             w.emit(prof.air_off)
     w.finish()
+    if bad:
+        warnings.append(f"{bad} Pfad(e) mit ungültigen Koordinaten (NaN/unendlich) wurden ausgelassen.")
     if prof.rotary:
         warnings.append(f"Rotationsachse aktiv: Y wird mit Faktor {prof.y_scale:.4f} skaliert.")
     if not any_output:
@@ -574,7 +604,8 @@ def convex_hull(points) -> list[tuple[float, float]]:
 
     def cross(o, a, b):
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-    lower, upper = [], []
+    lower: list = []
+    upper: list = []
     for p in pts:
         while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
             lower.pop()
@@ -663,11 +694,30 @@ def line_times(lines: list[str], prof: MachineProfile) -> np.ndarray:
 
 
 # --------------------------------------------------------------------------- Fortsetzen
-def resume_lines(lines: list[str], start: int, prof: MachineProfile) -> list[str]:
+def z_offset_at(lines: list[str], idx: int) -> float:
+    """Summe der relativen Z-Fahrten (G91 … Z) vor Zeile idx – der Fokus-Versatz gegenüber dem Auftragsbeginn.
+
+    TiLaser fährt Z nur relativ (Ebenen-Versatz, Absenken je Durchgang). Erwartet bereinigte Zeilen."""
+    z, rel = 0.0, False
+    for c in lines[:max(0, idx)]:
+        u = c.upper()
+        if re.search(r"\bG91\b", u):
+            rel = True
+        if re.search(r"\bG90\b", u):
+            rel = False
+        m = re.search(r"\bZ\s*([-+]?\d*\.?\d+)", u)
+        if m and rel:
+            z += float(m.group(1))
+    return z
+
+
+def resume_lines(lines: list[str], start: int, prof: MachineProfile, z_now: float = 0.0) -> list[str]:
     """G-Code ab Zeile 'start' (Index in der bereinigten Zeilenliste) fortsetzen.
 
-    Stellt den modalen Zustand (Position, Vorschub, Laserleistung, Air Assist) wieder her
-    und fährt mit ausgeschaltetem Laser zur letzten Position vor 'start'.
+    Stellt den modalen Zustand (Position, Vorschub, Laserleistung, Air Assist, Fokus-Versatz Z) wieder her
+    und fährt mit ausgeschaltetem Laser zur letzten Position vor 'start'. ``z_now`` ist der Z-Versatz, auf
+    dem der Kopf gerade steht (gegenüber dem Auftragsbeginn): 0 = Fokus steht wieder auf der Ausgangshöhe,
+    ``z_offset_at(lines, abgebrochene Zeile)`` = Kopf ist seit dem Abbruch nicht bewegt worden.
     """
     import re
     clean = []
@@ -699,6 +749,9 @@ def resume_lines(lines: list[str], start: int, prof: MachineProfile) -> list[str
         elif c.startswith("M9"):
             air = False
     out = [f"; Fortsetzen ab Zeile {start + 1} von {len(clean)}", "G21", "G90", "M5"]
+    dz = z_offset_at(clean, start) - z_now
+    if abs(dz) > 1e-6:
+        out += ["G91", f"G0 Z{fmt(dz)}", "G90"]               # Fokus-Versatz wie an dieser Stelle des Auftrags
     if air and prof.air_on:
         out.append(prof.air_on)
     if x is not None and y is not None:

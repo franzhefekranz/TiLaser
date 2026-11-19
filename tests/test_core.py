@@ -1802,9 +1802,362 @@ def test_ortho_point():
     assert ortho_point((5, 5), (8, 8)) == (8, 5)
 
 
+class FakeMarlin:
+    """Marlin-Attrappe: quittiert jede Zeile erst, wenn release() aufgerufen wird (Planner beschäftigt)."""
+
+    def __init__(self):
+        self.out, self.rx, self.received, self.owed = bytearray(), bytearray(), [], 0
+        self.auto = False
+
+    def read(self, n):
+        time.sleep(0.001)
+        d = bytes(self.out[:n])
+        del self.out[:n]
+        return d
+
+    def write(self, data):
+        for b in data:
+            self.rx.append(b)
+            if b == 10:
+                self.received.append(self.rx.decode().strip())
+                self.rx.clear()
+                if self.auto:
+                    self.out += b"ok\r\n"
+                else:
+                    self.owed += 1
+        return len(data)
+
+    def release(self):
+        self.out += b"ok\r\n" * self.owed
+        self.owed = 0
+
+    def reset_input_buffer(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def _wait(cond, timeout=3.0):
+    t0 = time.time()
+    while not cond() and time.time() - t0 < timeout:
+        time.sleep(0.005)
+    return cond()
+
+
+def test_marlin_pause_stop_immediate(monkeypatch):
+    fake = FakeMarlin()
+    monkeypatch.setattr(snd, "serial", type("S", (), {"Serial": staticmethod(lambda *a, **k: fake)}))
+    c = snd.LaserConnection()
+    monkeypatch.setattr(c, "_detect", lambda: None)
+    c.connect("FAKE", 115200, "ping")
+    try:
+        c.start_job(["M3 S200", "G1 X1 F100", "G1 X2", "G1 X3", "M5"])
+        assert _wait(lambda: fake.received == ["M3 S200"])
+        c.pause()                                         # M3 noch nicht quittiert – M5 trotzdem sofort
+        assert _wait(lambda: "M5" in fake.received, 1.0)
+        fake.auto = True
+        fake.release()
+        time.sleep(0.1)
+        assert fake.received == ["M3 S200", "M5"]          # in der Pause wird nichts nachgeschoben
+        c.resume()                                        # Laser vor der nächsten Bewegung wieder an
+        assert _wait(lambda: len(fake.received) >= 4)
+        assert fake.received[2:4] == ["M3 S200", "G1 X1 F100"]
+        assert _wait(lambda: not c.job_active)
+        fake.auto = False
+        c.start_job(["M3 S100", "G1 X5 F100", "M5"])
+        assert _wait(lambda: fake.received[-1] == "M3 S100")  # hängt im Planner, noch kein ok
+        c.stop()
+        assert _wait(lambda: fake.received[-3:] == ["M410", "M5", "M9"], 1.0)
+    finally:
+        c.disconnect()
+
+
+def test_grbl_error_pauses_job(monkeypatch):
+    class ErrGrbl(FakeGrbl):
+        def write(self, data):
+            if b"X13 " in data or data.endswith(b"X13\n"):
+                self.received.append(data.decode().strip())
+                self.out += b"error:20\r\n"
+                return len(data)
+            return super().write(data)
+    fake = ErrGrbl()
+    monkeypatch.setattr(snd, "serial", type("S", (), {"Serial": staticmethod(lambda *a, **k: fake)}))
+    states = []
+    c = snd.LaserConnection(on_state=states.append)
+    monkeypatch.setattr(c, "_detect", lambda: None)
+    c.connect("FAKE", 115200, "grbl")
+    try:
+        c.start_job([f"G1 X{i}" for i in range(400)])
+        assert _wait(lambda: "paused" in states)
+        assert c.job_active and c.errors == 1 and "done" not in states
+    finally:
+        c.stop()
+        c.disconnect()
+
+
+def test_gcode_safety_invariants():
+    import re as _re
+    from tilaser.core.gcode import DIALECTS, fmt
+    from tilaser.core.sender import clean_line
+    pr = Project()
+    sq = g.Polyline(np.array([[0, 0], [10, 0], [10, 10], [0, 10]], float), True)
+    from tilaser.core.model import ImportedPath
+    pr.add_vector_import("a", [ImportedPath(sq, "#ff0000", "#ff0000")])
+    pr.add_vector_import("b", [ImportedPath(sq.transformed(g.translate(30, 0)), "#ff0000", "#ff0000")])
+    pr.layers[0].mode = "fill"
+    for dialect in DIALECTS:
+        prof = MachineProfile()
+        prof.apply_dialect(dialect)
+        on, s = False, 0.0
+        for line in (clean_line(x) for x in generate(pr, prof).lines):
+            u = line.upper()
+            if u.startswith(("M3", "M4")):
+                on = True
+            if u.startswith("M5"):
+                on = False
+            m = _re.search(r"S([\d.]+)", u)
+            if m:
+                s = float(m.group(1))
+            if u.startswith("G0"):
+                assert (not on) or (prof.inline_power and s == 0), (dialect, line)
+            assert "NAN" not in u and "INF" not in u
+    for bad in (float("nan"), float("inf"), 1e20):
+        try:
+            fmt(bad)
+            raise AssertionError("fmt() muss ungültige Werte ablehnen")
+        except ValueError:
+            pass
+    pr2 = Project()
+    pr2.add_vector_import("n", [ImportedPath(sq, "#ff0000", "#ff0000")])
+    pr2.items[0].paths[0].poly.pts[1, 0] = float("nan")
+    res = generate(pr2, MachineProfile())
+    assert any("ungültigen Koordinaten" in w for w in res.warnings)
+
+
+def test_kerf_collapse_reported():
+    from tilaser.core import offset as off
+    outer = g.Polyline(np.array([[0, 0], [50, 0], [50, 50], [0, 50]], float), True)
+    hole = g.Polyline(g.circle_points(25, 25, 0.1), True)
+    for clipper in (off.pyclipper, None):
+        saved = off.pyclipper
+        off.pyclipper = clipper
+        try:
+            lost = []
+            res = off.apply_kerf([outer, hole], 0.3, lost)
+            assert len(res) == 1 and lost == [hole]
+        finally:
+            off.pyclipper = saved
+    from tilaser.core.model import ImportedPath
+    pr = Project()
+    pr.add_vector_import("a", [ImportedPath(outer, "#ff0000", "#ff0000"), ImportedPath(hole, "#ff0000", "#ff0000")])
+    pr.layers[0].kerf = 0.3
+    assert any("Schnittbreite" in w for w in generate(pr, MachineProfile()).warnings)
+
+
+def test_import_bombs_terminate():
+    d = tempfile.mkdtemp()
+    arc = os.path.join(d, "arc.dxf")
+    with open(arc, "w") as f:
+        f.write("0\nSECTION\n2\nENTITIES\n0\nARC\n8\n0\n10\n0\n20\n0\n40\n5\n50\n1e20\n51\n0\n"
+                "0\nARC\n8\n0\n10\n0\n20\n0\n40\n5\n50\ninf\n51\n0\n0\nENDSEC\n0\nEOF\n")
+    t0 = time.time()
+    paths, _ = import_dxf(arc)
+    assert len(paths) == 1 and time.time() - t0 < 2
+    blk = ["0", "SECTION", "2", "BLOCKS", "0", "BLOCK", "2", "B0", "10", "0", "20", "0",
+           "0", "LINE", "8", "0", "10", "0", "20", "0", "11", "1", "21", "1", "0", "ENDBLK"]
+    for i in range(1, 8):
+        blk += ["0", "BLOCK", "2", f"B{i}", "10", "0", "20", "0",
+                "0", "INSERT", "8", "0", "2", f"B{i - 1}", "10", "0", "20", "0", "70", "100", "71", "100", "0", "ENDBLK"]
+    blk += ["0", "ENDSEC", "0", "SECTION", "2", "ENTITIES", "0", "INSERT", "8", "0", "2", "B7", "10", "0", "20", "0",
+            "0", "ENDSEC", "0", "EOF"]
+    bomb = os.path.join(d, "bomb.dxf")
+    with open(bomb, "w") as f:
+        f.write("\n".join(blk) + "\n")
+    t0 = time.time()
+    try:
+        import_dxf(bomb)
+        raise AssertionError("Block-Bombe muss abgelehnt werden")
+    except ValueError as e:
+        assert "zu komplex" in str(e) and time.time() - t0 < 10
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs>'
+             '<path id="g0" d="M0 0L1 1"/>']
+    for i in range(1, 26):
+        parts.append(f'<g id="g{i}"><use xlink:href="#g{i - 1}"/><use xlink:href="#g{i - 1}"/></g>')
+    parts.append('</defs><use xlink:href="#g25"/></svg>')
+    svg = os.path.join(d, "bomb.svg")
+    with open(svg, "w") as f:
+        f.write("".join(parts))
+    t0 = time.time()
+    try:
+        import_svg(svg)
+        raise AssertionError("use-Bombe muss abgelehnt werden")
+    except ValueError as e:
+        assert "zu komplex" in str(e) and time.time() - t0 < 10
+
+
+def test_webserver_bad_content_length():
+    import socket
+    from tilaser.core.webserver import WebServer
+    srv = WebServer(port=0, pin="123456", host="127.0.0.1")
+    srv.start()
+    try:
+        port = srv._httpd.server_address[1]
+        for cl in (b"-1", b"abc", b"999999"):
+            c = socket.create_connection(("127.0.0.1", port))
+            c.settimeout(3)
+            c.sendall(b"POST /api/login HTTP/1.1\r\nHost: 127.0.0.1\r\nX-TiLaser: 1\r\nContent-Length: " + cl + b"\r\n\r\n{}")
+            assert c.recv(20).startswith(b"HTTP/1.0 403")
+            c.close()
+    finally:
+        srv.stop()
+
+
+def test_webserver_pin_and_host():
+    import socket
+    from tilaser.core import webserver as ws
+    assert ws.host_allowed("192.168.1.20:8080") and ws.host_allowed("[fe80::1]:8080")
+    assert ws.host_allowed("localhost:8080") and ws.host_allowed(socket.gethostname() + ":8080")
+    assert not ws.host_allowed("evil.example.com:8080") and not ws.host_allowed("") and not ws.host_allowed(None)
+    for pin in ("", "12"):
+        try:
+            ws.WebServer(port=0, pin=pin, host="0.0.0.0").start()
+            raise AssertionError("ohne PIN darf der Server nicht im Netz starten")
+        except ValueError:
+            pass
+    srv = ws.WebServer(port=0, pin="123456", host="127.0.0.1")
+    srv.start()
+    try:
+        c = socket.create_connection(("127.0.0.1", srv.port))
+        c.settimeout(3)
+        c.sendall(b"GET /api/status HTTP/1.1\r\nHost: rebind.attacker.net:8080\r\n\r\n")
+        assert c.recv(20).startswith(b"HTTP/1.0 421")
+        c.close()
+        tok = srv.check_pin("123456")
+        assert srv.authorized(tok)
+        srv._sessions[tok] -= ws.SESSION_S + 1                 # Sitzung abgelaufen
+        assert not srv.authorized(tok)
+    finally:
+        srv.stop()
+
+
+def test_done_only_after_idle(monkeypatch):
+    class BusyGrbl(FakeGrbl):
+        busy_until = None
+
+        def write(self, data):
+            if data == b"?":
+                run = self.busy_until is None or time.time() < self.busy_until
+                self.out += (b"<Run|MPos:0,0,0|FS:100,0>\r\n" if run else b"<Idle|MPos:0,0,0|FS:0,0>\r\n")
+                return 1
+            n = super().write(data)
+            if b"G1 X49" in data:
+                self.busy_until = time.time() + 0.8          # Maschine fährt nach dem letzten ok noch
+            return n
+    fake = BusyGrbl()
+    monkeypatch.setattr(snd, "serial", type("S", (), {"Serial": staticmethod(lambda *a, **k: fake)}))
+    states = []
+    c = snd.LaserConnection(on_state=states.append)
+    monkeypatch.setattr(c, "_detect", lambda: None)
+    c.connect("FAKE", 115200, "grbl")
+    try:
+        c.start_job([f"G1 X{i}" for i in range(50)])
+        assert _wait(lambda: fake.received and fake.received[-1] == "G1 X49")
+        t_last = time.time()
+        assert _wait(lambda: "done" in states)
+        assert time.time() - t_last > 0.5 and not c.job_active
+    finally:
+        c.disconnect()
+
+
+def test_order_paths_matches_bruteforce():
+    """Die beschleunigte Pfadoptimierung muss genau das Ergebnis des vollständigen Vergleichs liefern."""
+    def brute(polys, cur):
+        rem, out, cur = list(polys), [], np.asarray(cur, float)
+        while rem:
+            best = None
+            for i, p in enumerate(rem):
+                if p.closed:
+                    d2 = np.sum((p.pts - cur) ** 2, axis=1)
+                    k = int(np.argmin(d2))
+                    cands = [(d2[k], i, "rot", k)]
+                else:
+                    cands = [(np.sum((p.pts[0] - cur) ** 2), i, "start", 0), (np.sum((p.pts[-1] - cur) ** 2), i, "rev", 0)]
+                for c in cands:
+                    if best is None or c[:2] < best[:2]:
+                        best = c
+            p = rem.pop(best[1])
+            if best[2] == "rot":
+                pts = p.pts[:-1] if np.allclose(p.pts[0], p.pts[-1]) else p.pts
+                p = g.Polyline(np.roll(pts, -best[3], axis=0), True)
+            elif best[2] == "rev":
+                p = g.Polyline(p.pts[::-1].copy(), False)
+            out.append(p)
+            cur = p.loop_pts()[-1]
+        return out
+    rng = np.random.default_rng(7)
+    for _ in range(15):
+        ps = []
+        for _ in range(int(rng.integers(1, 90))):
+            c = np.round(rng.uniform(0, 100, 2))
+            ps.append(g.Polyline(g.circle_points(*c, float(rng.choice([1, 2, 5]))), True) if rng.random() < 0.5
+                      else g.Polyline(np.round(rng.uniform(0, 100, (int(rng.integers(2, 5)), 2))), False))
+        ps += ps[:2]                                                       # Gleichstände
+        a, b = g.order_paths(ps, (0, 0), False), brute(ps, (0, 0))
+        assert all(np.array_equal(x.pts, y.pts) for x, y in zip(a, b)) and len(a) == len(b)
+    many = [g.Polyline(g.circle_points(*rng.uniform(0, 300, 2), 2), True) for _ in range(3000)]
+    t0 = time.time()
+    assert len(g.order_paths(many, (0, 0), True)) == 3000
+    assert time.time() - t0 < 8
+
+
+def test_fill_union_and_resume_z():
+    from tilaser.core.fill import hatch
+    from tilaser.core.gcode import resume_lines, z_offset_at
+    a = g.Polyline(np.array([[0, 0], [10, 0], [10, 10], [0, 10]], float), True)
+    b = g.Polyline(np.array([[5, 0], [15, 0], [15, 10], [5, 10]], float), True)
+    hole = g.Polyline(np.array([[1, 1], [3, 1], [3, 9], [1, 9]], float), True)
+
+    def length(segs):
+        return sum(float(np.hypot(*(s[1] - s[0]))) for s in segs)
+    eo = length(hatch([a, hole, b], 1.0, 0.0, True))                 # Even-Odd: Überlappung 5..10 frei
+    un = length(hatch([a, hole, b], 1.0, 0.0, True, [0, 0, 1]))      # vereinigt, Loch in a bleibt
+    assert abs(eo - (8 * 8 + 2 * 10)) < 1e-6 and abs(un - (8 * 13 + 2 * 15)) < 1e-6
+    job = ["G21", "G90", "M4 S0", "G91", "G0 Z2", "G90", "G1 X1 S100", "G91", "G0 Z-0.5", "G90", "G1 X2", "G1 X3"]
+    assert z_offset_at(job, 6) == 2 and z_offset_at(job, 11) == 1.5
+    out = resume_lines(job, 10, MachineProfile())                   # Kopf neu auf Ausgangshöhe
+    assert "G0 Z1.5" in out and out.index("G0 Z1.5") < out.index("G1 X3")
+    out = resume_lines(job, 10, MachineProfile(), z_now=1.5)       # Kopf noch auf Abbruchhöhe
+    assert not any(l.startswith("G0 Z") for l in out[:6])
+    out = resume_lines(job, 10, MachineProfile(), z_now=2.0)
+    assert "G0 Z-0.5" in out[:8]
+
+
+class _MiniMonkeyPatch:
+    """Ersatz für die pytest-Fixture ``monkeypatch``, wenn die Tests ohne pytest laufen (Build-Skripte)."""
+
+    def __init__(self):
+        self._undo = []
+
+    def setattr(self, target, name, value):
+        self._undo.append((target, name, getattr(target, name)))
+        setattr(target, name, value)
+
+    def undo(self):
+        for target, name, value in reversed(self._undo):
+            setattr(target, name, value)
+        self._undo.clear()
+
+
 if __name__ == "__main__":
+    import inspect
     for name, fn in list(globals().items()):
-        if name.startswith("test_"):
-            fn()
+        if name.startswith("test_") and callable(fn):
+            params = inspect.signature(fn).parameters
+            mp = _MiniMonkeyPatch()
+            try:
+                fn(**({"monkeypatch": mp} if "monkeypatch" in params else {}))
+            finally:
+                mp.undo()
             print("OK ", name)
     print("Ausgaben in", TMP)

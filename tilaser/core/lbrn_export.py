@@ -136,7 +136,7 @@ def export_lbrn(project: Project, path: str) -> list[str]:
     for it in project.items:
         if it.kind == "raster":
             if it.image is not None:
-                _bitmap_shape(root, it, idx.get(it.layer_id, 0))
+                _bitmap_shape(root, it, idx.get(it.layer_id or "", 0))
             continue
         m = it.matrix()
         polys = [(vp.poly.transformed(m), idx.get(vp.layer_id, 0)) for vp in it.paths if len(vp.poly.pts) >= 2]

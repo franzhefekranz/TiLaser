@@ -167,6 +167,10 @@ class LayerPanel(QWidget):
         self.f_interval = dspin(0.01, 5, 3, 0.01, " mm")
         self.f_angle = dspin(-180, 180, 1, 15, " °")
         self.f_cross = QCheckBox("Kreuzschraffur")
+        self.f_union = QCheckBox("Überlappende Objekte vereinigen")
+        self.f_union.setToolTip("Aus: wo sich zwei Objekte überlappen, bleibt die Überlappung frei (Even-Odd).\n"
+                                "An: überlappende Objekte werden zu einer Fläche zusammengefasst.\n"
+                                "Löcher innerhalb eines Objekts bleiben in beiden Fällen Löcher.")
         self.f_dither = QComboBox()
         for d in DITHER_MODES:
             self.f_dither.addItem(DITHER_LABELS[d], d)
@@ -200,7 +204,7 @@ class LayerPanel(QWidget):
                               ("power", "Leistung max", self.f_power), ("min", "Leistung min", self.f_min),
                               ("speed", "Geschwindigkeit", self.f_speed), ("passes", "Durchgänge", self.f_passes),
                               ("interval", "Zeilenabstand", self.f_interval), ("angle", "Winkel", self.f_angle),
-                              ("cross", "", self.f_cross), ("dither", "Bildmodus", self.f_dither),
+                              ("cross", "", self.f_cross), ("union", "", self.f_union), ("dither", "Bildmodus", self.f_dither),
                               ("thresh", "Schwellwert", self.f_thresh), ("invert", "", self.f_invert),
                               ("overscan", "Overscan", self.f_overscan), ("bidir", "", self.f_bidir),
                               ("inner", "", self.f_inner), ("kerf", "Kerf-Ausgleich", self.f_kerf),
@@ -226,7 +230,7 @@ class LayerPanel(QWidget):
         self.f_thresh.valueChanged.connect(self._commit)
         for w in (self.f_mode, self.f_dither):
             w.currentIndexChanged.connect(self._commit)
-        for w in (self.f_cross, self.f_invert, self.f_bidir, self.f_inner, self.f_air, self.f_output):
+        for w in (self.f_cross, self.f_union, self.f_invert, self.f_bidir, self.f_inner, self.f_air, self.f_output):
             w.toggled.connect(self._commit)
         self.f_name.editingFinished.connect(self._commit)
         self.op_combo.currentIndexChanged.connect(self._on_op)
@@ -353,6 +357,7 @@ class LayerPanel(QWidget):
         self.f_interval.setValue(l.interval)
         self.f_angle.setValue(l.angle)
         self.f_cross.setChecked(l.crosshatch)
+        self.f_union.setChecked(getattr(l, "fill_union", False))
         self.f_dither.setCurrentIndex(DITHER_MODES.index(l.dither) if l.dither in DITHER_MODES else 0)
         self.f_thresh.setValue(l.threshold)
         self.f_invert.setChecked(l.invert)
@@ -377,7 +382,7 @@ class LayerPanel(QWidget):
         vis = {
             "min": mode == "raster" and dither == "grayscale",
             "interval": mode in ("fill", "offset", "raster"),
-            "angle": mode == "fill", "cross": mode == "fill",
+            "angle": mode == "fill", "cross": mode == "fill", "union": mode == "fill",
             "dither": mode == "raster", "thresh": mode == "raster" and dither == "threshold",
             "invert": mode == "raster", "overscan": mode == "raster",
             "bidir": mode in ("fill", "raster"), "inner": mode == "cut",
@@ -405,6 +410,7 @@ class LayerPanel(QWidget):
         l.interval = self.f_interval.value()
         l.angle = self.f_angle.value()
         l.crosshatch = self.f_cross.isChecked()
+        l.fill_union = self.f_union.isChecked()
         l.dither = self.f_dither.currentData()
         l.threshold = self.f_thresh.value()
         l.invert = self.f_invert.isChecked()

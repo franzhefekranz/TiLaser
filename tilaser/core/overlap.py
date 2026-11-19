@@ -112,8 +112,7 @@ def remove_overlaps(paths: list[g.Polyline], tol: float = 0.02, cell: float = 2.
         for c in chains:
             if len(c) >= 2:
                 piece = g.Polyline(np.array(c), False)
-                if hasattr(path, "_order"):
-                    piece._order = path._order
+                piece._order = path._order
                 out.append(piece)
     return out, saved
 

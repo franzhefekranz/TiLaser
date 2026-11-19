@@ -8,6 +8,8 @@ Systemschrift ersetzt. Nicht unterstützt: Type3-Schriften, eingebettete Bilder,
 """
 from __future__ import annotations
 
+from typing import Any
+
 import re
 import zlib
 
@@ -123,8 +125,10 @@ def _read_objects(raw: bytes) -> dict[int, bytes]:
             data = _decode(head, data or b"")
             if not data:
                 continue
-            n = int(re.search(rb"/N\s+(\d+)", head).group(1))
-            first = int(re.search(rb"/First\s+(\d+)", head).group(1))
+            mn, mf = re.search(rb"/N\s+(\d+)", head), re.search(rb"/First\s+(\d+)", head)
+            if mn is None or mf is None:
+                continue                                     # beschädigter Objekt-Stream
+            n, first = int(mn.group(1)), int(mf.group(1))
             nums = [int(x) for x in data[:first].split()]
             pairs = list(zip(nums[0::2], nums[1::2]))[:n]
             for k, (onum, off) in enumerate(pairs):
@@ -195,7 +199,8 @@ def _pages(objs) -> list[int]:
 
 
 def _inherited(objs, page_body: bytes, key: bytes):
-    body, depth = page_body, 0
+    body: bytes | None = page_body
+    depth = 0
     while body is not None and depth < 30:
         if re.search(rb"/" + key + rb"\b", body):
             return body
@@ -226,7 +231,8 @@ def _tokens(data: bytes):
                         buf.append(esc[nx])
                         j += 2
                     elif nx.isdigit():
-                        oct_ = re.match(rb"[0-7]{1,3}", data[j + 1:j + 4]).group(0)
+                        mo = re.match(rb"[0-7]{1,3}", data[j + 1:j + 4])
+                        oct_ = mo.group(0) if mo else b"0"
                         buf.append(int(oct_, 8) & 0xFF)
                         j += 1 + len(oct_)
                     elif nx in (b"\r", b"\n"):  # Zeilenfortsetzung
@@ -251,7 +257,7 @@ def _tokens(data: bytes):
         i = m.end()
         if kind in ("ws", "comment"):
             continue
-        val = m.group(kind)
+        val = m.group(kind or 0)
         if kind == "num":
             yield "num", float(val)
         elif kind == "hex":
@@ -323,7 +329,7 @@ class _Interp:
         if depth > 12:
             return
         stack = []
-        state = {"ctm": ctm, "stroke": "#000000", "fill": "#000000"}
+        state: dict[str, Any] = {"ctm": ctm, "stroke": "#000000", "fill": "#000000"}
         operands: list = []
         bb = g.BezBuilder()
         cur = start = None
@@ -338,13 +344,14 @@ class _Interp:
                 q = p
                 if fill and not stroke:
                     if not q.closed and len(q.pts) > 2:
-                        q = g.Polyline.from_bez(g.BezPath(q.bez.anchors, q.bez.hin, q.bez.hout, True))
+                        q = (g.Polyline.from_bez(g.BezPath(q.bez.anchors, q.bez.hin, q.bez.hout, True))
+                             if q.bez is not None else g.Polyline(q.pts, True))
                     self.out.append(ImportedPath(q, state["fill"], state["fill"], True))
                 elif stroke:
                     self.out.append(ImportedPath(q, state["stroke"], state["stroke"], False))
             bb.out = []
 
-        ts = {"font": None, "size": 12.0, "Tc": 0.0, "Tw": 0.0, "Th": 1.0, "TL": 0.0, "Ts": 0.0, "Tr": 0,
+        ts: dict[str, Any] = {"font": None, "size": 12.0, "Tc": 0.0, "Tw": 0.0, "Th": 1.0, "TL": 0.0, "Ts": 0.0, "Tr": 0,
               "Tm": np.eye(3), "Tlm": np.eye(3)}
         arr_stack: list[list] = []
 

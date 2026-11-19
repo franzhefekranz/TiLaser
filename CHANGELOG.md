@@ -4,6 +4,63 @@ Jede Version hat einen Abschnitt `## <Version>`; der Release-Workflow übernimmt
 GitHub-Releases. / Each version has a `## <version>` section; the release workflow uses it as the description of
 the GitHub release.
 
+## 0.9.1
+
+**Sicherheitsupdate (Beta).** Behebt Fehler aus einem Code-Review, die den Laser oder das Programm betreffen.
+Allen Nutzern der 0.9.0 wird das Update empfohlen.
+
+### Laser und Steuerung
+
+- **Marlin/Smoothieware:** *Pause* sendet sofort `M5`, damit der Laser nach den gepufferten Bewegungen nicht im
+  Stillstand weiterbrennt; *Fortsetzen* schaltet ihn wieder ein. *Stopp* sendet `M410`, `M5` und *Luft aus*
+  sofort statt hinter dem laufenden Befehl. Der Flammenwächter stoppt bei diesen Steuerungen statt zu pausieren.
+- **GRBL:** Vor jeder Leerfahrt wird die Leistung ausdrücklich auf `S0` gesetzt. Meldet GRBL `$32=0`
+  (Lasermodus aus), startet TiLaser keinen Auftrag, der den Laser einschaltet.
+- Meldet die Steuerung während eines Auftrags `error:…`, wird der Auftrag angehalten statt fortgesetzt.
+- Ungültige Koordinaten (NaN/unendlich) gelangen nicht mehr in den G-Code.
+- *Fertig* wird erst gemeldet, wenn die Maschine wirklich steht (GRBL: Status *Idle*, Marlin/Smoothie:
+  angehängtes `M400`) – vorher konnte schon der nächste Auftrag gestartet werden, während der Laser noch lief.
+
+### Import, Kerf und Weboberfläche
+
+- DXF-Dateien mit extremen Winkelwerten oder verschachtelten Block-Arrays und SVG-Dateien mit sich
+  vervielfachenden `<use>`-Verweisen hängen das Programm nicht mehr auf, sondern werden mit Meldung abgelehnt.
+- Kerf-Ausgleich: Löcher, die kleiner als die Schnittbreite sind, erzeugen ohne pyclipper keine falsche
+  Kontur mehr; entfallene Konturen werden beim Start gemeldet.
+- Weboberfläche: ungültige Anfragen (z. B. negative `Content-Length`) können den Server nicht mehr blockieren;
+  Verbindungen haben ein Zeitlimit.
+- Weboberfläche: PIN ist Pflicht (mindestens 4 Zeichen), Anfragen über fremde Rechnernamen werden abgewiesen
+  (Schutz vor DNS-Rebinding), Sitzungen laufen nach 24 Stunden auch im Server ab.
+- Unerwartete Fehler werden als Meldung angezeigt, statt das Programm zu beenden.
+
+### Geschwindigkeit
+
+- G-Code-Erzeugung und Import laufen im Hintergrund; die Oberfläche, der Laser-Status, die Kamera und der
+  Flammenwächter bleiben dabei bedienbar bzw. aktiv.
+- Pfadoptimierung bei vielen Konturen deutlich schneller (3000 Konturen: 17 s → 0,5 s), mit identischem Ergebnis.
+- Große Rasterbilder brauchen bei der G-Code-Erzeugung etwa ein Viertel des Speichers (Vorschau zeilenweise).
+
+### Neu und verbessert
+
+- Füllen: Option *Überlappende Objekte vereinigen* – überlappende Objekte werden als eine Fläche graviert
+  statt die Überlappung auszusparen (Löcher in einem Objekt bleiben Löcher).
+- *Fortsetzen* stellt auch den Fokus-Versatz der Z-Achse wieder her und fragt, auf welcher Höhe der Kopf steht.
+- Automatische Prüfung bei jedem Push: Tests, Lint und Typprüfung des Kerns (mypy) mit Python 3.10 und 3.12.
+
+### Downloads
+
+Wie bei 0.9.0, mit Versionsnummer 0.9.1.
+
+---
+
+**English:** Safety update. Marlin/Smoothieware: *Pause* sends `M5` immediately and *Stop* sends `M410`/`M5`/air
+off without waiting; the flame guard stops instead of pausing. GRBL: explicit `S0` before travel moves, no job
+start with `$32=0`. Controller errors pause the job. Fixed hangs on malicious DXF/SVG files and in the web
+server, wrong contours from kerf compensation without pyclipper, and crashes on unexpected errors. *Done* is
+reported only when the machine has stopped. Web interface: mandatory PIN, host check against DNS rebinding.
+G-code generation and import run in the background; path optimisation is up to 30× faster. New fill option
+*Merge overlapping objects*; *Resume* restores the Z focus offset. CI with tests, lint and mypy.
+
 ## 0.9.0
 
 **Erste öffentliche Version (Beta).** TiLaser ist ein freies Programm (GPL-3.0) zum Laserschneiden und

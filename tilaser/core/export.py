@@ -26,7 +26,7 @@ def export_svg(project: Project, path: str, bed_w: float, bed_h: float, only_out
             continue
         body = []
         for it in project.items:
-            if it.kind == "raster" and it.layer_id == layer.id:
+            if it.kind == "raster" and it.layer_id == layer.id and it.image is not None:
                 buf = io.BytesIO()
                 Image.fromarray(it.image).save(buf, format="PNG")
                 data = base64.b64encode(buf.getvalue()).decode("ascii")

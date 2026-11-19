@@ -27,6 +27,7 @@ def _read_pairs(path: str) -> list[tuple[int, str]]:
     if raw.startswith(b"AutoCAD Binary DXF"):
         raise ValueError("Binäre DXF-Dateien werden nicht unterstützt – bitte als ASCII-DXF speichern.")
     text = None
+    text = ""
     for enc in ("utf-8", "cp1252", "latin-1"):
         try:
             text = raw.decode(enc)
@@ -99,6 +100,13 @@ def _nurbs(ctrl: np.ndarray, knots: np.ndarray, degree: int, weights: np.ndarray
     return np.array(out)
 
 
+MAX_ENTITIES = 1_000_000     # Obergrenze für Elemente inkl. aufgelöster Blöcke
+
+
+def _finite(*vals) -> bool:
+    return all(math.isfinite(v) for v in vals)
+
+
 class _DxfConverter:
     def __init__(self, blocks, layer_colors, tol, warnings):
         self.blocks = blocks
@@ -106,11 +114,39 @@ class _DxfConverter:
         self.tol = tol
         self.warnings = warnings
         self.unsupported: dict[str, int] = {}
+        self.budget = MAX_ENTITIES             # schützt vor Block-Bomben (verschachtelte INSERT-Arrays)
+        self._sizes: dict[str, float] = {}
+
+    def size(self, etype, data, depth=0) -> float:
+        """Anzahl Elemente, die ein Element nach dem Auflösen aller Blöcke ergibt (ohne es aufzulösen)."""
+        if etype != "INSERT":
+            return 1
+        if depth > 20:
+            return 0
+        name = _get(data, 2, "", str)
+        if name not in self.blocks:
+            return 1
+        if name not in self._sizes:
+            self._sizes[name] = 0                # gegen zyklische Blöcke
+            self._sizes[name] = 1 + sum(self.size(et, d, depth + 1) for et, d in self.blocks[name][1])
+        cols, rows = _get(data, 70, 1, int), _get(data, 71, 1, int)
+        return max(1, min(cols, 10_000)) * max(1, min(rows, 10_000)) * self._sizes[name]
+
+    def _take(self, n=1):
+        self.budget -= n
+        if self.budget < 0:
+            raise ValueError(f"Die DXF-Datei ist zu komplex (mehr als {MAX_ENTITIES} Elemente nach dem "
+                             "Auflösen der Blöcke).")
 
     def convert(self, etype, data, m, depth=0) -> list[tuple[g.Polyline, str]]:
         layer = _get(data, 8, "0", str)
         res: list[g.Polyline] = []
-        tol = self.tol / g.matrix_scale_factor(m)
+        if depth == 0:
+            self._take(self.size(etype, data))       # vorab prüfen, bevor etwas aufgelöst wird
+        sf = g.matrix_scale_factor(m)
+        if not math.isfinite(sf) or sf < 1e-9:
+            return []                                    # Block mit Skalierung 0 o. Ä.
+        tol = self.tol / sf
         if etype == "LINE":
             p = np.array([[_get(data, 10, 0), _get(data, 20, 0)], [_get(data, 11, 0), _get(data, 21, 0)]])
             res.append(g.Polyline.from_bez(g.BezPath.from_points(p, False), tol))
@@ -134,8 +170,11 @@ class _DxfConverter:
                 res.append(g.Polyline.from_bez(g.ellipse_bez(_get(data, 10, 0), _get(data, 20, 0), r, r), tol))
         elif etype == "ARC":
             cx, cy, r = _get(data, 10, 0), _get(data, 20, 0), _get(data, 40, 0)
-            a0, a1 = math.radians(_get(data, 50, 0)), math.radians(_get(data, 51, 360))
-            while a1 <= a0:
+            d0, d1 = _get(data, 50, 0), _get(data, 51, 360)
+            if not _finite(cx, cy, r, d0, d1) or r <= 0:
+                return []
+            a0, a1 = math.radians(d0 % 360), math.radians(d1 % 360)
+            if a1 <= a0:
                 a1 += 2 * math.pi
             res.append(_arc_bez(cx, cy, r, r, 0.0, a0, a1 - a0, tol))
         elif etype == "ELLIPSE":
@@ -143,7 +182,12 @@ class _DxfConverter:
             mx, my = _get(data, 11, 1), _get(data, 21, 0)
             ratio = _get(data, 40, 1)
             t0, t1 = _get(data, 41, 0), _get(data, 42, 2 * math.pi)
-            while t1 <= t0:
+            if not _finite(cx, cy, mx, my, ratio, t0, t1):
+                return []
+            full = abs((t1 - t0) - 2 * math.pi) < 1e-6
+            t0 %= 2 * math.pi
+            t1 = t0 + 2 * math.pi if full else t1 % (2 * math.pi)
+            if t1 <= t0:
                 t1 += 2 * math.pi
             a = math.hypot(mx, my)
             rot = math.atan2(my, mx)
@@ -167,6 +211,7 @@ class _DxfConverter:
             sx, sy = _get(data, 41, 1), _get(data, 42, 1)
             rot = _get(data, 50, 0)
             cols, rows = _get(data, 70, 1, int), _get(data, 71, 1, int)
+            cols, rows = max(1, min(cols, 10_000)), max(1, min(rows, 10_000))
             cs, rs = _get(data, 44, 0), _get(data, 45, 0)
             out = []
             for ci in range(max(1, cols)):
@@ -310,7 +355,8 @@ def import_dxf(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
                 i = j
             elif name == "BLOCKS":
                 ents, j = _split_entities(pairs, i + 2)
-                cur_name, cur_base, cur = None, (0, 0), []
+                cur_name, cur_base = None, (0, 0)
+                cur: list = []
                 for et, d in ents:
                     if et == "BLOCK":
                         cur_name = _get(d, 2, "", str)

@@ -80,7 +80,7 @@ def clean_line(line: str) -> str:
 def parse_grbl_status(s: str, wco_cache: list) -> dict:
     body = s.strip().strip("<>")
     parts = body.split("|")
-    st = {"state": parts[0]}
+    st: dict = {"state": parts[0]}
     for p in parts[1:]:
         if ":" not in p:
             continue
@@ -127,6 +127,10 @@ class LaserConnection:
         self.errors = 0
         self.last_job: list[str] = []          # für 'Fortsetzen'
         self.last_acked = 0
+        self.pause_on_error = True             # error:/Fehler im Auftrag -> anhalten statt weiterlaufen
+        self.air_off = "M9"                    # beim Stopp (nicht GRBL) zusätzlich senden; "" = nicht
+        self._extra_ok = 0                     # erwartete 'ok' auf direkt geschriebene Zeilen (Marlin)
+        self._finishing = False                # alle Zeilen quittiert, Maschine fährt noch (GRBL)
 
     # ------------------------------------------------------------ Verbindung
     @property
@@ -174,11 +178,31 @@ class LaserConnection:
     def realtime(self, b: bytes):
         self._rt_q.put(b)
 
+    def _urgent(self, line: str):
+        """Zeile sofort schreiben, an der Warteschlange vorbei (Marlin/Smoothie: M410, M5 …).
+
+        Die Maschine quittiert sie mit einem eigenen 'ok', das nicht zu einer wartenden Zeile gehört."""
+        self._rt_q.put((line.strip() + "\n").encode())
+
+    @staticmethod
+    def _laser_state(lines: list[str]) -> str | None:
+        """Letzter Laser-Einschaltbefehl (M3/M4 …) in lines, None wenn danach M5 kam."""
+        for l in reversed(lines):
+            u = l.upper()
+            if u.startswith("M5"):
+                return None
+            if u.startswith(("M3", "M4")):
+                return l
+        return None
+
     def start_job(self, lines: list[str]):
         if self._job_active:
             raise RuntimeError("Es läuft bereits ein Auftrag.")
         with self._lock:
             self._job = [c for c in (clean_line(l) for l in lines) if c]
+            if self.protocol != "grbl" and self._job:
+                self._job.append("M400")       # 'ok' erst, wenn alle Bewegungen ausgeführt sind
+            self._finishing = False
             self._job_idx = 0
             self._job_acked = 0
             self._paused = False
@@ -194,10 +218,19 @@ class LaserConnection:
     def pause(self):
         self._paused = True
         if self.protocol == "grbl":
-            self.realtime(b"!")
+            self.realtime(b"!")              # Vorschub-Halt; M4 (dynamisch) = kein Strahl im Stillstand
+        else:
+            # Marlin/Smoothie: der Planner fährt seine Bewegungen noch zu Ende. Mit M3 (konstante
+            # Leistung) würde der Laser danach im Stillstand weiterbrennen – daher sofort M5 senden.
+            self._urgent("M5")
         self.on_state("paused")
 
     def resume(self):
+        if self.protocol != "grbl" and self._job_active:
+            with self._lock:
+                on = self._laser_state(self._job[:self._job_idx])
+            if on:
+                self._cmd_q.put(on)          # Laser wie vor der Pause wieder einschalten (vor der nächsten Zeile)
         self._paused = False
         if self.protocol == "grbl":
             self.realtime(b"~")
@@ -208,13 +241,17 @@ class LaserConnection:
             if self._job:
                 self.last_job, self.last_acked = list(self._job), self._job_acked
             self._job_active = False
+            self._finishing = False
             self._paused = False
             self._job = []
         if self.protocol == "grbl":
-            self.realtime(b"\x18")           # Soft-Reset: stoppt sofort, Laser aus
+            self.realtime(b"\x18")           # Soft-Reset: stoppt sofort, Laser und Luft aus
         else:
-            self._cmd_q.put("M5")
-            self._cmd_q.put("M410")          # Marlin Quickstop
+            # Sofort, an der Warteschlange vorbei: M410 (Quickstop, Marlins Emergency Parser) vor M5
+            self._urgent("M410")
+            self._urgent("M5")
+            if self.air_off:
+                self._urgent(self.air_off)
         self.on_state("stopped")
 
     # ------------------------------------------------------------ Thread
@@ -284,6 +321,10 @@ class LaserConnection:
                     self._write(b)
                     if b == b"\x18":
                         self._pending.clear()
+                        self._extra_ok = 0
+                    elif b.endswith(b"\n"):
+                        self._extra_ok += 1
+                        self.on_log(">> " + b.decode(errors="replace").strip())
                 if self.protocol == "grbl" and time.time() - last_poll > 0.25:
                     self._write(b"?")
                     last_poll = time.time()
@@ -337,6 +378,10 @@ class LaserConnection:
         if line.startswith("<") and line.endswith(">"):
             st = parse_grbl_status(line, self._wco)
             self.on_status(st)
+            if self._finishing and self._job_active and st["state"].startswith("Idle"):
+                self._finishing = False        # 'ok' heißt nur „im Planner“ – fertig ist erst Idle
+                self._job_active = False
+                self.on_state("done")
             if st["state"].startswith("Alarm") and self._job_active:
                 self.last_job, self.last_acked = list(self._job), self._job_acked
                 self.on_log("!! Alarm – Auftrag abgebrochen")
@@ -346,19 +391,29 @@ class LaserConnection:
         is_ok = line == "ok" or line.startswith("ok ")
         is_err = line.lower().startswith("error")
         if is_ok or is_err:
-            if self._pending:
+            was_job = False
+            if not self._pending and self._extra_ok:
+                self._extra_ok -= 1              # Quittung einer sofort geschriebenen Zeile
+            elif self._pending:
                 _, was_job = self._pending.pop(0)
                 if was_job:
                     self._job_acked += 1
                     total = len(self._job)
                     if self._job_acked % 20 == 0 or self._job_acked >= total:
                         self.on_progress(self._job_acked, total)
-                    if self._job_active and self._job_acked >= total:
-                        self._job_active = False
-                        self.on_state("done")
+                    if self._job_active and self._job_acked >= total and not self._finishing:
+                        if self.protocol == "grbl":
+                            self._finishing = True     # auf <Idle> warten
+                        else:
+                            self._job_active = False   # letzte Zeile ist M400: Bewegungen sind fertig
+                            self.on_state("done")
             if is_err:
                 self.errors += 1
                 self.on_log("<< " + line)
+                if was_job and self._job_active and self.pause_on_error and not self._paused:
+                    self.on_log(f"!! Fehler bei Zeile {self._job_acked} des Auftrags – Auftrag angehalten. "
+                                "Prüfen, dann fortsetzen oder stoppen.")
+                    self.pause()
             return
         if line.startswith("ALARM"):
             self._pending.clear()

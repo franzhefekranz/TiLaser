@@ -193,9 +193,9 @@ def parse_path_d(d: str, m: np.ndarray, tol=g.CURVE_TOL) -> list[g.Polyline]:
     """Pfaddaten -> Polylinien mit Bézier-Darstellung in Weltkoordinaten (Matrix m angewendet)."""
     sc = _Scanner(d)
     bb = g.BezBuilder(tol)
-    pos = np.zeros(2)
-    start = np.zeros(2)
-    last_ctrl = None
+    pos: np.ndarray = np.zeros(2)       # bewusst ohne Form-Typ: Ergebnisse von base + [...] haben andere Formen
+    start: np.ndarray = np.zeros(2)
+    last_ctrl: np.ndarray | None = None
     last_cmd = ""
     cmd = None
 
@@ -339,6 +339,9 @@ def _element_polys(el, tag, m, tol) -> list[g.Polyline]:
     return []
 
 
+MAX_ELEMENTS = 500_000      # Obergrenze für Elemente inkl. aufgelöster <use>-Verweise
+
+
 def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath], list[str]]:
     """Liest eine SVG-Datei. Rückgabe: (Pfade in mm, Y nach oben), Warnungen."""
     tree = ET.parse(path)
@@ -368,11 +371,16 @@ def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
     ids = {el.get("id"): el for el in root.iter() if el.get("id")}
     result: list[ImportedPath] = []
     skipped_text = [0]
+    budget = [MAX_ELEMENTS]
 
     def walk(el, m, inherited: dict, depth=0):
         tag = _local(el.tag)
         if tag in SKIP_TAGS or depth > 50:
             return
+        budget[0] -= 1                       # schützt vor <use>-Ketten, die sich exponentiell vervielfachen
+        if budget[0] < 0:
+            raise ValueError(f"Die SVG-Datei ist zu komplex (mehr als {MAX_ELEMENTS} Elemente nach dem "
+                             "Auflösen von <use>-Verweisen).")
         st = dict(inherited)
         st.update(parse_style(el))
         if st.get("display") == "none" or st.get("visibility") == "hidden":
@@ -413,14 +421,13 @@ def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
         fill = parse_color(st.get("fill"))
         if fill is None:
             fill = "#000000"           # SVG-Standard: schwarz gefüllt
+        assert fill is not None
         has_stroke = stroke not in (None, "none")
         has_fill = fill != "none"
         if not has_stroke and not has_fill:
             return
-        if has_stroke:
-            color, filled = stroke, False
-        else:
-            color, filled = fill, True
+        color = (stroke if has_stroke else fill) or "#000000"
+        filled = not has_stroke
         for p in polys:
             if filled and not p.closed and len(p.pts) > 2:
                 p = g.Polyline(p.pts, True)     # Füllungen sind implizit geschlossen

@@ -284,7 +284,7 @@ def nest(project: Project, items: list[Item], s: NestSettings, progress=None, th
         for _ in range(max(0, s.copies - 1)):
             work.append((clone_item(it), True))
             keys.append(id(it))                   # Kopien teilen die Rastermasken des Originals
-    shapes = {}
+    shapes: dict = {}
     for it in items:
         shapes[id(it)] = {}
         for rot in s.rotations:
@@ -313,6 +313,7 @@ def nest(project: Project, items: list[Item], s: NestSettings, progress=None, th
         cand = (len(pl), n_orig, -top, area)
         if best is None or cand > best[0]:
             best = (cand, pl, area)
+    assert best is not None
     _, placements, area = best
 
     for idx, (it, is_copy) in enumerate(work):
