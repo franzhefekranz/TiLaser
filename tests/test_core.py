@@ -2133,9 +2133,31 @@ def test_fill_union_and_resume_z():
     assert "G0 Z-0.5" in out[:8]
 
 
+class _MiniMonkeyPatch:
+    """Ersatz für die pytest-Fixture ``monkeypatch``, wenn die Tests ohne pytest laufen (Build-Skripte)."""
+
+    def __init__(self):
+        self._undo = []
+
+    def setattr(self, target, name, value):
+        self._undo.append((target, name, getattr(target, name)))
+        setattr(target, name, value)
+
+    def undo(self):
+        for target, name, value in reversed(self._undo):
+            setattr(target, name, value)
+        self._undo.clear()
+
+
 if __name__ == "__main__":
+    import inspect
     for name, fn in list(globals().items()):
-        if name.startswith("test_"):
-            fn()
+        if name.startswith("test_") and callable(fn):
+            params = inspect.signature(fn).parameters
+            mp = _MiniMonkeyPatch()
+            try:
+                fn(**({"monkeypatch": mp} if "monkeypatch" in params else {}))
+            finally:
+                mp.undo()
             print("OK ", name)
     print("Ausgaben in", TMP)
