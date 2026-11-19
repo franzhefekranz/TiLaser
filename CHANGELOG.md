@@ -16,11 +16,13 @@ Raspberry Pi. Rückmeldungen und Fehlerberichte bitte als [Issue](https://github
   G-Code, SVG, DXF und LightBurn-Datei; eigenes Projektformat `.tlp`
 - **Zeichnen und Bearbeiten:** Rechteck, Ellipse, Polygon/Stern, Polylinie, Knotenbearbeitung mit Bézierkurven,
   Text aus allen Schriften, Text auf Pfad, boolesche Operationen, Offset, Pfade verbinden, Ausrichten, Verteilen,
-  Array, Gruppieren, Undo/Redo
+  **Kanten aneinanderlegen** (Alt+K), Array, Gruppieren, Undo/Redo; Polylinie mit Shift waagrecht/senkrecht;
+  Auswahlrahmen nach rechts = ganz umschlossene, nach links = berührte Objekte
 - **Ebenen:** Schneiden, Füllen, Offset-Füllung, Rasterbild mit Dithering; Kerf-Ausgleich, Haltestege,
   Unterebenen, Overscan, Air Assist, Z-Versatz; 32 Ebenenfarben; Material-Presets (u. a. AlgoLaser DIY KIT MK2 20 W)
 - **Nesting** mit Löchern, bündigem Anlegen und Speichern Platte für Platte
-- **Generatoren:** Box mit Fingerzinken, Fingerzinken an beliebigen Kanten mit Dogbones, Biegescharnier,
+- **Generatoren:** Box mit Fingerzinken, Fingerzinken an beliebigen Kanten (ineinandergreifend oder als
+  Eckverbindung) mit Dogbones, symmetrisches Biegescharnier (normal, dreifach versetzt, Wellenschlitze),
   Lochmuster/Lüftungsgitter, Gravurmuster (Hahnentritt, Fischgrät, Waben …), Zahnräder, Puzzle,
   Schablonen-Stege, QR-Code und Code 128, variable Texte mit CSV
 - **Tests:** Materialtest, Fokustest (auch ohne Z-Achse), Zeilenabstandstest
