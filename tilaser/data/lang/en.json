@@ -767,7 +767,7 @@
  "Großes Kamerafenster": "Large camera window",
  "Live-Bild in einem eigenen Fenster, z. B. auf dem zweiten Bildschirm": "Live image in a separate window, e.g. on a second screen",
  "Lizenzen von TiLaser und der mitgelieferten Bibliotheken": "Licenses of TiLaser and the included libraries",
- "Auswählen und verschieben (V)": "Select and move (V)",
+ "Auswählen und verschieben (V). Rahmen nach rechts = nur ganz umschlossene, nach links = berührte Objekte": "Select and move (V). Frame to the right = only fully enclosed, to the left = touched objects",
  "Rechteck zeichnen (R) – Shift: Quadrat, Strg: von der Mitte": "Draw rectangle (R) – Shift: square, Ctrl: from the center",
  "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte": "Draw ellipse (E) – Shift: circle, Ctrl: from the center",
  "Polygon/Stern zeichnen (P)": "Draw polygon/star (P)",
@@ -1136,8 +1136,9 @@
  "Himmelblau": "Sky blue",
  "Mintgrün": "Mint green",
  "Flieder": "Lilac",
- "Gerade Schlitze": "Straight slits",
- "Doppelte Schlitze (weicher)": "Double slits (softer)",
+ "Normal (gerade Schlitze)": "Normal (straight slits)",
+ "Dreifach versetzt (weicher)": "Triple offset (softer)",
+ "Wellenschlitze (weicher, dekorativ)": "Wave slits (softer, decorative)",
  "Sechseck": "Hexagon",
  "Quadrat": "Square",
  "Langloch": "Slot",
@@ -1324,5 +1325,8 @@
  "Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll (Esc = abbrechen)": "Place edges together: click the edge of the part to be moved (Esc = cancel)",
  "Jetzt die Zielkante am anderen Teil anklicken – Mitten bündig; mit Umschalt: links bzw. unten bündig, mit Strg: rechts bzw. oben bündig": "Now click the target edge on the other part – centers flush; with Shift: left or bottom flush, with Ctrl: right or top flush",
  "Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → Fingerzinken an Kante… verzinkt sie.": "Edges placed flush. Tip: select both parts and use Tools → Finger joint on edge… to join them.",
- "Alt+K": "Alt+K"
+ "Alt+K": "Alt+K",
+ "Normal": "Normal",
+ "Dreifach versetzt": "Triple offset",
+ "Wellenschlitze": "Wave slits"
 }

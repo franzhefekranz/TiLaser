@@ -35,34 +35,46 @@ def _center(rings):
 
 
 # --------------------------------------------------------------------------- Biegescharnier
-HINGE_STYLES = {"straight": "Gerade Schlitze", "double": "Doppelte Schlitze (weicher)"}
+HINGE_STYLES = {"straight": "Normal (gerade Schlitze)", "triple": "Dreifach versetzt (weicher)",
+                "wave": "Wellenschlitze (weicher, dekorativ)"}
 
 
 def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float = 1.5, margin: float = 3.0,
                  angle: float = 0.0, style: str = "straight") -> list[g.Polyline]:
     """Versetzte Schnittlinien. Biegeachse parallel zu den Schlitzen (angle 0 = waagerechte Schlitze).
 
-    Symmetrisch aufgebaut: Die Reihen liegen mittig in der Fläche, die äußeren Reihen und jede zweite
-    dazwischen halten den Randabstand ein (geschlossene Reihen). Die Reihen dazwischen sind um eine halbe
-    Teilung versetzt – ihre Stege liegen genau mittig unter den Schlitzen der Nachbarreihen – und laufen
-    bis an den Rand durch. Die Schlitzlänge wird minimal angepasst, damit jede Reihe aufgeht.
+    Die Reihen liegen mittig in der Fläche. Die äußeren Reihen und jede zweite dazwischen halten den
+    Randabstand ein (geschlossene Reihen), die Reihen dazwischen laufen bis an den Rand durch. Die
+    Schlitzlänge wird minimal angepasst, damit die geschlossenen Reihen genau aufgehen.
+
+    straight: Reihen um eine halbe Teilung versetzt, jede Reihe spiegelsymmetrisch.
+    triple:   Reihen um je eine drittel Teilung versetzt – die Stege liegen weiter auseinander, das
+              Holz verdreht sich auf längerer Strecke (weicher). Punktsymmetrisch zur Mitte.
+    wave:     wie straight, aber wellenförmige Schlitze (alle Wellen parallel, punktsymmetrisch).
     """
     if slit <= 0 or spacing <= 0 or bridge <= 0:
         raise ValueError("Schlitzlänge, Steg und Abstand müssen größer als 0 sein.")
+    if style not in HINGE_STYLES:
+        style = "straight"
     rings = _region(region)
     cx, cy = _center(rings)
     rr = _rot(rings, -angle, cx, cy)
     x0, y0, x1, y1 = g.bbox(rr)
-    rows = int(math.floor((y1 - y0 - 2 * margin) / spacing + 1e-9)) + 1
+    amp = 0.4 * spacing if style == "wave" else 0.0
+    rows = int(math.floor((y1 - y0 - 2 * margin - 2 * amp) / spacing + 1e-9)) + 1
     if rows < 1:
         return []
     if rows % 2 == 0:                                     # ungerade Zahl: außen beidseitig geschlossene Reihen
         rows -= 1
+    c = (rows - 1) // 2
     ym = (y0 + y1) / 2 + JITTER[1]
+    xm = (x0 + x1) / 2
     out = []
     for k in range(rows):
-        y = ym + (k - (rows - 1) / 2) * spacing
-        closed = k % 2 == 0
+        j = k - c                                         # Reihe relativ zur Mitte
+        y = ym + j * spacing
+        closed = k % 2 == 0                                 # äußere Reihen immer geschlossen
+        phase = (j % 3) / 3 if style == "triple" else (0.0 if closed else 0.5)
         span = [g.Polyline(np.array([[x0 - 1, y], [x1 + 1, y]]), False)]
         for piece in clip_lines(span, rr):
             a, b = sorted((float(piece.pts[0][0]), float(piece.pts[-1][0])))
@@ -73,33 +85,44 @@ def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float
             s = (usable - (n - 1) * bridge) / n
             if s <= 0:
                 n, s = 1, usable
-            starts = a + margin + np.arange(n) * (s + bridge)
-            if closed:
-                segs = [(x, x + s) for x in starts]
-            else:
-                mids = starts + s / 2
-                cuts = [a] + [c for m in mids for c in (m - bridge / 2, m + bridge / 2)] + [b]
-                segs = [(cuts[i], cuts[i + 1]) for i in range(0, len(cuts), 2)]
-            for u, v in segs:
-                if v - u < 0.3:
+            per = s + bridge
+            first = a + margin + s / 2 + phase * per       # Mitte eines Schlitzes dieser Reihe
+            first -= math.ceil((first - a + s / 2) / per) * per
+            lo, hi = (a + margin, b - margin) if closed else (a, b)
+            m = first
+            while m - s / 2 < b:
+                u, v = max(m - s / 2, lo), min(m + s / 2, hi)
+                m += per
+                if v - u < max(1.0, min(bridge, s / 3)):
                     continue
-                pts = np.array([[u, y], [v, y]])
+                if style == "wave":
+                    xs = np.linspace(u, v, max(8, int(math.ceil((v - u) / 0.25)) + 1))
+                    pts = np.c_[xs, y + amp * np.sin(2 * math.pi * (xs - xm) / (per / 2))]
+                else:
+                    pts = np.array([[u, y], [v, y]])
                 if closed:                                # schräge Ränder: Randabstand auch seitlich/oben
                     pts = _trim_margin(pts, rr, margin, bridge)
-                    if pts is None:
-                        continue
-                out.append(g.Polyline(pts, False))
+                    if pts is not None:
+                        out.append(g.Polyline(pts, False))
+                elif style == "wave":                     # Welle darf nicht über den Rand hinaus
+                    out += [q for q in clip_lines([g.Polyline(pts, False)], rr)
+                            if len(q.pts) >= 2 and np.hypot(*(q.pts[-1] - q.pts[0])) >= 1.0]
+                else:
+                    out.append(g.Polyline(pts, False))
     return _rot(out, angle, cx, cy)
 
 
-def _trim_margin(seg, rr, margin, min_len):
-    """Längstes Stück der Strecke, das mindestens margin von allen Kanten entfernt ist."""
-    a, b = seg
-    n = max(2, int(math.ceil(np.hypot(*(b - a)) / 0.1)) + 1)
-    pts = a + (b - a) * np.linspace(0, 1, n)[:, None]
+def _trim_margin(line, rr, margin, min_len):
+    """Längstes Stück des Linienzugs, das mindestens margin von allen Kanten entfernt ist."""
+    if len(line) == 2:
+        a, b = line
+        n = max(2, int(math.ceil(np.hypot(*(b - a)) / 0.1)) + 1)
+        pts = a + (b - a) * np.linspace(0, 1, n)[:, None]
+    else:
+        pts = line
     ok = distance_to_edges(pts, rr) >= margin - 1e-6
     if ok.all():
-        return seg
+        return line
     best, start = None, None
     for i, v in enumerate(list(ok) + [False]):
         if v and start is None:
@@ -110,8 +133,10 @@ def _trim_margin(seg, rr, margin, min_len):
             start = None
     if best is None:
         return None
-    piece = pts[[best[0], best[1] - 1]]
-    return piece if np.hypot(*(piece[1] - piece[0])) >= max(1.0, min_len) else None
+    piece = pts[[best[0], best[1] - 1]] if len(line) == 2 else pts[best[0]:best[1]]
+    if len(piece) < 2 or np.hypot(*(piece[-1] - piece[0])) < max(1.0, min_len):
+        return None
+    return piece
 
 
 # --------------------------------------------------------------------------- Lochmuster

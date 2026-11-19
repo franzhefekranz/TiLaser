@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QTransform
+from PyQt6.QtGui import (QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen,
+                         QTransform)
 from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem, QGraphicsScene,
                              QGraphicsSimpleTextItem, QGraphicsView)
 
@@ -27,6 +28,14 @@ def _cosmetic(color: QColor, width: float = 1.0, style=Qt.PenStyle.SolidLine) ->
     pen.setCosmetic(True)
     pen.setStyle(style)
     return pen
+
+
+def rubber_mode(x_start, x_now):
+    """Auswahlrahmen nach rechts gezogen (von links oben): nur ganz umschlossene Objekte.
+    Nach links gezogen (von rechts unten): alle berührten Objekte."""
+    if x_now >= x_start:
+        return Qt.ItemSelectionMode.ContainsItemShape
+    return Qt.ItemSelectionMode.IntersectsItemShape
 
 
 class ItemGraphic(QGraphicsItem):
@@ -1096,6 +1105,9 @@ class LaserCanvas(QGraphicsView):
                           "radius": getattr(self, "rect_radius", 0.0)}
             return
         if e.button() == Qt.MouseButton.LeftButton:
+            self._rb_origin = e.position()                # Auswahlrahmen: Richtung bestimmt den Modus
+            add = e.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)
+            self._rb_keep = {gi for gi in self.graphics.values() if gi.isSelected()} if add else set()
             sp = self.mapToScene(e.position().toPoint())
             hit = self.overlay.hit(sp)
             if hit is not None:
@@ -1152,7 +1164,45 @@ class LaserCanvas(QGraphicsView):
             return
         p = self.mapToScene(e.position().toPoint())
         self.mouseMoved.emit(p.x(), -p.y())
+        o = getattr(self, "_rb_origin", None)
+        rubber = o is not None and bool(e.buttons() & Qt.MouseButton.LeftButton)
+        if rubber:
+            self.setRubberBandSelectionMode(rubber_mode(o.x(), e.position().x()))
         super().mouseMoveEvent(e)
+        if rubber:
+            self._rubber_select(o.x() <= e.position().x())
+
+    def _rubber_select(self, window):
+        """Auswahl im Rahmen genau nach der Geometrie: nach rechts gezogen nur ganz umschlossene
+        Objekte, nach links gezogen alle, deren Linien (oder gefüllte Flächen) den Rahmen berühren."""
+        vr = self.rubberBandRect()
+        if vr.isNull() or vr.width() < 2 and vr.height() < 2:
+            return
+        rect = self.mapToScene(vr).boundingRect()
+        keep = getattr(self, "_rb_keep", set())
+        for gi in self.graphics.values():
+            if not gi.isVisible():
+                continue
+            hit = self._item_in_rect(gi, rect, window)
+            want = hit or gi in keep
+            if gi.isSelected() != want:
+                gi.setSelected(want)
+
+    def _item_in_rect(self, gi, rect, window):
+        if window:
+            return rect.contains(gi.mapRectToScene(gi._rect))
+        if not rect.intersects(gi.mapRectToScene(gi._rect)):
+            return False
+        local = QPainterPath()
+        local.addPolygon(gi.mapFromScene(rect))           # Rahmen im Objekt-Koordinatensystem (auch gedreht)
+        if gi.item.kind != "vector" or not gi._paths:
+            return True                                   # Bilder/Text: Rechteck zählt
+        stroker = QPainterPathStroker()
+        stroker.setWidth(1.0 / max(self.transform().m11() * gi.item.scale, 1e-6))
+        for _, pp, filled, _ in gi._paths:
+            if (pp if filled else stroker.createStroke(pp)).intersects(local):
+                return True
+        return False
 
     def mouseReleaseEvent(self, e):
         if self.tool != "select" and e.button() == Qt.MouseButton.LeftButton:
@@ -1169,6 +1219,8 @@ class LaserCanvas(QGraphicsView):
                     self.shapeDrawn.emit(d["kind"], dict(d))
                 self._cancel_draw()
             return
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._rb_origin = None
         if self._drag is not None and e.button() == Qt.MouseButton.LeftButton:
             self._drag = None
             self.update_overlay()

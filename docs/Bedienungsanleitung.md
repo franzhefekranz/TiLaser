@@ -193,7 +193,7 @@ Esc schaltet jederzeit zurück zu *Auswählen*.
 | Seitlich scrollen | Shift+Mausrad oder Touchpad seitwärts wischen |
 | Hoch/runter scrollen | Strg+Mausrad |
 | Kontextmenü | Rechte Maustaste **klicken** |
-| Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen |
+| Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen: **nach rechts** gezogen (von oben links) werden nur Objekte ausgewählt, die ganz im Rahmen liegen, **nach links** gezogen (von unten rechts) alle, die der Rahmen berührt. Mit Strg oder Shift kommt die Rahmenauswahl zur bestehenden Auswahl hinzu |
 | Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm) |
 | Alles zeigen | Strg+0 |
 | Löschen | Entf |
@@ -368,7 +368,7 @@ kleine Stück unter der Maus genommen. Esc bricht ab, Strg+Z macht das Anlegen r
 
 | Werkzeug | Taste | Bedienung |
 |---|---|---|
-| Auswählen | V | Standard |
+| Auswählen | V | Standard. Rahmen nach rechts ziehen = nur ganz umschlossene Objekte, nach links ziehen = alle berührten Objekte |
 | Rechteck | R | Aufziehen. Shift = Quadrat, Strg = vom Mittelpunkt aus. Eckenradius im Feld unter den Werkzeugen. |
 | Ellipse | E | Aufziehen. Shift = Kreis, Strg = vom Mittelpunkt aus. |
 | Polygon/Stern | P | Aufziehen. Eckenzahl im Feld darunter, ★ = Stern. |
@@ -509,7 +509,7 @@ Kontur selbst bleibt unverändert und wird wie gewohnt ausgeschnitten.
 
 | Einstellung | Wirkung |
 |---|---|
-| Art | *Gerade Schlitze* oder *Doppelte Schlitze* (weicher) |
+| Art | *Normal* (gerade Schlitze), *Dreifach versetzt* (weicher) oder *Wellenschlitze* (weicher, dekorativ), siehe unten |
 | Schlitzlänge, Steg | Länge der Schnitte und der stehen bleibenden Stege dazwischen |
 | Abstand der Reihen | Kleiner = biegsamer, aber zerbrechlicher. 3-mm-Sperrholz: etwa 1,5 mm |
 | Abstand zum Rand | Abstand der Schlitze zum Rand (siehe unten) |
@@ -521,6 +521,23 @@ ein. Die Reihen dazwischen sind um eine halbe Teilung versetzt: Ihre Stege liege
 Schlitze der Nachbarreihen, und sie laufen bis an den Rand durch. Damit jede Reihe aufgeht, wird die
 Schlitzlänge minimal angepasst. In runden oder schrägen Flächen richtet sich jede Reihe nach ihrer eigenen
 Breite.
+
+Wie weich das Scharnier wird, hängt von den Holzstreifen zwischen den Reihen ab: Sie verdrehen sich beim
+Biegen zwischen den Stegen. Je länger das freie Stück und je schmaler der Streifen, desto weicher.
+
+![Die drei Arten des Biegescharniers](screenshots/scharnier_arten.png)
+
+- **Normal** – gerade Schlitze, jede Reihe um eine halbe Teilung versetzt (wie oben beschrieben). Jede
+  Reihe ist spiegelsymmetrisch.
+- **Dreifach versetzt** – jede Reihe ist um eine drittel Teilung gegen die vorige versetzt. Die Stege
+  benachbarter Reihen liegen dadurch weiter auseinander, und die Streifen können sich auf längerer Strecke
+  verdrehen: spürbar weicher, aber noch formstabil – gut für Boxdeckel und runde Ecken. Auch hier halten
+  die äußeren Reihen und jede zweite den Randabstand ein. Weil eine Drittelteilung nicht spiegelbar ist,
+  ist das Muster punktsymmetrisch zur Mitte (um 180° gedreht sieht es gleich aus).
+- **Wellenschlitze** – Aufbau wie *Normal*, aber die Schlitze sind Wellen (Höhe 40 % des Reihenabstands,
+  zwei Wellen je Teilung). Alle Wellen laufen parallel, sodass der Abstand zwischen den Reihen erhalten
+  bleibt. Die längeren Streifen verteilen die Spannung besser, das Holz bricht seltener; dafür dauert das
+  Lasern etwas länger. Ebenfalls punktsymmetrisch.
 
 **Lochmuster / Lüftungsgitter** – Kreise, Sechsecke, Quadrate oder Langlöcher, als Raster oder versetzt
 (Waben). Es werden nur ganze Löcher gesetzt, die mit dem Randabstand vollständig in der Fläche liegen –
