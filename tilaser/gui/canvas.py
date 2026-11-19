@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem
 from ..core.model import Item, Project
 from ..core.geometry import BezPath as _BezPath
 from ..core.geometry import apply_matrix as g_apply
+from ..core.geometry import ortho_point
 
 
 def g_bez_from_points(pts, closed):
@@ -1084,6 +1085,8 @@ class LaserCanvas(QGraphicsView):
                         self._draw = d
                         self._finish_line(closed=True)
                         return
+                if d["pts"] and e.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    x, y = ortho_point(d["pts"][-1], (x, y))           # Shift: nur waagrecht/senkrecht
                 d["pts"].append((x, y))
                 self._draw = d
                 self._draw_preview()
@@ -1123,6 +1126,10 @@ class LaserCanvas(QGraphicsView):
             if self._draw is not None:
                 x, y = self._snap_pt(x, y)
                 if self._draw["kind"] == "line":
+                    self._draw["raw"] = (x, y)
+                    pts = self._draw["pts"]
+                    if pts and e.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                        x, y = ortho_point(pts[-1], (x, y))
                     self._draw["cur"] = (x, y)
                 else:
                     self._draw["p0"], self._draw["p1"] = self._box_from(self._draw["start"], (x, y), e.modifiers())
@@ -1244,7 +1251,23 @@ class LaserCanvas(QGraphicsView):
             return True
         return super().event(e)
 
+    def _line_shift_preview(self, shift):
+        """Shift gedrückt/losgelassen: Vorschau der Polylinie sofort waagrecht/senkrecht bzw. frei."""
+        d = self._draw
+        if not d or d.get("kind") != "line" or not d["pts"] or "raw" not in d:
+            return
+        d["cur"] = ortho_point(d["pts"][-1], d["raw"]) if shift else d["raw"]
+        self._draw_preview()
+
+    def keyReleaseEvent(self, e):
+        if self.tool == "line" and e.key() == Qt.Key.Key_Shift:
+            self._line_shift_preview(False)
+        super().keyReleaseEvent(e)
+
     def keyPressEvent(self, e):
+        if self.tool == "line" and self._draw and e.key() == Qt.Key.Key_Shift:
+            self._line_shift_preview(True)
+            return
         if self.tool == "line" and self._draw:
             if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self._finish_line(False)

@@ -475,7 +475,7 @@ class MainWindow(QMainWindow):
                                    ("ellipse", "◯", "E", "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte"),
                                    ("polygon", "⬡", "P", "Polygon/Stern zeichnen (P)"),
                                    ("line", "╱", "L", "Linie/Polylinie (L): klicken, Doppelklick oder Enter beendet, "
-                                                      "Klick auf Startpunkt schließt"),
+                                                      "Klick auf Startpunkt schließt, Shift = waagrecht/senkrecht"),
                                    ("node", "◆", "N", "Knoten bearbeiten (N): ziehen = verschieben, Doppelklick auf "
                                                       "Linie = einfügen, Entf = löschen")):
             a = QAction(text, self)

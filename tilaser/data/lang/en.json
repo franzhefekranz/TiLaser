@@ -771,7 +771,7 @@
  "Rechteck zeichnen (R) – Shift: Quadrat, Strg: von der Mitte": "Draw rectangle (R) – Shift: square, Ctrl: from the center",
  "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte": "Draw ellipse (E) – Shift: circle, Ctrl: from the center",
  "Polygon/Stern zeichnen (P)": "Draw polygon/star (P)",
- "Linie/Polylinie (L): klicken, Doppelklick oder Enter beendet, Klick auf Startpunkt schließt": "Line/polyline (L): click, double-click or Enter finishes, click on the start point closes",
+ "Linie/Polylinie (L): klicken, Doppelklick oder Enter beendet, Klick auf Startpunkt schließt, Shift = waagrecht/senkrecht": "Line/polyline (L): click, double-click or Enter finishes, click on the start point closes, Shift = horizontal/vertical",
  "Knoten bearbeiten (N): ziehen = verschieben, Doppelklick auf Linie = einfügen, Entf = löschen": "Edit nodes (N): drag = move, double-click on a line = insert, Del = delete",
  "Auswahl speichern": "Save selection",
  "Bitte zuerst Objekte auswählen.": "Please select objects first.",

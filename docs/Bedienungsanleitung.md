@@ -176,7 +176,7 @@ Von links nach rechts:
 | ![Rechteck](screenshots/icon_rect.png) | **Rechteck** | Rechteck aufziehen. Shift: Quadrat, Strg: von der Mitte aus. Eckenradius im Feld *r* unten | R |
 | ![Ellipse](screenshots/icon_ellipse.png) | **Ellipse** | Ellipse aufziehen. Shift: Kreis, Strg: von der Mitte aus | E |
 | ![Polygon/Stern](screenshots/icon_polygon.png) | **Polygon/Stern** | Vieleck aufziehen; Eckenzahl im Feld darunter, ★ macht einen Stern | P |
-| ![Linie/Polylinie](screenshots/icon_line.png) | **Linie/Polylinie** | Punkte anklicken; Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form | L |
+| ![Linie/Polylinie](screenshots/icon_line.png) | **Linie/Polylinie** | Punkte anklicken; Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form; mit gedrückter Umschalttaste (Shift) nur waagrecht oder senkrecht | L |
 | ![Knoten bearbeiten](screenshots/icon_node.png) | **Knoten bearbeiten** | Punkte und Kurvenanfasser ziehen; Doppelklick auf eine Linie fügt einen Punkt ein, Entf löscht ihn | N |
 
 Esc schaltet jederzeit zurück zu *Auswählen*.
@@ -372,7 +372,7 @@ kleine Stück unter der Maus genommen. Esc bricht ab, Strg+Z macht das Anlegen r
 | Rechteck | R | Aufziehen. Shift = Quadrat, Strg = vom Mittelpunkt aus. Eckenradius im Feld unter den Werkzeugen. |
 | Ellipse | E | Aufziehen. Shift = Kreis, Strg = vom Mittelpunkt aus. |
 | Polygon/Stern | P | Aufziehen. Eckenzahl im Feld darunter, ★ = Stern. |
-| Linie/Polylinie | L | Punkte anklicken. Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form, Esc bricht ab. |
+| Linie/Polylinie | L | Punkte anklicken. Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form, Esc bricht ab. Mit gedrückter Umschalttaste (Shift) verläuft das nächste Segment nur waagrecht oder senkrecht – je nachdem, in welche Richtung die Maus weiter vom letzten Punkt entfernt ist. |
 | Knoten | N | Knotenbearbeitung, siehe unten |
 
 Neue Formen landen auf der gerade im Tab *Ebenen* gewählten Ebene. Mit **Esc** geht es zurück zum Auswahlwerkzeug.

@@ -1771,6 +1771,13 @@ def test_edge_align():
     assert abs(nearest_edge([("P", P)], 10, 0.1, 1).length - 100) < 1e-9
 
 
+def test_ortho_point():
+    from tilaser.core.geometry import ortho_point
+    assert ortho_point((0, 0), (10, 3)) == (10, 0)
+    assert ortho_point((0, 0), (-2, -9)) == (0, -9)
+    assert ortho_point((5, 5), (8, 8)) == (8, 5)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

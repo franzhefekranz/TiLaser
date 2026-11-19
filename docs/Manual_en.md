@@ -177,7 +177,7 @@ From left to right:
 | ![Rectangle](screenshots/icon_rect.png) | **Rectangle** | Drag a rectangle. Shift: square, Ctrl: from the center. Corner radius in the *r* field below | R |
 | ![Ellipse](screenshots/icon_ellipse.png) | **Ellipse** | Drag an ellipse. Shift: circle, Ctrl: from the center | E |
 | ![Polygon/star](screenshots/icon_polygon.png) | **Polygon/star** | Drag a polygon; number of corners in the field below, ★ makes a star | P |
-| ![Line/polyline](screenshots/icon_line.png) | **Line/polyline** | Click points; double-click or Enter finishes, clicking the start point closes the shape | L |
+| ![Line/polyline](screenshots/icon_line.png) | **Line/polyline** | Click points; double-click or Enter finishes, clicking the start point closes the shape; hold Shift for horizontal or vertical only | L |
 | ![Edit nodes](screenshots/icon_node.png) | **Edit nodes** | Drag points and curve handles; double-click on a line inserts a point, Del deletes it | N |
 
 Esc always switches back to *Select*.
@@ -370,7 +370,7 @@ piece under the mouse is used. Esc cancels, Ctrl+Z undoes the placement.
 | Rectangle | R | Drag. Shift = square, Ctrl = from the center. Corner radius in the field below the tools. |
 | Ellipse | E | Drag. Shift = circle, Ctrl = from the center. |
 | Polygon/star | P | Drag. Number of corners in the field below, ★ = star. |
-| Line/polyline | L | Click points. Double-click or Enter finishes, clicking the start point closes the shape, Esc cancels. |
+| Line/polyline | L | Click points. Double-click or Enter finishes, clicking the start point closes the shape, Esc cancels. Holding Shift makes the next segment strictly horizontal or vertical – whichever direction the mouse is further away from the last point. |
 | Nodes | N | Node editing, see below |
 
 New shapes go to the layer currently selected in the *Layers* tab. **Esc** returns to the select tool.
