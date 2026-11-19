@@ -324,6 +324,12 @@ def bulge_arc(p1, p2, bulge, tol=CURVE_TOL) -> np.ndarray:
 
 
 # --------------------------------------------------------------------------- Analyse
+def ortho_point(prev, pt):
+    """Punkt waagrecht oder senkrecht zu prev ausrichten (die größere Richtung gewinnt)."""
+    (px, py), (x, y) = prev, pt
+    return (x, py) if abs(x - px) >= abs(y - py) else (px, y)
+
+
 def bbox(polys) -> tuple[float, float, float, float] | None:
     arrs = [p.pts for p in polys if len(p.pts)]
     if not arrs:

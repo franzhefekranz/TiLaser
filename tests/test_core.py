@@ -1619,6 +1619,13 @@ def test_finger_joint_edges():
     P = lambda rs: [g.Polyline(r, True) for r in rs]
     assert abs(_ring_area(ra) - (5000 + 6 * w * 3)) < 1e-6
     assert sum(abs(_ring_area([p])) for p in boolean(P(ra), P(rb), "intersection")) < 1e-6   # greifen ineinander
+    from tilaser.core.joints import sides
+    assert sides(A, B) == ("bottom", "top") and sides(B, A) == ("top", "bottom")
+    assert sides(A, [np.array([[100, 0], [150, 0], [150, 50], [100, 50.]])]) == ("left", "right")
+    assert sides(A, [r + [0, 20] for r in B]) is None
+    ra3, rb3, _ = finger_joint(A, B, 3, 10)                                   # Standard: ineinandergreifend
+    assert sum(abs(_ring_area([p])) for p in boolean(P(ra3), P(rb3), "intersection")) < 1e-6
+    assert abs(_ring_area(ra3) + _ring_area(rb3) - 8000) < 1e-6              # lückenlos, nichts doppelt
     ra2, rb2, _ = finger_joint(A, B, 3, 10, "corner", dogbone=1.0)
     assert len(rb2[0]) > len(rb[0]) and _ring_area(rb2) < 3000 - 6 * w * 3
     try:
@@ -1741,6 +1748,34 @@ def test_manual_complete_and_help_links():
     en = manual.help_ids(open(os.path.join(ROOT, "docs", "Manual_en.md"), encoding="utf-8").read())
     assert de == en                                  # beide Sprachen springen an dieselben Stellen
     assert manual.slug("8. Nesting – Teile automatisch anordnen") == "8-nesting--teile-automatisch-anordnen"
+
+
+def test_edge_align():
+    """Kante an Kante: Teil wird gedreht und bündig ohne Überlappung angelegt."""
+    from tilaser.core.clip import boolean
+    from tilaser.core.edgealign import align_matrix, nearest_edge, rotation_deg
+    A = [g.Polyline(np.array([[0, 0], [100, 0], [100, 50], [0, 50.]]), True)]
+    m = g.translate(200, 100) @ g.rotate(30)
+    B = [g.Polyline(g.apply_matrix(m, np.array([[0, 0], [60, 0], [60, 30], [0, 30.]])), True)]
+    ea = nearest_edge([("A", A)], 50, 50.2, 1)
+    eb = nearest_edge([("B", B)], *g.apply_matrix(m, np.array([[30, 0.2]]))[0], 1)
+    assert ea.item_id == "A" and abs(ea.length - 100) < 1e-9 and np.allclose(ea.outward, [0, 1])
+    for mode, x0 in (("center", 20), ("start", 0), ("end", 40)):
+        M = align_matrix(eb, ea, mode)
+        moved = [g.Polyline(g.apply_matrix(M, B[0].pts), True)]
+        assert np.allclose(g.bbox(moved), [x0, 50, x0 + 60, 80])
+        assert sum(abs(_ring_area([p])) for p in boolean(A, moved, "intersection")) < 1e-6
+    assert abs(abs(rotation_deg(align_matrix(eb, ea))) - 30) < 1e-6 or abs(abs(rotation_deg(align_matrix(eb, ea))) - 150) < 1e-6
+    # gerade Kante aus mehreren Punkten zählt ganz
+    P = [g.Polyline(np.array([[0, 0], [40, 0], [70, 0], [100, 0], [100, 20], [0, 20.]]), True)]
+    assert abs(nearest_edge([("P", P)], 10, 0.1, 1).length - 100) < 1e-9
+
+
+def test_ortho_point():
+    from tilaser.core.geometry import ortho_point
+    assert ortho_point((0, 0), (10, 3)) == (10, 0)
+    assert ortho_point((0, 0), (-2, -9)) == (0, -9)
+    assert ortho_point((5, 5), (8, 8)) == (8, 5)
 
 
 if __name__ == "__main__":

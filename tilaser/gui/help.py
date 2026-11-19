@@ -59,7 +59,7 @@ ACTIONS = {
     "Großes Kamerafenster": "fenster-kamera", "Passmarken lasern": "kamera-ausrichten",
     "Kamera ausrichten…": "kamera-ausrichten", "Kamera wählen…": "kamera-ausrichten",
     "Kamerabild aktualisieren": "kamera-ausrichten", "Lizenzen…": "lizenz", "Über TiLaser": "lizenz",
-    "Bedienungsanleitung": "hilfe", "Eigene Übersetzung anlegen / bearbeiten…": "sprache",
+    "Bedienungsanleitung": "hilfe", "Kanten aneinanderlegen": "kanten-anlegen", "Eigene Übersetzung anlegen / bearbeiten…": "sprache",
 }
 
 

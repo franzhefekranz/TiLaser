@@ -176,7 +176,7 @@ Von links nach rechts:
 | ![Rechteck](screenshots/icon_rect.png) | **Rechteck** | Rechteck aufziehen. Shift: Quadrat, Strg: von der Mitte aus. Eckenradius im Feld *r* unten | R |
 | ![Ellipse](screenshots/icon_ellipse.png) | **Ellipse** | Ellipse aufziehen. Shift: Kreis, Strg: von der Mitte aus | E |
 | ![Polygon/Stern](screenshots/icon_polygon.png) | **Polygon/Stern** | Vieleck aufziehen; Eckenzahl im Feld darunter, ★ macht einen Stern | P |
-| ![Linie/Polylinie](screenshots/icon_line.png) | **Linie/Polylinie** | Punkte anklicken; Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form | L |
+| ![Linie/Polylinie](screenshots/icon_line.png) | **Linie/Polylinie** | Punkte anklicken; Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form; mit gedrückter Umschalttaste (Shift) nur waagrecht oder senkrecht | L |
 | ![Knoten bearbeiten](screenshots/icon_node.png) | **Knoten bearbeiten** | Punkte und Kurvenanfasser ziehen; Doppelklick auf eine Linie fügt einen Punkt ein, Entf löscht ihn | N |
 
 Esc schaltet jederzeit zurück zu *Auswählen*.
@@ -312,6 +312,28 @@ Die Ebenen-Reihenfolge gilt in beiden Fällen weiterhin zuerst.
 Objektecke auf das Raster ein. Rastermaß unter *Ansicht → Rastermaß* (0,5 / 1 / 5 / 10 mm).
 Beim Zeichnen rasten auch die Punkte ein.
 
+<!-- hilfe: kanten-anlegen -->
+### Kanten aneinanderlegen
+
+Legt ein Teil mit einer seiner geraden Kanten bündig an die Kante eines anderen Teils – passend gedreht,
+ohne Überlappung. Praktisch vor dem [Verzinken](#fingerzinken-an-kante) oder um Teile ohne Lücke
+aneinanderzusetzen.
+
+1. *Anordnen → Kanten aneinanderlegen* (Alt+K). Die Statuszeile zeigt, was zu tun ist.
+2. Mit der Maus über eine Kante des Teils fahren, das **bewegt** werden soll – die Kante wird orange
+   hervorgehoben – und klicken. Sie bleibt blau markiert.
+3. Die **Zielkante** am anderen Teil anklicken. Das erste Teil wird gedreht und verschoben, so dass die beiden
+   Kanten genau aufeinanderliegen und die Teile nebeneinander liegen.
+
+| Beim zweiten Klick | Ausrichtung entlang der Kante |
+|---|---|
+| ohne Taste | Mitten bündig |
+| mit Umschalt | links bzw. unten bündig |
+| mit Strg | rechts bzw. oben bündig |
+
+Als Kante zählt das ganze gerade Stück, auch wenn es aus mehreren Punkten besteht. Bei Kurven wird nur das
+kleine Stück unter der Maus genommen. Esc bricht ab, Strg+Z macht das Anlegen rückgängig.
+
 <!-- hilfe: array -->
 ### Array
 
@@ -350,7 +372,7 @@ Beim Zeichnen rasten auch die Punkte ein.
 | Rechteck | R | Aufziehen. Shift = Quadrat, Strg = vom Mittelpunkt aus. Eckenradius im Feld unter den Werkzeugen. |
 | Ellipse | E | Aufziehen. Shift = Kreis, Strg = vom Mittelpunkt aus. |
 | Polygon/Stern | P | Aufziehen. Eckenzahl im Feld darunter, ★ = Stern. |
-| Linie/Polylinie | L | Punkte anklicken. Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form, Esc bricht ab. |
+| Linie/Polylinie | L | Punkte anklicken. Doppelklick oder Enter beendet, Klick auf den Startpunkt schließt die Form, Esc bricht ab. Mit gedrückter Umschalttaste (Shift) verläuft das nächste Segment nur waagrecht oder senkrecht – je nachdem, in welche Richtung die Maus weiter vom letzten Punkt entfernt ist. |
 | Knoten | N | Knotenbearbeitung, siehe unten |
 
 Neue Formen landen auf der gerade im Tab *Ebenen* gewählten Ebene. Mit **Esc** geht es zurück zum Auswahlwerkzeug.
@@ -508,24 +530,29 @@ Quadraten aufgebaut.
 <!-- hilfe: fingerzinken -->
 ### Fingerzinken an Kante
 
-Verbindet zwei beliebige Teile mit Fingerzinken – z. B. eine selbst gezeichnete Rückwand mit einem
-Boden. So geht es:
+Verzinkt zwei beliebige Teile miteinander – z. B. eine selbst gezeichnete Rückwand mit einem Boden: Das
+eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
-   überlappend). Am einfachsten mit *Anordnen → Ausrichten* oder am Raster fangen.
+   überlappend). Am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
 2. Beide Teile auswählen → *Werkzeuge → Fingerzinken an Kante…*
+3. Unter **Zinken an** wählen, welches Teil die Zinken bekommt; die Liste nennt beide Teile mit ihrer Lage
+   (z. B. „Boden (unten)“).
+
+![Ineinandergreifend und Eckverbindung](screenshots/zinken_arten.png)
 
 | Einstellung | Wirkung |
 |---|---|
-| Art | *Eckverbindung*: Beide Teile behalten ihr Außenmaß, Aussparungen gehen um die Materialstärke hinein (wie beim Box-Generator). *Zinken nach außen*: Teil 1 bekommt herausragende Zinken, Teil 2 passende Aussparungen; so wie gezeichnet greifen sie genau ineinander |
+| Art | **Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen** (Standard): Die Zinken ragen um die Materialstärke über die Kante hinaus, das Gegenstück bekommt an denselben Stellen gleich tiefe Aussparungen. So wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos (Bild links); die gemeinsame Linie wird nur einmal geschnitten. Für eine 90°-Ecke zeichnet man das Teil mit den Zinken um die Materialstärke kürzer. **Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben**: wie beim Box-Generator – beide Teile behalten ihr Außenmaß und bekommen abwechselnd Aussparungen (Bild rechts). Flach nebeneinander bleiben Lücken; erst um 90° gedreht greifen sie ineinander |
+| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben) |
 | Materialstärke | Tiefe der Zinken/Aussparungen |
 | Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt |
 | Dogbone-Durchmesser | Rundet jede **Innenecke** mit einem kleinen Kreis frei („Hundeknochen“), damit eckige Zinken ganz hineinpassen – wichtig bei dickem Material, starker Kegelform des Strahls oder beim Fräsen. 0 = aus |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 | Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
-| Zinken bei Teil 2 beginnen | Vertauscht, welches Teil außen die Zinken hat |
 
-Kurven der Teile werden dabei in feine Linienzüge umgewandelt.
+Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
+nutzen ([Kerf ermitteln](#kerf-ermitteln)).
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
@@ -1061,7 +1088,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | V R E P L N | Zeichenwerkzeuge | | Strg+Shift+←/→/↑/↓ | Links/rechts/oben/unten ausrichten |
 | Esc | Zurück zum Auswählen | | Strg+Shift+U / D / I | Vereinigen / Abziehen / Schnittmenge |
 | Alt+T | Bild nachzeichnen | | Alt+O / Alt+J | Offset / Pfade verbinden |
-| Strg+Shift+B | Box-Generator | | | |
+| Strg+Shift+B | Box-Generator | | Alt+K | Kanten aneinanderlegen |
 
 Im Knotenmodus: Entf, C, L, S, B, A (siehe [Knotenbearbeitung](#knotenbearbeitung)). Makros können eigene
 Tastenkürzel bekommen.
@@ -1206,6 +1233,7 @@ dorthin. In TiLaser öffnet **F1** genau den passenden Abschnitt (siehe [Hilfe i
 | Vertikal mittig ausrichten | | Mittelpunkte auf eine waagerechte Linie |
 | Unten ausrichten | Strg+Umschalt+↓ | Untere Kanten bündig |
 | Horizontal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken nebeneinander |
+| Kanten aneinanderlegen | Alt+K | Erst die Kante des zu bewegenden Teils anklicken, dann die Zielkante – das Teil wird gedreht und bündig angelegt ([Kanten aneinanderlegen](#kanten-aneinanderlegen)) |
 | Vertikal verteilen (gleiche Abstände) | | Mindestens 3 Objekte mit gleichen Lücken übereinander |
 | Horizontal spiegeln | | An der senkrechten Mittellinie der Auswahl spiegeln |
 | Vertikal spiegeln | | An der waagerechten Mittellinie spiegeln |

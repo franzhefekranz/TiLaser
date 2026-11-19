@@ -134,6 +134,8 @@ class MainWindow(QMainWindow):
         self.canvas.shapeDrawn.connect(self._on_shape_drawn)
         self.canvas.nodesEdited.connect(self._on_nodes_edited)
         self.canvas.toolChanged.connect(self._on_tool_changed)
+        self.canvas.edgesPicked.connect(self._edges_picked)
+        self.canvas.edgeStep.connect(self._edge_step)
         self._grabber = None
         self._camera_img = None
         self._live_bg_timer = QTimer(self)
@@ -261,6 +263,11 @@ class MainWindow(QMainWindow):
         ar.addSeparator()
         ar.addAction(self._act("Horizontal verteilen (gleiche Abstände)", lambda: self.distribute_selected("x")))
         ar.addAction(self._act("Vertikal verteilen (gleiche Abstände)", lambda: self.distribute_selected("y")))
+        ar.addSeparator()
+        self.a_edge_align = self._act("Kanten aneinanderlegen", lambda: self.canvas.set_tool("edge"), "Alt+K",
+                                      "Erst eine Kante des Teils anklicken, das bewegt wird, dann die Zielkante am "
+                                      "anderen Teil: das erste Teil wird gedreht und bündig angelegt")
+        ar.addAction(self.a_edge_align)
         ar.addSeparator()
         ar.addAction(self._act("Horizontal spiegeln", lambda: self.mirror_selected("h")))
         ar.addAction(self._act("Vertikal spiegeln", lambda: self.mirror_selected("v")))
@@ -468,7 +475,7 @@ class MainWindow(QMainWindow):
                                    ("ellipse", "◯", "E", "Ellipse zeichnen (E) – Shift: Kreis, Strg: von der Mitte"),
                                    ("polygon", "⬡", "P", "Polygon/Stern zeichnen (P)"),
                                    ("line", "╱", "L", "Linie/Polylinie (L): klicken, Doppelklick oder Enter beendet, "
-                                                      "Klick auf Startpunkt schließt"),
+                                                      "Klick auf Startpunkt schließt, Shift = waagrecht/senkrecht"),
                                    ("node", "◆", "N", "Knoten bearbeiten (N): ziehen = verschieben, Doppelklick auf "
                                                       "Linie = einfügen, Entf = löschen")):
             a = QAction(text, self)
@@ -1723,29 +1730,43 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"{title}: {len(res)} Konturen erzeugt.", 6000)
 
     def finger_joint_tool(self):
-        from ..core.joints import finger_joint
+        from ..core.joints import finger_joint, sides
         title = "Fingerzinken an Kante"
         items = self._vector_selection()
         if len(items) != 2:
             QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
             return
-        fields = [("kind", "Art", "c", "corner", {"corner": "Eckverbindung (Außenmaße bleiben)",
-                                                  "tabs": "Zinken nach außen (Teile liegen wie gezeichnet)"}),
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, dass "
+                                                 "sich die zu verbindenden Kanten berühren (z. B. mit Anordnen → "
+                                                 "Ausrichten), dann erneut versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        fields = [("kind", "Art", "c", "tabs",
+                   {"tabs": "Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen",
+                    "corner": "Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben"}),
+                  ("fingers_on", "Zinken an", "c", "0", who),
                   ("thickness", "Materialstärke", "f", 3.0, (0.5, 50, 2, 0.1, " mm")),
                   ("finger", "Zinkenbreite", "f", 10.0, (1, 200, 1, 1, " mm")),
                   ("dogbone", "Dogbone-Durchmesser (0 = aus)", "f", 1.0, (0, 20, 2, 0.1, " mm")),
                   ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
-                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None),
-                  ("swap", "Zinken bei Teil 2 beginnen", "b", False, None)]
-        info = ("Die beiden Teile so hinlegen, dass die zu verbindenden Kanten aufeinanderliegen (z. B. mit "
-                "Anordnen → Ausrichten). Kurven bleiben erhalten nur als feine Linienzüge.")
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante "
+                "hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken "
+                "die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr "
+                "Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.")
         dlg = ParamDialog(title, fields, self.project, info, self)
         if dlg.exec() != ParamDialog.DialogCode.Accepted:
             return
         v = dlg.values()
-        a, b = (items[1], items[0]) if v["swap"] else (items[0], items[1])
-        wa, wb = [(p, vp.layer_id) for p, vp in zip(a.world_paths(), a.paths)], \
-                 [(p, vp.layer_id) for p, vp in zip(b.world_paths(), b.paths)]
+        first = 1 if str(v["fingers_on"]) == "1" else 0
+        order = (first, 1 - first)
+        a, b = items[order[0]], items[order[1]]
+        wa, wb = worlds[order[0]], worlds[order[1]]
         ia = [i for i, (p, _) in enumerate(wa) if p.closed]
         ib = [i for i, (p, _) in enumerate(wb) if p.closed]
         try:
@@ -1755,12 +1776,14 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, title, str(e))
             return
         self._checkpoint(title)
-        for it, world, idx, rings in ((a, wa, ia, ra), (b, wb, ib, rb)):
+        new_ids = []
+        for it, world, idx, rr in ((a, wa, ia, ra), (b, wb, ib, rb)):
             new_world = list(world)
             for k, i in enumerate(idx):
-                if len(rings[k]) != len(world[i][0].pts) or not np.allclose(rings[k], world[i][0].pts):
-                    new_world[i] = (g.Polyline(rings[k], True), world[i][1])
-            self._replace_item(it, new_world)
+                if len(rr[k]) != len(world[i][0].pts) or not np.allclose(rr[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rr[k], True), world[i][1])
+            new_ids.append(self._replace_item(it, new_world).id)
+        self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Fingerzinken an {n} Kante(n) erzeugt.", 6000)
 
     def _replace_item(self, it, world):
@@ -2003,12 +2026,44 @@ class MainWindow(QMainWindow):
         self.canvas.set_simulation_time(t)
         self.lbl_sim.setText(f"{fmt_time(t)} / {fmt_time(self.result.time_s)}")
 
+    # ------------------------------------------------------------ Kanten aneinanderlegen
+    def _edge_step(self, step):
+        if step == 0:
+            self.statusBar().showMessage("Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll "
+                                         "(Esc = abbrechen)")
+        else:
+            self.statusBar().showMessage("Jetzt die Zielkante am anderen Teil anklicken – Mitten bündig; mit "
+                                         "Umschalt: links bzw. unten bündig, mit Strg: rechts bzw. oben bündig")
+
+    def _edges_picked(self, moving, target, mods):
+        from ..core.edgealign import align_matrix, rotation_deg
+        it = self.project.item(moving.item_id)
+        if it is None:
+            return
+        mode = "center"
+        if mods & Qt.KeyboardModifier.ShiftModifier:
+            mode = "start"
+        elif mods & Qt.KeyboardModifier.ControlModifier:
+            mode = "end"
+        m = align_matrix(moving, target, mode)
+        self._checkpoint("Kanten aneinanderlegen")
+        nx, ny = g.apply_matrix(m, np.array([[it.x, it.y]]))[0]
+        it.x, it.y = float(nx), float(ny)
+        it.rotation = (it.rotation + rotation_deg(m) + 180.0) % 360.0 - 180.0
+        self._refresh_items([it])
+        self.canvas.set_tool("select")
+        self.canvas.select_only([it.id])
+        self.statusBar().showMessage("Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → "
+                                     "Fingerzinken an Kante… verzinkt sie.", 8000)
+
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):
         a = self.tool_actions.get(tool)
         if a and not a.isChecked():
             a.setChecked(True)
-        names = {"select": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
+        if tool == "edge":                       # Hinweis kommt über edgeStep
+            return
+        names = {"select": "", "edge": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
                  "polygon": "Polygon: ziehen", "line": "Linie: klicken, Doppelklick/Enter = fertig, Esc = abbrechen",
                  "node": "Knoten: ziehen = verschieben, Anfasser ziehen = Kurve formen (Alt: einzeln), "
                          "Doppelklick = einfügen, Entf = löschen, C = Kurve, L = Linie, S = glätten, "

@@ -5,10 +5,11 @@ Linie liegen und sich überlappen). Auf dem gemeinsamen Stück werden abwechseln
 Aussparungen erzeugt – beim zweiten Teil genau umgekehrt.
 
 Arten:
-* ``corner`` – Eckverbindung (wie beim Box-Generator): beide Teile behalten ihr Außenmaß,
-  Aussparungen gehen um die Materialstärke ins Teil hinein.
-* ``tabs``   – Zinken ragen bei Teil 1 um die Materialstärke heraus, Teil 2 bekommt passende
-  Aussparungen. Liegen die Teile wie gezeichnet, greifen die Zinken genau in die Aussparungen.
+* ``tabs``   – ineinandergreifend (Standard): Teil 1 bekommt Zinken, die um die Materialstärke
+  herausragen, Teil 2 genau passende Aussparungen. Liegen die Teile wie gezeichnet, füllen die
+  Zinken die Aussparungen lückenlos – das eine Teil ist mit dem anderen verzinkt.
+* ``corner`` – Eckverbindung wie beim Box-Generator: beide Teile behalten ihr Außenmaß und bekommen
+  abwechselnd Aussparungen (versetzt); erst um 90° gedreht greifen sie ineinander.
 
 Dogbones: An jeder Innenecke, die durch die Zinken entsteht, wird ein Kreisbogen mit dem
 angegebenen Durchmesser freigeschnitten (Fräser- oder Kerf-Ausgleich für eckige Zinken).
@@ -191,7 +192,22 @@ def _arc(c, r, p, q, step_deg: float = 15.0):
     return [np.array([c[0] + r * math.cos(t), c[1] + r * math.sin(t)]) for t in ts]
 
 
-def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind: str = "corner",
+def sides(rings_a, rings_b, tol: float = 0.5, min_len: float = 3.0):
+    """Lage der beiden Teile zueinander an der längsten gemeinsamen Kante:
+    ('left'|'right'|'bottom'|'top' für A, dasselbe für B) oder None, wenn sich keine Kanten berühren."""
+    ra = [np.asarray(r, float) for r in rings_a]
+    rb = [np.asarray(r, float) for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=min_len)
+    if not edges:
+        return None
+    e = edges[0]
+    to_b = -_material_normal(ra, e.p0, e.p1)            # von A zur Kante hinaus, also Richtung B
+    if abs(to_b[0]) >= abs(to_b[1]):
+        return ("left", "right") if to_b[0] > 0 else ("right", "left")
+    return ("bottom", "top") if to_b[1] > 0 else ("top", "bottom")
+
+
+def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind: str = "tabs",
                  dogbone: float = 0.0, tol: float = 0.5, all_edges: bool = False):
     """Zinken an der längsten gemeinsamen Kante (oder allen). Gibt neue Ringe für A und B und
     die Anzahl der bearbeiteten Kanten zurück."""

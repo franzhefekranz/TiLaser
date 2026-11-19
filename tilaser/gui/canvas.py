@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsRectItem
 from ..core.model import Item, Project
 from ..core.geometry import BezPath as _BezPath
 from ..core.geometry import apply_matrix as g_apply
+from ..core.geometry import ortho_point
 
 
 def g_bez_from_points(pts, closed):
@@ -230,6 +231,8 @@ class LaserCanvas(QGraphicsView):
     nodesEdited = pyqtSignal(str)               # Item-ID nach Knotenbearbeitung
     toolChanged = pyqtSignal(str)
     itemsTransformed = pyqtSignal(list)         # Anfasser: Skalierung/Drehung geändert
+    edgesPicked = pyqtSignal(object, object, object)   # Kanten aneinanderlegen: bewegte Kante, Zielkante, Tasten
+    edgeStep = pyqtSignal(int)                  # 0 = erste Kante wählen, 1 = Zielkante wählen
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -262,6 +265,15 @@ class LaserCanvas(QGraphicsView):
         self._draw_item.setZValue(60)
         self.scene_.addItem(self._draw_item)
         self._node = None              # Knotenbearbeitung: {'gi', 'drag': (pi, vi), 'sel': (pi, vi)}
+        self._edge = None              # Kanten aneinanderlegen: {'first': Edge, 'hover': Edge}
+        self._edge_hover_item = QGraphicsPathItem()
+        self._edge_hover_item.setPen(_cosmetic(QColor("#ff8f00"), 4))
+        self._edge_hover_item.setZValue(62)
+        self.scene_.addItem(self._edge_hover_item)
+        self._edge_first_item = QGraphicsPathItem()
+        self._edge_first_item.setPen(_cosmetic(QColor("#1976d2"), 4))
+        self._edge_first_item.setZValue(62)
+        self.scene_.addItem(self._edge_first_item)
         self._node_item = QGraphicsPathItem()
         self._node_item.setPen(_cosmetic(QColor("#1976d2"), 1))
         self._node_item.setBrush(QColor("white"))
@@ -575,6 +587,11 @@ class LaserCanvas(QGraphicsView):
         for gi in self.graphics.values():
             gi.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, tool == "select")
         self.overlay.setVisible(tool == "select" and self.overlay.bb is not None)
+        self._edge = {"first": None, "hover": None} if tool == "edge" else None
+        self._edge_hover_item.setPath(QPainterPath())
+        self._edge_first_item.setPath(QPainterPath())
+        if tool == "edge":
+            self.edgeStep.emit(0)
         if tool == "node":
             sel = [gi for gi in self.graphics.values() if gi.isSelected() and gi.item.kind == "vector"]
             self._node = {"gi": sel[0] if len(sel) == 1 else None, "drag": None, "sel": None}
@@ -582,6 +599,48 @@ class LaserCanvas(QGraphicsView):
             self._node = None
         self._update_nodes()
         self.toolChanged.emit(tool)
+
+    # ------------------------------------------------------------ Kanten aneinanderlegen
+    def _edge_find(self, x, y):
+        from ..core.edgealign import nearest_edge
+        first = self._edge["first"] if self._edge else None
+        cands = [(gi.item.id, gi.item.world_paths()) for gi in self.graphics.values()
+                 if gi.item.kind == "vector" and gi.isVisible() and (first is None or gi.item.id != first.item_id)]
+        px = 1.0 / max(self.transform().m11(), 1e-6)
+        return nearest_edge(cands, x, y, 10 * px)
+
+    @staticmethod
+    def _edge_path(edge):
+        pp = QPainterPath()
+        if edge is not None:
+            pp.moveTo(edge.a[0], -edge.a[1])
+            pp.lineTo(edge.b[0], -edge.b[1])
+        return pp
+
+    def _edge_hover(self, x, y):
+        if self._edge is None:
+            return
+        e = self._edge_find(x, y)
+        self._edge["hover"] = e
+        self._edge_hover_item.setPath(self._edge_path(e))
+
+    def _edge_click(self, x, y, mods):
+        if self._edge is None:
+            return
+        e = self._edge_find(x, y)
+        if e is None:
+            return
+        if self._edge["first"] is None:
+            self._edge["first"] = e
+            self._edge_first_item.setPath(self._edge_path(e))
+            self._edge_hover_item.setPath(QPainterPath())
+            self.edgeStep.emit(1)
+            return
+        first = self._edge["first"]
+        self._edge = {"first": None, "hover": None}
+        self._edge_first_item.setPath(QPainterPath())
+        self._edge_hover_item.setPath(QPainterPath())
+        self.edgesPicked.emit(first, e, mods)
 
     def _snap_pt(self, x, y):
         if self.snap_enabled:
@@ -987,6 +1046,9 @@ class LaserCanvas(QGraphicsView):
         if e.button() == Qt.MouseButton.LeftButton and self.tool not in ("select",):
             sp = self.mapToScene(e.position().toPoint())
             x, y = sp.x(), -sp.y()
+            if self.tool == "edge":
+                self._edge_click(x, y, e.modifiers())
+                return
             if self.tool == "node":
                 n = self._node
                 if n["gi"] is not None:
@@ -1023,6 +1085,8 @@ class LaserCanvas(QGraphicsView):
                         self._draw = d
                         self._finish_line(closed=True)
                         return
+                if d["pts"] and e.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    x, y = ortho_point(d["pts"][-1], (x, y))           # Shift: nur waagrecht/senkrecht
                 d["pts"].append((x, y))
                 self._draw = d
                 self._draw_preview()
@@ -1051,6 +1115,9 @@ class LaserCanvas(QGraphicsView):
             sp = self.mapToScene(e.position().toPoint())
             x, y = sp.x(), -sp.y()
             self.mouseMoved.emit(x, y)
+            if self.tool == "edge":
+                self._edge_hover(x, y)
+                return
             if self.tool == "node":
                 n = self._node
                 if n and n["drag"] is not None:
@@ -1059,6 +1126,10 @@ class LaserCanvas(QGraphicsView):
             if self._draw is not None:
                 x, y = self._snap_pt(x, y)
                 if self._draw["kind"] == "line":
+                    self._draw["raw"] = (x, y)
+                    pts = self._draw["pts"]
+                    if pts and e.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                        x, y = ortho_point(pts[-1], (x, y))
                     self._draw["cur"] = (x, y)
                 else:
                     self._draw["p0"], self._draw["p1"] = self._box_from(self._draw["start"], (x, y), e.modifiers())
@@ -1180,7 +1251,23 @@ class LaserCanvas(QGraphicsView):
             return True
         return super().event(e)
 
+    def _line_shift_preview(self, shift):
+        """Shift gedrückt/losgelassen: Vorschau der Polylinie sofort waagrecht/senkrecht bzw. frei."""
+        d = self._draw
+        if not d or d.get("kind") != "line" or not d["pts"] or "raw" not in d:
+            return
+        d["cur"] = ortho_point(d["pts"][-1], d["raw"]) if shift else d["raw"]
+        self._draw_preview()
+
+    def keyReleaseEvent(self, e):
+        if self.tool == "line" and e.key() == Qt.Key.Key_Shift:
+            self._line_shift_preview(False)
+        super().keyReleaseEvent(e)
+
     def keyPressEvent(self, e):
+        if self.tool == "line" and self._draw and e.key() == Qt.Key.Key_Shift:
+            self._line_shift_preview(True)
+            return
         if self.tool == "line" and self._draw:
             if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self._finish_line(False)

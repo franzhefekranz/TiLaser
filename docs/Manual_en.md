@@ -177,7 +177,7 @@ From left to right:
 | ![Rectangle](screenshots/icon_rect.png) | **Rectangle** | Drag a rectangle. Shift: square, Ctrl: from the center. Corner radius in the *r* field below | R |
 | ![Ellipse](screenshots/icon_ellipse.png) | **Ellipse** | Drag an ellipse. Shift: circle, Ctrl: from the center | E |
 | ![Polygon/star](screenshots/icon_polygon.png) | **Polygon/star** | Drag a polygon; number of corners in the field below, ★ makes a star | P |
-| ![Line/polyline](screenshots/icon_line.png) | **Line/polyline** | Click points; double-click or Enter finishes, clicking the start point closes the shape | L |
+| ![Line/polyline](screenshots/icon_line.png) | **Line/polyline** | Click points; double-click or Enter finishes, clicking the start point closes the shape; hold Shift for horizontal or vertical only | L |
 | ![Edit nodes](screenshots/icon_node.png) | **Edit nodes** | Drag points and curve handles; double-click on a line inserts a point, Del deletes it | N |
 
 Esc always switches back to *Select*.
@@ -312,6 +312,27 @@ The layer order still comes first in both cases.
 **Snap to grid:** *View → Snap to grid* (Ctrl+Shift+F). When moving, the bottom left object corner snaps to
 the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points snap while drawing, too.
 
+<!-- hilfe: kanten-anlegen -->
+### Placing edges together
+
+Places a part with one of its straight edges flush against the edge of another part – rotated to fit, without
+overlap. Handy before [joining with fingers](#finger-joint-on-edge) or to put parts together without a gap.
+
+1. *Arrange → Place edges together* (Alt+K). The status bar shows what to do.
+2. Move the mouse over an edge of the part that is to be **moved** – the edge is highlighted in orange – and
+   click. It stays marked in blue.
+3. Click the **target edge** on the other part. The first part is rotated and moved so that the two edges lie
+   exactly on top of each other and the parts lie side by side.
+
+| On the second click | Alignment along the edge |
+|---|---|
+| no key | centers flush |
+| with Shift | left or bottom flush |
+| with Ctrl | right or top flush |
+
+The whole straight piece counts as the edge, even if it consists of several points. For curves only the small
+piece under the mouse is used. Esc cancels, Ctrl+Z undoes the placement.
+
 <!-- hilfe: array -->
 ### Array
 
@@ -349,7 +370,7 @@ the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points sna
 | Rectangle | R | Drag. Shift = square, Ctrl = from the center. Corner radius in the field below the tools. |
 | Ellipse | E | Drag. Shift = circle, Ctrl = from the center. |
 | Polygon/star | P | Drag. Number of corners in the field below, ★ = star. |
-| Line/polyline | L | Click points. Double-click or Enter finishes, clicking the start point closes the shape, Esc cancels. |
+| Line/polyline | L | Click points. Double-click or Enter finishes, clicking the start point closes the shape, Esc cancels. Holding Shift makes the next segment strictly horizontal or vertical – whichever direction the mouse is further away from the last point. |
 | Nodes | N | Node editing, see below |
 
 New shapes go to the layer currently selected in the *Layers* tab. **Esc** returns to the select tool.
@@ -506,23 +527,29 @@ vent grilles in enclosure walls.
 <!-- hilfe: fingerzinken -->
 ### Finger joint on edge
 
-Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom. This is how:
+Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom: one part gets fingers,
+the other exactly matching cut-outs. This is how:
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** (same line,
-   overlapping). Easiest with *Arrange → Align* or snapping to the grid.
+   overlapping). Easiest with [Placing edges together](#placing-edges-together) (Alt+K).
 2. Select both parts → *Tools → Finger joint on edge…*
+3. Under **Fingers on**, choose which part gets the fingers; the list names both parts with their position
+   (e.g. “Bottom (bottom)”).
+
+![Interlocking and corner joint](screenshots/en/zinken_arten.png)
 
 | Setting | Effect |
 |---|---|
-| Type | *Corner joint*: both parts keep their outside dimensions, the cut-outs go inwards by the material thickness (like the box generator). *Fingers outwards*: part 1 gets protruding fingers, part 2 matching cut-outs; as drawn, they interlock exactly |
+| Type | **Interlocking: one part with fingers, the other with cut-outs** (default): the fingers protrude beyond the edge by the material thickness, the mating part gets equally deep cut-outs at the same places. As the parts lie, the fingers fill the cut-outs without gaps (left picture); the shared line is cut only once. For a 90° corner, draw the part with the fingers shorter by the material thickness. **Corner joint: both parts with offset cut-outs, outside dimensions stay**: like the box generator – both parts keep their outside dimensions and get alternating cut-outs (right picture). Lying flat side by side there are gaps; they only interlock when turned by 90° |
+| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay) |
 | Material thickness | Depth of the fingers/cut-outs |
 | Finger width | Desired width; an odd number of equally wide fingers is distributed along the edge |
 | Dogbone diameter | Relieves every **inner corner** with a small circle (“dogbone”) so that square fingers go in completely – important for thick material, a strongly tapered beam or milling. 0 = off |
 | Tolerance | How far apart the edges may be and still count as “touching” |
 | All shared edges | Otherwise only the longest shared edge is processed |
-| Start fingers on part 2 | Swaps which part has the fingers on the outside |
 
-Curves of the parts are converted into fine polylines.
+Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
+([Determining the kerf](#determining-the-kerf)).
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
@@ -1045,7 +1072,7 @@ For cylindrical workpieces with a **roller rotary axis** that is connected inste
 | V R E P L N | Drawing tools | | Ctrl+Shift+←/→/↑/↓ | Align left/right/top/bottom |
 | Esc | Back to select | | Ctrl+Shift+U / D / I | Union / subtract / intersection |
 | Alt+T | Trace image | | Alt+O / Alt+J | Offset / join paths |
-| Ctrl+Shift+B | Box generator | | | |
+| Ctrl+Shift+B | Box generator | | Alt+K | Place edges together |
 
 In node mode: Del, C, L, S, B, A (see [Node editing](#node-editing)). Macros can get their own shortcuts.
 
@@ -1195,6 +1222,7 @@ section (see [Help in the program](#help-in-the-program)).
 | Center vertically | | Centers on one horizontal line |
 | Align bottom | Ctrl+Shift+↓ | Bottom edges flush |
 | Distribute horizontally (equal gaps) | | At least 3 objects side by side with equal gaps |
+| Place edges together | Alt+K | First click the edge of the part to be moved, then the target edge – the part is rotated and placed flush ([Placing edges together](#placing-edges-together)) |
 | Distribute vertically (equal gaps) | | At least 3 objects above each other with equal gaps |
 | Mirror horizontally | | Mirror at the vertical center line of the selection |
 | Mirror vertically | | Mirror at the horizontal center line |
