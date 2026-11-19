@@ -2,6 +2,8 @@
 Glyphen als Bézier-Konturen liefern. Ohne eingebettete Schrift wird eine Systemschrift ersetzt."""
 from __future__ import annotations
 
+from typing import Any
+
 import io
 import re
 
@@ -312,7 +314,9 @@ class PdfFont:
         """(Konturen in Schrift-Einheiten, Vorschub in Schrift-Einheiten)."""
         if code in self.cache:
             return self.cache[code]
-        polys, adv = [], 0.0
+        polys: list = []
+        adv = 0.0
+        pen: Any
         try:
             if self.fallback is not None:
                 f, gs, cmap = self.fallback
@@ -331,7 +335,7 @@ class PdfFont:
                             pen = _Pen(gs)
                             gs[name].draw(pen)
                             polys, adv = pen.bb.out, float(self.tt["hmtx"][name][0]) if "hmtx" in self.tt else 0.0
-                    else:
+                    elif self.cff is not None:
                         cs = self.cff[0]
                         if name in cs:
                             pen = _Pen(None)

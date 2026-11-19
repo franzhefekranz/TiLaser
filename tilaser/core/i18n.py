@@ -81,7 +81,7 @@ class Translator:
             files += [os.path.join(BUILTIN_DIR, f"{self.code}.json"), os.path.join(USER_DIR, f"{self.code}.json")]
             for f in files:
                 self.table.update({k: v for k, v in _read(f).items() if not k.startswith("_") and v})
-        self._norm = {}
+        self._norm: dict[str, str] = {}
         self._patterns = []
         for k, v in self.table.items():
             nk = norm(k)

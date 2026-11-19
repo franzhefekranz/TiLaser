@@ -67,7 +67,7 @@ def local_addresses() -> list[str]:
         pass
     try:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            ip = info[4][0]
+            ip = str(info[4][0])
             if ip not in out and not ip.startswith("127."):
                 out.append(ip)
     except OSError:

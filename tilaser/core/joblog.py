@@ -95,11 +95,11 @@ def read(path: str = LOG_FILE) -> list[JobEntry]:
             e = JobEntry()
             for fl in fields(JobEntry):
                 if fl.name in d:
-                    val = d[fl.name]
+                    val: object = d[fl.name]
                     if fl.type in ("float", float):
-                        val = _num(val)
+                        val = _num(str(val))
                     elif fl.type in ("int", int):
-                        val = int(_num(val))
+                        val = int(_num(str(val)))
                     setattr(e, fl.name, val)
             out.append(e)
     return out

@@ -59,7 +59,7 @@ def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float
     rings = _region(region)
     cx, cy = _center(rings)
     rr = _rot(rings, -angle, cx, cy)
-    x0, y0, x1, y1 = g.bbox(rr)
+    x0, y0, x1, y1 = g.bbox_of(rr)
     amp = 0.4 * spacing if style == "wave" else 0.0
     rows = int(math.floor((y1 - y0 - 2 * margin - 2 * amp) / spacing + 1e-9)) + 1
     if rows < 1:
@@ -169,7 +169,7 @@ def hole_pattern(region, shape: str = "circle", size: float = 5.0, web: float = 
     rings = _region(region)
     cx, cy = _center(rings)
     rr = _rot(rings, -angle, cx, cy)
-    x0, y0, x1, y1 = g.bbox(rr)
+    x0, y0, x1, y1 = g.bbox_of(rr)
     px = (max(slot_len, size) if shape == "slot" else size) + web
     if shape == "hex" and layout == "offset":
         py = (size + web) * math.sqrt(3) / 2
@@ -303,7 +303,7 @@ def engrave_pattern(region, kind: str = "houndstooth", size: float = 8.0, gap: f
     rings = _region(region)
     cx, cy = _center(rings)
     rr = _rot(rings, -angle, cx, cy)
-    x0, y0, x1, y1 = g.bbox(rr)
+    x0, y0, x1, y1 = g.bbox_of(rr)
     tiles = _tiles(kind, x0 + JITTER[0], y0 + JITTER[1], x1, y1, size, gap)
     res = boolean(rr, tiles, "intersection")
     return _rot(res, angle, cx, cy)

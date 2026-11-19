@@ -19,7 +19,7 @@ def _rect(x, y, w, h):
 
 
 def _add(p: Project, name: str, polys, layer: Layer):
-    bb = g.bbox(polys)
+    bb = g.bbox_of(polys)
     cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
     it = Item(id=new_id("I"), name=name, kind="vector", x=cx, y=cy)
     it.paths = [VectorPath(q.transformed(g.translate(-cx, -cy)), layer.id) for q in polys]
@@ -39,7 +39,7 @@ def _text(p: Project, font, txt, x, y, size, layer, align="left"):
     polys = text_to_polylines(txt, font, size) if font else []
     if not polys:
         return
-    bb = g.bbox(polys)
+    bb = g.bbox_of(polys)
     dx = {"left": x - bb[0], "center": x - (bb[0] + bb[2]) / 2, "right": x - bb[2]}[align]
     dy = y - (bb[1] + bb[3]) / 2
     _add(p, txt, [q.transformed(g.translate(dx, dy)) for q in polys], layer)

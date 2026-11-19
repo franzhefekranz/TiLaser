@@ -2111,6 +2111,28 @@ def test_order_paths_matches_bruteforce():
     assert time.time() - t0 < 8
 
 
+def test_fill_union_and_resume_z():
+    from tilaser.core.fill import hatch
+    from tilaser.core.gcode import resume_lines, z_offset_at
+    a = g.Polyline(np.array([[0, 0], [10, 0], [10, 10], [0, 10]], float), True)
+    b = g.Polyline(np.array([[5, 0], [15, 0], [15, 10], [5, 10]], float), True)
+    hole = g.Polyline(np.array([[1, 1], [3, 1], [3, 9], [1, 9]], float), True)
+
+    def length(segs):
+        return sum(float(np.hypot(*(s[1] - s[0]))) for s in segs)
+    eo = length(hatch([a, hole, b], 1.0, 0.0, True))                 # Even-Odd: Überlappung 5..10 frei
+    un = length(hatch([a, hole, b], 1.0, 0.0, True, [0, 0, 1]))      # vereinigt, Loch in a bleibt
+    assert abs(eo - (8 * 8 + 2 * 10)) < 1e-6 and abs(un - (8 * 13 + 2 * 15)) < 1e-6
+    job = ["G21", "G90", "M4 S0", "G91", "G0 Z2", "G90", "G1 X1 S100", "G91", "G0 Z-0.5", "G90", "G1 X2", "G1 X3"]
+    assert z_offset_at(job, 6) == 2 and z_offset_at(job, 11) == 1.5
+    out = resume_lines(job, 10, MachineProfile())                   # Kopf neu auf Ausgangshöhe
+    assert "G0 Z1.5" in out and out.index("G0 Z1.5") < out.index("G1 X3")
+    out = resume_lines(job, 10, MachineProfile(), z_now=1.5)       # Kopf noch auf Abbruchhöhe
+    assert not any(l.startswith("G0 Z") for l in out[:6])
+    out = resume_lines(job, 10, MachineProfile(), z_now=2.0)
+    assert "G0 Z-0.5" in out[:8]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -35,7 +35,7 @@ DEFAULT_PRESETS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data
 USER_PRESETS = os.path.join(CONFIG_DIR, "presets.json")
 MACHINE_FILE = os.path.join(CONFIG_DIR, "machine.json")
 
-PRESET_FIELDS = ("mode", "power", "min_power", "speed", "passes", "interval", "angle", "crosshatch",
+PRESET_FIELDS = ("mode", "power", "min_power", "speed", "passes", "interval", "angle", "crosshatch", "fill_union",
                  "dither", "threshold", "overscan", "bidirectional", "air", "kerf", "tabs", "tab_width",
                  "brightness", "contrast", "gamma", "z_step")
 
@@ -127,7 +127,7 @@ def _b64_to_img(s: str) -> np.ndarray:
 
 
 def save_project(project: Project, path: str):
-    data = {"version": 1, "layers": [l.to_dict() for l in project.layers], "items": []}
+    data: dict = {"version": 1, "layers": [l.to_dict() for l in project.layers], "items": []}
     st = getattr(project, "vars", None)
     if st is not None:
         data["vars"] = st.to_dict() if hasattr(st, "to_dict") else dict(st)
@@ -136,7 +136,7 @@ def save_project(project: Project, path: str):
                                          "scale", "rotation", "mirror_x")}
         if it.var:
             d["var"] = it.var
-        if it.kind == "raster":
+        if it.kind == "raster" and it.image is not None:
             d["image"] = _img_to_b64(it.image)
         else:
             d["paths"] = []
@@ -175,7 +175,8 @@ def load_project(path: str) -> Project:
             it.paths = []
             for pd in d.get("paths", []):
                 if "bez" in pd:
-                    poly = g.Polyline.from_bez(g.BezPath(*pd["bez"], closed=pd["closed"]))
+                    poly = g.Polyline.from_bez(g.BezPath(np.array(pd["bez"][0], float), np.array(pd["bez"][1], float),
+                                                       np.array(pd["bez"][2], float), bool(pd["closed"])))
                 else:
                     poly = g.Polyline(np.array(pd["pts"], float), pd["closed"])
                 it.paths.append(VectorPath(poly, pd["layer"], bool(pd.get("start", False))))

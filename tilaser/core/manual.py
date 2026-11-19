@@ -14,8 +14,9 @@ FILES = {"de": ("Bedienungsanleitung.md", "TiLaser-Bedienungsanleitung.pdf"),
 def docs_dir() -> str | None:
     here = os.path.dirname(os.path.abspath(__file__))          # tilaser/core
     cands = []
-    if getattr(sys, "_MEIPASS", None):
-        cands.append(os.path.join(sys._MEIPASS, "docs"))
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        cands.append(os.path.join(meipass, "docs"))
     if getattr(sys, "frozen", False):
         exe = os.path.dirname(sys.executable)
         cands += [os.path.join(exe, "_internal", "docs"), os.path.join(exe, "docs")]

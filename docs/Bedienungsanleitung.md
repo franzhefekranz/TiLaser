@@ -691,6 +691,7 @@ Rot `#ff0000`, Blau `#0000ff`) auf die gleichnamige. Sehr ähnliche Farben lande
 | Durchgänge | alle | Wie oft der Arbeitsgang wiederholt wird |
 | Zeilenabstand | Füllen, Offset-Füllung, Raster | 0,1 mm ≈ 254 DPI; kleiner = dichter und langsamer |
 | Winkel, Kreuzschraffur | Füllen | Richtung der Schraffur; zweite Schraffur um 90° gedreht |
+| Überlappende Objekte vereinigen | Füllen | Aus (Standard): Überlappen sich zwei Objekte derselben Ebene, bleibt die Überlappung frei – wie bei Löchern (Even-Odd-Regel). An: überlappende Objekte werden zu einer gemeinsamen Fläche zusammengefasst. Löcher innerhalb eines Objekts (z. B. in Buchstaben) bleiben in beiden Fällen Löcher |
 | Bildmodus | Raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (Dithering), Schwellwert, Graustufen |
 | Schwellwert, Invertieren | Raster | |
 | Helligkeit, Kontrast, Gamma | Raster | Bild vor dem Gravieren anpassen |
@@ -894,7 +895,9 @@ Die **Auftragsleiste** rechts unten ist in jedem Tab sichtbar.
 
 **Fortsetzen:** TiLaser merkt sich, bis zu welcher Zeile die Steuerung den Auftrag bestätigt hat. Weil die
 Steuerung einige Befehle im Voraus puffert, wird standardmäßig etwa 15 Zeilen früher begonnen – kurze Stücke
-werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werden wiederhergestellt.
+werden dabei doppelt gelasert. Position, Vorschub, Leistung und Air Assist werden wiederhergestellt, ebenso ein
+Fokus-Versatz der Z-Achse (Z-Versatz der Ebene, Absenken je Durchgang). Verstellt der Auftrag Z, fragt TiLaser,
+ob der Kopf noch auf der Höhe beim Abbruch steht oder der Fokus neu auf die Ausgangshöhe eingestellt wurde.
 **Das Werkstück darf dazwischen nicht verschoben worden sein.**
 
 ---
@@ -1417,6 +1420,7 @@ Schieberegler (Simulation: Zeitpunkt im Auftrag) und die Abspielgeschwindigkeit.
 | Leistung max, Leistung min | Laserleistung in %; *min* nur im Graustufen-Bildmodus |
 | Geschwindigkeit, Durchgänge | mm/min und Anzahl der Wiederholungen |
 | Zeilenabstand, Winkel, Kreuzschraffur | Abstand und Richtung der Füll-/Bildzeilen; zweite Schraffur um 90° gedreht |
+| Überlappende Objekte vereinigen | Füllen: überlappende Objekte als eine Fläche statt mit ausgesparter Überlappung |
 | Bildmodus, Schwellwert, Invertieren | Rasterbild: Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Overscan | Anlaufweg vor/nach jeder Bildzeile |
 | Bidirektional | Hin und her gravieren |

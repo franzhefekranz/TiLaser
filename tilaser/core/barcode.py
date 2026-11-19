@@ -223,6 +223,7 @@ def qr_matrix(text: str, ecl: str = "M") -> list[list[bool]]:
         if best_pen is None or pen < best_pen:
             best, best_pen = [row[:] for row in mod], pen
         mod[:] = mod_backup
+    assert best is not None
     return best
 
 

@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Tests, Lint und Typprüfung (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Abhängigkeiten (ohne Qt – der Kern wird headless getestet)
+        run: python -m pip install numpy Pillow fonttools pyserial pyclipper pytest mypy ruff
+      - name: Lint (ruff)
+        run: ruff check --select F,E9 --ignore F401 tilaser tools tests
+      - name: Typprüfung (mypy, tilaser/core)
+        run: python -m mypy
+      - name: Tests
+        run: python -m pytest -q tests

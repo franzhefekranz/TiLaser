@@ -72,8 +72,8 @@ def finger_count(length: float, t: float, finger: float) -> int:
 def panels(spec: BoxSpec):
     """Liste (Name, Breite, Höhe, [Nachbar unten, rechts, oben, links])."""
     W, D, H = spec.outer()
-    top = "Deckel" if spec.closed else None
-    out = [("Boden", W, D, ["Vorne", "Rechts", "Hinten", "Links"])]
+    top: str | None = "Deckel" if spec.closed else None
+    out: list[tuple[str, float, float, list[str | None]]] = [("Boden", W, D, ["Vorne", "Rechts", "Hinten", "Links"])]
     if spec.closed:
         out.append(("Deckel", W, D, ["Vorne", "Rechts", "Hinten", "Links"]))
     out += [("Vorne", W, H, ["Boden", "Rechts", top, "Links"]),
@@ -167,9 +167,9 @@ def build_box(spec: BoxSpec) -> Project:
                 size = max(3.0, min(8.0, min(a, b) / 6))
                 txt = text_to_polylines(tr(name), font, size)
                 if txt:
-                    bb = g.bbox(txt)
+                    bb = g.bbox_of(txt)
                     m = g.translate(-(bb[0] + bb[2]) / 2, -(bb[1] + bb[3]) / 2)
-                    it.paths += [VectorPath(q.transformed(m), lab.id) for q in txt]
+                    it.paths += [VectorPath(q.transformed(m), lab.id if lab else "") for q in txt]
             p.items.append(it)
             x += col_w + spec.gap
         y += max(b for _, _, b, _ in pair) + spec.gap

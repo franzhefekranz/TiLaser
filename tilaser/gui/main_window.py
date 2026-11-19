@@ -17,7 +17,8 @@ from ..core import geometry as g
 from ..core import storage
 from ..core.dxf_import import import_dxf
 from ..core import editing as ed
-from ..core.gcode import DIALECTS, convex_hull, frame_gcode, generate, job_project, origin_offset, resume_lines
+from ..core.gcode import (DIALECTS, convex_hull, frame_gcode, generate, job_project, origin_offset, resume_lines,
+                          z_offset_at)
 from ..core.materialtest import build_project
 from ..core.trace import trace_image
 from .busy import active as busy_active
@@ -1962,7 +1963,21 @@ class MainWindow(QMainWindow):
             default + 1, 1, total, 1)
         if not ok:
             return
-        lines = resume_lines(conn.last_job, n - 1, self.profile)
+        z_now = 0.0
+        z_start, z_stop = z_offset_at(conn.last_job, n - 1), z_offset_at(conn.last_job, conn.last_acked)
+        if abs(z_start) > 1e-6 or abs(z_stop) > 1e-6:
+            ans = QMessageBox.question(
+                self, "Auftrag fortsetzen",
+                f"Der Auftrag verstellt die Z-Achse (Fokus). Beim Abbruch stand Z um {z_stop:+.2f} mm gegenüber "
+                f"dem Auftragsbeginn, an der gewählten Zeile sind es {z_start:+.2f} mm.\n\n"
+                "Steht der Laserkopf noch auf der Höhe beim Abbruch?\n\n"
+                "Ja = Kopf seit dem Abbruch nicht bewegt\n"
+                "Nein = Fokus wurde neu auf die Ausgangshöhe eingestellt",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
+            if ans == QMessageBox.StandardButton.Cancel:
+                return
+            z_now = z_stop if ans == QMessageBox.StandardButton.Yes else 0.0
+        lines = resume_lines(conn.last_job, n - 1, self.profile, z_now)
         if QMessageBox.question(self, "Fortsetzen", f"Ab Zeile {n} fortsetzen ({total - n + 1} Zeilen)?\n"
                                 "Werkstück darf nicht verschoben worden sein!") == QMessageBox.StandardButton.Yes:
             self.machine.run_job(lines)

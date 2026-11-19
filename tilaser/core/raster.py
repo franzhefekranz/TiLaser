@@ -11,7 +11,7 @@ def load_image_gray(path: str) -> tuple[np.ndarray, float, float]:
     Rückgabe: (Array, Breite mm, Höhe mm) – Größe aus DPI-Angabe, sonst 254 dpi (0,1 mm/Pixel)
     begrenzt auf 100 mm Breite.
     """
-    im = Image.open(path)
+    im: Image.Image = Image.open(path)
     im = ImageOps.exif_transpose(im)
     dpi = im.info.get("dpi", (0, 0))[0] or 0
     if im.mode in ("RGBA", "LA", "P"):

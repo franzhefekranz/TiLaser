@@ -139,7 +139,7 @@ def jigsaw(width: float, height: float, cols: int, rows: int, tab: float = 20.0,
 
     for yi in range(1, rows):                                   # waagerechte Linien
         first()
-        pts = []
+        pts: list = []
         for xi in range(cols):
             e = edge(False, xi, yi, cols, rows)
             pts.append(e if not pts else e[1:])
@@ -189,8 +189,8 @@ def stencil_bridges(polys: list[g.Polyline], width: float = 1.5, direction: str 
         if not parents:
             continue
         par = min(parents, key=lambda q: _area(q.pts))
-        bb_h = g.bbox([p])
-        bb_p = g.bbox([par])
+        bb_h = g.bbox_of([p])
+        bb_p = g.bbox_of([par])
         jit = 1.7e-4
         if direction == "vertical":
             mx = (bb_h[0] + bb_h[2]) / 2 + jit
@@ -204,7 +204,7 @@ def stencil_bridges(polys: list[g.Polyline], width: float = 1.5, direction: str 
         return [p.copy() for p in closed], 0
     # überlappende Streifen (z. B. B mit zwei Löchern übereinander) zu einem Rechteck zusammenfassen
     rects = [(r[:, 0].min(), r[:, 1].min(), r[:, 0].max(), r[:, 1].max()) for r in strips]
-    merged = []
+    merged: list = []
     for rc in sorted(rects):
         for k, m in enumerate(merged):
             if rc[0] <= m[2] and rc[2] >= m[0] and rc[1] <= m[3] and rc[3] >= m[1]:

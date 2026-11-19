@@ -42,7 +42,7 @@ class UndoStack:
         self.redo: list[tuple[str, Project]] = []
         self.limit = limit
         self.coalesce_s = coalesce_s
-        self._last_key = None
+        self._last_key: str | None = None
         self._last_t = 0.0
 
     def push(self, project: Project, label: str, key: str | None = None):

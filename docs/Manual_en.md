@@ -681,6 +681,7 @@ of the file are mapped to the closest of the 32 colors – pure primary colors (
 | Passes | all | How often the operation is repeated |
 | Line interval | fill, offset fill, raster | 0.1 mm ≈ 254 DPI; smaller = denser and slower |
 | Angle, crosshatch | fill | Direction of the hatching; second hatching rotated by 90° |
+| Merge overlapping objects | fill | Off (default): if two objects of the same layer overlap, the overlap stays empty – like holes (even-odd rule). On: overlapping objects are merged into one area. Holes inside an object (e.g. in letters) remain holes in both cases |
 | Image mode | raster | Floyd-Steinberg, Jarvis, Stucki, Atkinson (dithering), threshold, grayscale |
 | Threshold, invert | raster | |
 | Brightness, contrast, gamma | raster | Adjust the image before engraving |
@@ -883,7 +884,9 @@ The **job bar** at the bottom right is visible in every tab.
 
 **Resume:** TiLaser remembers up to which line the controller has acknowledged the job. Because the controller
 buffers some commands in advance, it restarts about 15 lines earlier by default – short pieces are lasered
-twice. Position, feed, power and air assist are restored.
+twice. Position, feed, power and air assist are restored, as is a focus offset of the Z axis (layer Z offset,
+lowering per pass). If the job moves Z, TiLaser asks whether the head is still at the height of the abort or
+the focus was set back to the starting height.
 **The workpiece must not have been moved in between.**
 
 <!-- hilfe: weboberflaeche -->
@@ -1400,6 +1403,7 @@ time in the job) and the playback speed.
 | Power max, Power min | Laser power in %; *min* only in grayscale image mode |
 | Speed, Passes | mm/min and number of repetitions |
 | Line interval, Angle, Crosshatch | Spacing and direction of the fill/image lines; second hatching rotated by 90° |
+| Merge overlapping objects | Fill: overlapping objects as one area instead of leaving the overlap empty |
 | Image mode, Threshold, Invert | Raster image: Floyd-Steinberg, Jarvis, Stucki, Atkinson, threshold, grayscale |
 | Overscan | Run-up before/after each image line |
 | Bidirectional | Engrave back and forth |

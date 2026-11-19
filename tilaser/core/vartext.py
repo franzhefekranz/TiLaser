@@ -113,9 +113,9 @@ def qr_polys(text: str, size_mm: float, ecl: str = "M", quiet: int = 0) -> list[
 
 def _merge_vertical(rects: list[g.Polyline]) -> list[g.Polyline]:
     """Gleich breite, übereinanderliegende Rechtecke zusammenfassen (weniger Konturen)."""
-    key = {}
+    key: dict[tuple[float, float], list] = {}
     for p in rects:
-        x0, y0, x1, y1 = g.bbox([p])
+        x0, y0, x1, y1 = g.bbox_of([p])
         key.setdefault((round(x0, 6), round(x1, 6)), []).append([y0, y1])
     out = []
     for (x0, x1), spans in key.items():
@@ -153,7 +153,7 @@ def build_polys(spec: dict, text: str) -> list[g.Polyline]:
     polys = text_to_polylines(text, spec["font"], float(spec.get("size", 10.0)), float(spec.get("spacing", 1.2)),
                               float(spec.get("letter", 0.0)), spec.get("align", "left"))
     if polys:
-        bb = g.bbox(polys)
+        bb = g.bbox_of(polys)
         polys = [p.transformed(g.translate(-(bb[0] + bb[2]) / 2, -(bb[1] + bb[3]) / 2)) for p in polys]
     return polys
 
@@ -172,7 +172,7 @@ def refresh_item(it: Item, st: VarState, now=None, row: dict | None = None) -> s
         return ""
     text = render(spec.get("template", ""), st, now, row)
     polys = build_polys(spec, text) if text.strip() else []
-    layer_id = spec.get("layer") or (it.paths[0].layer_id if it.paths else None)
+    layer_id = spec.get("layer") or (it.paths[0].layer_id if it.paths else "")
     it.paths = [VectorPath(p, layer_id) for p in polys]
     label = {"qr": "QR", "code128": "Barcode"}.get(spec.get("kind"), "Text")
     it.name = f"{label}: {text.splitlines()[0][:24] if text else ''}"

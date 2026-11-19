@@ -1341,5 +1341,9 @@
  "-- Weboberfläche: neue PIN {0} (Maschine → Weboberfläche)": "-- Web interface: new PIN {0} (Machine → Web interface)",
  "{0} wird importiert …": "Importing {0} …",
  "{0} wird geladen …": "Loading {0} …",
- "Die Weboberfläche braucht eine PIN mit mindestens {0} Zeichen.": "The web interface needs a PIN with at least {0} characters."
+ "Die Weboberfläche braucht eine PIN mit mindestens {0} Zeichen.": "The web interface needs a PIN with at least {0} characters.",
+ "Keine Konturen vorhanden.": "No contours present.",
+ "Überlappende Objekte vereinigen": "Merge overlapping objects",
+ "Aus: wo sich zwei Objekte überlappen, bleibt die Überlappung frei (Even-Odd).\nAn: überlappende Objekte werden zu einer Fläche zusammengefasst.\nLöcher innerhalb eines Objekts bleiben in beiden Fällen Löcher.": "Off: where two objects overlap, the overlap stays empty (even-odd).\nOn: overlapping objects are merged into one area.\nHoles inside an object remain holes in both cases.",
+ "Der Auftrag verstellt die Z-Achse (Fokus). Beim Abbruch stand Z um {0} mm gegenüber dem Auftragsbeginn, an der gewählten Zeile sind es {1} mm.\n\nSteht der Laserkopf noch auf der Höhe beim Abbruch?\n\nJa = Kopf seit dem Abbruch nicht bewegt\nNein = Fokus wurde neu auf die Ausgangshöhe eingestellt": "The job moves the Z axis (focus). When it was aborted, Z was {0} mm relative to the start of the job; at the chosen line it is {1} mm.\n\nIs the laser head still at the height of the abort?\n\nYes = head not moved since the abort\nNo = focus was set back to the starting height"
 }

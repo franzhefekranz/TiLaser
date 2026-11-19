@@ -38,6 +38,14 @@ Allen Nutzern der 0.9.0 wird das Update empfohlen.
 - G-Code-Erzeugung und Import laufen im Hintergrund; die Oberfläche, der Laser-Status, die Kamera und der
   Flammenwächter bleiben dabei bedienbar bzw. aktiv.
 - Pfadoptimierung bei vielen Konturen deutlich schneller (3000 Konturen: 17 s → 0,5 s), mit identischem Ergebnis.
+- Große Rasterbilder brauchen bei der G-Code-Erzeugung etwa ein Viertel des Speichers (Vorschau zeilenweise).
+
+### Neu und verbessert
+
+- Füllen: Option *Überlappende Objekte vereinigen* – überlappende Objekte werden als eine Fläche graviert
+  statt die Überlappung auszusparen (Löcher in einem Objekt bleiben Löcher).
+- *Fortsetzen* stellt auch den Fokus-Versatz der Z-Achse wieder her und fragt, auf welcher Höhe der Kopf steht.
+- Automatische Prüfung bei jedem Push: Tests, Lint und Typprüfung des Kerns (mypy) mit Python 3.10 und 3.12.
 
 ### Downloads
 
@@ -50,7 +58,8 @@ off without waiting; the flame guard stops instead of pausing. GRBL: explicit `S
 start with `$32=0`. Controller errors pause the job. Fixed hangs on malicious DXF/SVG files and in the web
 server, wrong contours from kerf compensation without pyclipper, and crashes on unexpected errors. *Done* is
 reported only when the machine has stopped. Web interface: mandatory PIN, host check against DNS rebinding.
-G-code generation and import run in the background; path optimisation is up to 30× faster.
+G-code generation and import run in the background; path optimisation is up to 30× faster. New fill option
+*Merge overlapping objects*; *Resume* restores the Z focus offset. CI with tests, lint and mypy.
 
 ## 0.9.0
 

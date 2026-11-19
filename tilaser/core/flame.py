@@ -66,9 +66,9 @@ class FlameDetector:
 
     def reset(self, keep_reference: bool = False):
         if not keep_reference:
-            self.ref_v = None
-        self.persist = None
-        self.t_last = None
+            self.ref_v: np.ndarray | None = None
+        self.persist: np.ndarray | None = None
+        self.t_last: float | None = None
         self.triggered = False
 
     @property
@@ -89,6 +89,7 @@ class FlameDetector:
         self.t_last = t
         k = -np.log(1.0 - self.level)                      # Pegel erreicht nach hold_s Dauerhitze
         a = 1.0 - np.exp(-dt * k / max(0.1, self.hold_s))
+        assert self.persist is not None
         self.persist += (hot.astype(np.float32) - self.persist) * a
         # Referenz langsam nachführen (≈ 1 min), aber nicht an heißen Stellen
         b = 1.0 - np.exp(-dt / 60.0)

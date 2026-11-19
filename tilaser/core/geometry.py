@@ -105,6 +105,9 @@ class Polyline:
     pts: np.ndarray            # (N, 2) float
     closed: bool = False
     bez: BezPath | None = None # Kurvendarstellung (pts = bez.flatten()), falls vorhanden
+    # Hilfsangaben für die Ausgabe (nicht Teil der Geometrie, werden beim Kopieren nicht übernommen):
+    _order: int = field(default=0, init=False, repr=False, compare=False)        # Objektreihenfolge
+    start_fixed: bool = field(default=False, init=False, repr=False, compare=False)  # Startpunkt festgelegt
 
     def __post_init__(self):
         self.pts = np.asarray(self.pts, dtype=float).reshape(-1, 2)
@@ -336,6 +339,14 @@ def bbox(polys) -> tuple[float, float, float, float] | None:
         return None
     a = np.vstack(arrs)
     return float(a[:, 0].min()), float(a[:, 1].min()), float(a[:, 0].max()), float(a[:, 1].max())
+
+
+def bbox_of(polys) -> tuple[float, float, float, float]:
+    """Wie bbox(), aber für Fälle, in denen es Punkte geben muss (sonst ValueError statt None)."""
+    bb = bbox(polys)
+    if bb is None:
+        raise ValueError("Keine Konturen vorhanden.")
+    return bb
 
 
 def points_in_polygon(pts: np.ndarray, poly: np.ndarray) -> np.ndarray:

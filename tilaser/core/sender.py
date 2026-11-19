@@ -80,7 +80,7 @@ def clean_line(line: str) -> str:
 def parse_grbl_status(s: str, wco_cache: list) -> dict:
     body = s.strip().strip("<>")
     parts = body.split("|")
-    st = {"state": parts[0]}
+    st: dict = {"state": parts[0]}
     for p in parts[1:]:
         if ":" not in p:
             continue

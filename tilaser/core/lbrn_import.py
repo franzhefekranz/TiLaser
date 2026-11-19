@@ -162,7 +162,7 @@ def _legacy_geometry(el):
 def _cut_settings(root) -> dict[tuple[int, str], dict]:
     """Ebeneneinstellungen je (Index, Art). Vektor- (CutSetting) und Bildeinstellungen (CutSetting_Img)
     können denselben Index haben – LightBurn trennt sie nach der Art der Form."""
-    out = {}
+    out: dict = {}
     for cs in list(root):
         if not cs.tag.startswith("CutSetting"):
             continue
@@ -225,7 +225,7 @@ def _bitmap(el, m) -> tuple[np.ndarray, float, float, float, float, float] | Non
     if not data:
         return None
     from PIL import Image
-    img = Image.open(io.BytesIO(base64.b64decode(data)))
+    img: Image.Image = Image.open(io.BytesIO(base64.b64decode(data)))
     if img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGBA")
         bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
@@ -335,15 +335,15 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
     for sh in root.iter():                       # geteilte Geometrie vorab sammeln (VertID/PrimID)
         vl, pl = sh.find("VertList"), sh.find("PrimList")
         if vl is not None and sh.get("VertID") is not None:
-            rd.verts.setdefault(sh.get("VertID"), parse_vertlist(vl.text))
+            rd.verts.setdefault(sh.get("VertID", ""), parse_vertlist(vl.text or ""))
         if pl is not None and sh.get("PrimID") is not None:
-            rd.prims.setdefault(sh.get("PrimID"), pl.text or "")      # Rohtext, je nach Punktzahl auswerten
+            rd.prims.setdefault(sh.get("PrimID", ""), pl.text or "")      # Rohtext, je nach Punktzahl auswerten
     for el in list(root.iter("Shape")) + list(root.iter("BackupPath")):   # geteilte Geometrie vorab sammeln
         vl, pl = el.find("VertList"), el.find("PrimList")
         if vl is not None and el.get("VertID") is not None:
-            rd.verts.setdefault(el.get("VertID"), parse_vertlist(vl.text))
+            rd.verts.setdefault(el.get("VertID", ""), parse_vertlist(vl.text or ""))
         if pl is not None and el.get("PrimID") is not None:
-            rd.prims.setdefault(el.get("PrimID"), pl.text)
+            rd.prims.setdefault(el.get("PrimID", ""), pl.text or "")
     pr = Project()
     pr.layers = []
     layers: dict[tuple[int, str], Layer] = {}
@@ -360,11 +360,12 @@ def load_lbrn(path: str) -> tuple[Project, list[str]]:
         return layers[key]
 
     for n, el in enumerate(root.findall("Shape")):
-        paths, bitmaps = [], []
+        paths: list = []
+        bitmaps: list = []
         rd.shape(el, g.identity(), paths, bitmaps)
         paths = [(p, c) for p, c in paths if len(p.pts) >= 2]
         if paths:
-            bb = g.bbox([p for p, _ in paths])
+            bb = g.bbox_of([p for p, _ in paths])
             cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
             t = el.get("Type", "Form")
             name = {"Group": "Gruppe", "Path": "Pfad", "Rect": "Rechteck", "Ellipse": "Ellipse",

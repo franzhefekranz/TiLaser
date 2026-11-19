@@ -421,14 +421,13 @@ def import_svg(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
         fill = parse_color(st.get("fill"))
         if fill is None:
             fill = "#000000"           # SVG-Standard: schwarz gefüllt
+        assert fill is not None
         has_stroke = stroke not in (None, "none")
         has_fill = fill != "none"
         if not has_stroke and not has_fill:
             return
-        if has_stroke:
-            color, filled = stroke, False
-        else:
-            color, filled = fill, True
+        color = (stroke if has_stroke else fill) or "#000000"
+        filled = not has_stroke
         for p in polys:
             if filled and not p.closed and len(p.pts) > 2:
                 p = g.Polyline(p.pts, True)     # Füllungen sind implizit geschlossen

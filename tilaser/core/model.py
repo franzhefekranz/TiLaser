@@ -94,6 +94,7 @@ class Layer:
     interval: float = 0.1         # mm Zeilenabstand (Füllen/Raster)
     angle: float = 0.0            # Grad (Füllen)
     crosshatch: bool = False      # zweite Füllung um 90° gedreht
+    fill_union: bool = False      # Füllen: überlappende Objekte vereinigen statt sich auszusparen (Even-Odd)
     dither: str = "floyd"
     threshold: int = 128
     invert: bool = False
@@ -217,7 +218,7 @@ class Project:
         self.vars = None              # Zustand der Platzhalter (vartext.VarState), wird bei Bedarf angelegt
 
     # ---------------------------------------------------------------- Ebenen
-    def layer(self, layer_id: str) -> Layer | None:
+    def layer(self, layer_id: str | None) -> Layer | None:
         for l in self.layers:
             if l.id == layer_id:
                 return l
@@ -243,19 +244,21 @@ class Project:
 
     def layer_for_key(self, key: str, color: str, mode: str) -> Layer:
         lid = self._key_to_layer.get(key)
-        if lid and self.layer(lid):
-            return self.layer(lid)
+        known = self.layer(lid) if lid else None
+        if known is not None:
+            return known
         color = nearest_palette(color)       # Importfarben auf die 32 Ebenenfarben abbilden
+        new_color: str | None = color
         if key.startswith("#"):          # Farbschlüssel (SVG): gleiche Farbe + Modus wiederverwenden
             for l in self.layers:
                 if l.color.lower() == color.lower() and l.mode == mode:
                     self._key_to_layer[key] = l.id
                     return l
         elif any(l.color.lower() == color.lower() for l in self.layers):
-            color = None                 # benannte Ebene (DXF): eigene Farbe vergeben
+            new_color = None             # benannte Ebene (DXF): eigene Farbe vergeben
         base = key.split("#fill")[0]
         name = base.split(":", 1)[-1] if not base.startswith("#") else f"{MODE_LABELS[mode].split()[0]} {color_name(color)}"
-        l = self.add_layer(name, color, mode)
+        l = self.add_layer(name, new_color, mode)
         self._key_to_layer[key] = l.id
         return l
 
@@ -273,7 +276,7 @@ class Project:
         imported = [ip for ip in imported if len(ip.poly.pts) >= 2]
         if not imported:
             return None
-        bb = g.bbox([ip.poly for ip in imported])
+        bb = g.bbox_of([ip.poly for ip in imported])
         cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
         item = Item(id=new_id("I"), name=name, kind="vector")
         for ip in imported:
@@ -298,7 +301,7 @@ class Project:
     # ---------------------------------------------------------------- Gruppieren
     def _item_from_world(self, name: str, world: list[tuple[g.Polyline, str]]) -> Item:
         """Neues Objekt aus Pfaden in Weltkoordinaten (Transformation wird 'eingebacken')."""
-        bb = g.bbox([p for p, _ in world])
+        bb = g.bbox_of([p for p, _ in world])
         cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
         it = Item(id=new_id("I"), name=name, kind="vector", x=cx, y=cy)
         t = g.translate(-cx, -cy)

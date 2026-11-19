@@ -27,6 +27,7 @@ def _read_pairs(path: str) -> list[tuple[int, str]]:
     if raw.startswith(b"AutoCAD Binary DXF"):
         raise ValueError("Binäre DXF-Dateien werden nicht unterstützt – bitte als ASCII-DXF speichern.")
     text = None
+    text = ""
     for enc in ("utf-8", "cp1252", "latin-1"):
         try:
             text = raw.decode(enc)
@@ -354,7 +355,8 @@ def import_dxf(path: str, tol: float = g.CURVE_TOL) -> tuple[list[ImportedPath],
                 i = j
             elif name == "BLOCKS":
                 ents, j = _split_entities(pairs, i + 2)
-                cur_name, cur_base, cur = None, (0, 0), []
+                cur_name, cur_base = None, (0, 0)
+                cur: list = []
                 for et, d in ents:
                     if et == "BLOCK":
                         cur_name = _get(d, 2, "", str)
