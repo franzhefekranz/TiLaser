@@ -79,7 +79,9 @@ jobs:
           if git diff --cached --quiet; then
             echo "Keine Änderungen."
           else
-            git commit -m "Dokumentation aktualisiert (Screenshots, PDF) [skip ci]"
+            # Kein [skip ci]: Pushes mit dem GITHUB_TOKEN starten ohnehin keine weiteren Workflows. Mit
+            # [skip ci] würde dagegen ein Release-Tag auf diesem Commit den Build nicht auslösen.
+            git commit -m "Dokumentation aktualisiert (Screenshots, PDF)"
             git push
           fi
       - name: Wiki veröffentlichen (nur main)

@@ -61,6 +61,8 @@ von Virenscannern beanstandet. Die Konfiguration steht in `packaging/tilaser.spe
 Abschnitt `## <Version>` schreiben, beides nach `main` bringen, dann `git tag v0.9.1 && git push origin v0.9.1`.
 Der Workflow `.github/workflows/build.yml` baut alle Pakete und legt ein GitHub-Release mit dem Text aus
 `CHANGELOG.md` an (Versionen 0.x als Vorabversion).
+Startet der Build nach dem Tag nicht, unter *Actions → Build → Run workflow* das Tag als „Branch/Tag“ wählen
+und starten – der Workflow ergänzt dann das vorhandene Release um die Dateien.
 
 ## Funktionen
 
