@@ -485,10 +485,6 @@ def simplify(pts: np.ndarray, tol=0.005) -> np.ndarray:
     return pts[keep]
 
 
-def _bbox_area(p: Polyline) -> float:
-    return float((p.pts[:, 0].max() - p.pts[:, 0].min()) * (p.pts[:, 1].max() - p.pts[:, 1].min()))
-
-
 def group_parts(polys: list[Polyline]) -> list[list[int]]:
     """Zerlegt Konturen in Teile: jede Außenkontur bleibt mit ihren Löchern zusammen
     (z. B. 'O', 'A' oder eine Platte mit Bohrungen). Offene Pfade sind eigene Teile.
@@ -498,20 +494,25 @@ def group_parts(polys: list[Polyline]) -> list[list[int]]:
     n = len(polys)
     if n == 0:
         return []
-    depth = nesting_depth(polys)
+    depth = np.array(nesting_depth(polys))
     parent = list(range(n))
+    container = np.array([p.closed and len(p.pts) >= 3 for p in polys], bool)
+    boxes = np.array([(p.pts[:, 0].min(), p.pts[:, 1].min(), p.pts[:, 0].max(), p.pts[:, 1].max())
+                      if len(p.pts) else (0, 0, 0, 0) for p in polys], float).reshape(-1, 4)
+    areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
     for i, p in enumerate(polys):
-        if not p.closed or depth[i] % 2 == 0 or len(p.pts) < 3:
+        if not container[i] or depth[i] % 2 == 0:
             continue
         probe = p.pts[len(p.pts) // 2][None, :]
-        best, best_area = i, float("inf")
-        for j, q in enumerate(polys):
-            if j == i or not q.closed or len(q.pts) < 3 or depth[j] != depth[i] - 1:
-                continue
-            a = _bbox_area(q)
-            if a < best_area and points_in_polygon(probe, q.pts)[0]:
-                best, best_area = j, a
-        parent[i] = best
+        x, y = probe[0]
+        # nur Außenkonturen eine Ebene darüber, deren Box den Probepunkt enthält – kleinste zuerst
+        cand = container & (depth == depth[i] - 1) & (boxes[:, 0] <= x) & (boxes[:, 2] >= x) & \
+            (boxes[:, 1] <= y) & (boxes[:, 3] >= y)
+        cand[i] = False
+        for j in sorted(np.flatnonzero(cand), key=lambda k: areas[k]):
+            if points_in_polygon(probe, polys[j].pts)[0]:
+                parent[i] = int(j)
+                break
     groups: dict[int, list[int]] = {}
     for i in range(n):
         groups.setdefault(parent[i], []).append(i)
