@@ -783,6 +783,103 @@ Knöchel; die Knöchel liegen für jedes Teil getrennt neben den Teilen (*Knöch
 | Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 
+<!-- hilfe: federverschluss -->
+### Federverschluss an Kante
+
+*Werkzeuge → Federverschluss an Kante…* baut einen **Schnappverschluss nur aus dem Material** – z. B. für den
+Deckel einer Box mit [Knöchelscharnier](#knöchelscharnier-an-kante), auf der Seite gegenüber vom Scharnier.
+Gedacht für zwei Teile, die bei geschlossenem Deckel **in einer Ebene aneinanderstoßen**, typisch die
+**Vorderwand der Box und die Vorderwand des Deckels**.
+
+Das eine Teil bekommt nahe der Kante ein **Fenster**. Darin hängt an einer **Mäanderfeder** (S-Form: ein
+schmaler Steg in engen Schlaufen) eine **Zunge**, die durch einen Durchlass über die Kante in eine
+**Aussparung** des anderen Teils ragt. Ihr Haken rastet dort hinter einer Schulter ein. Beim Schließen drückt
+die Schräge des Hakens die Zunge zur Seite, die Feder biegt sich und schnappt zurück. Zum **Öffnen** die
+Drucktaste im Fenster mit Finger oder Stift zur Seite schieben. Weil sich die Biegung auf mehrere Schenkel
+mit runden Wendungen verteilt, bekommt die Feder viel Federweg auf engem Raum, ohne dass das Holz an einer
+Stelle bricht. Die Drucktaste ist breiter als der Durchlass: Zieht man am geschlossenen Deckel, liegt sie
+auf dem Steg auf – die Kraft geht nicht durch die Feder.
+
+1. Die beiden Teile so hinlegen, wie sie bei geschlossenem Deckel aneinanderstoßen: **Kante an Kante**
+   (am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen), Alt+K).
+2. Beide auswählen → *Werkzeuge → Federverschluss an Kante…*, wählen, welches Teil Feder und Zunge bekommt.
+
+Liegt der Deckel dagegen oben auf der Wand, passt der [Federriegel mit Haken](#federriegel-mit-haken).
+
+![Federverschluss: Fenster mit S-Feder und Zunge, Aussparung mit Schulter; Varianten mit mehr Schenkeln](screenshots/federverschluss.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Feder und Zunge an | Teil mit Fenster, Feder und Zunge; das andere bekommt die Aussparung |
+| Anzahl Verschlüsse | 1 = mittig auf der Kante; ab 2 sitzen die äußeren nahe den Enden, die übrigen gleichmäßig dazwischen |
+| Abstand der äußeren Verschlüsse vom Ende der Kante | Ab zwei Verschlüssen: Abstand des Fensters vom Ende der Kante |
+| Schenkel der Feder | Ungerade Anzahl: 1 = einfache Blattfeder, 3 = S-Form, 5, 7 … = Mäander. Mehr Schenkel = weicher, mehr Federweg |
+| Schenkellänge | Länge der geraden Stücke der Feder; länger = weicher |
+| Stegbreite der Feder | Breite des Federstegs; schmaler = weicher, aber empfindlicher. Für 3-mm-Sperrholz etwa 1,2–2 mm |
+| Schlitz zwischen den Schenkeln | Abstand der Schenkel (mindestens etwas mehr als die Schnittbreite) |
+| Zungenbreite | Breite der Zunge im Durchlass |
+| Hakenüberstand | Wie weit der Haken seitlich übersteht – so weit muss die Feder beim Einrasten ausweichen |
+| Schulter über dem Haken | Material des anderen Teils über dem Haken; trägt die Last beim Ziehen |
+| Länge der Drucktaste | Teil der Zunge im Fenster, an dem man zum Öffnen drückt |
+| Platz zum Drücken | Freiraum neben der Taste für Finger oder Stift |
+| Steg zwischen Fenster und Kante | Materialsteg an der Kante, auf dem die Drucktaste aufliegt |
+| Spiel | Luft im Durchlass, in der Aussparung und unter der Schulter |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+
+<!-- hilfe: federriegel -->
+### Federriegel mit Haken
+
+*Werkzeuge → Federriegel mit Haken…* ist die zweite Art von Federverschluss – für einen **Deckel, der oben auf
+der Vorderwand aufliegt** (z. B. bei einer Box mit Biegescharnier). Innen **hinter der Vorderwand** sitzt ein
+**Riegel**: eine schmale Platte, deren **Haken** oben durch Schlitze im Deckel greifen. Zwei **T-förmige
+Halter** stecken durch den Riegel und in Schlitzen der Wand. Der eine sitzt in einer **Öse am Ende einer
+langen Mäanderfeder**, der andere in einem **Langloch** – so kann der Riegel seitlich gleiten, und die Feder
+schiebt ihn zurück.
+
+Beim Schließen drücken die Schlitzkanten des Deckels die Schrägen der Haken zur Seite; der Riegel weicht aus,
+schnappt zurück, und die Nasen der Haken liegen auf dem Deckel. **Zum Öffnen** die Hakenköpfe, die oben aus
+dem Deckel ragen, zur Seite schieben und den Deckel anheben.
+
+1. Deckel und Vorderwand so hinlegen, dass die **Vorderkante des Deckels an der Oberkante der Wand** liegt –
+   Kante an Kante (am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen), Alt+K).
+2. Beide auswählen → *Werkzeuge → Federriegel mit Haken…*, wählen, welches Teil der Deckel ist.
+
+TiLaser schneidet die Hakenschlitze in den Deckel (eine Wandstärke hinter seiner Kante) und die Schlitze für
+die Halter in die Wand. Riegel (*Riegel* + Name der Wand) und die beiden Halter liegen rechts neben den Teilen.
+
+![Federriegel: Deckel und Wand mit Schlitzen, Riegel mit Mäanderfeder, Öse und Langloch, Halter; Schnitt](screenshots/federriegel.png)
+
+**Zusammenbau:** Den Riegel innen an die Vorderwand legen, Oberkante bündig mit der Wand, die Haken zeigen mit
+der Nase zur kurzen Seite der Deckelschlitze. Die Halter von innen durch Öse bzw. Langloch in die
+Wandschlitze stecken (Kopf innen) und in der Wand verleimen – der Riegel darf nicht mit verleimt werden.
+
+**Mit zweiter Lage** (wie in vielen Vorlagen): Der Riegel liegt zwischen der Vorderwand und einer gleich großen
+**inneren Lage** – geführt auf beiden Seiten, nichts muss geleimt werden. Die innere Lage bekommt für den
+breiteren Kopf der Halter längere Schlitze, in denen er bündig steckt (Kopflänge = Stärke der inneren Lage).
+Entweder die innere Lage als drittes Teil mit auswählen, oder *Innere Lage als Kopie der Wand erzeugen*
+ankreuzen – dann legt TiLaser eine Kopie der Wand (*Name* + „innen“) mit den Kopfschlitzen unter die Teile.
+
+| Einstellung | Wirkung |
+|---|---|
+| Deckel ist | Welches der beiden Teile der Deckel ist; das andere ist die Vorderwand |
+| Materialstärke | Dicke von Riegel und Haltern (Breite der Schlitze) |
+| Deckelstärke | Der Hakenschaft ist Deckelstärke + Spiel lang, die Nase liegt dann auf dem Deckel |
+| Wandstärke | So weit hinter der Deckelkante liegen die Hakenschlitze (der Riegel sitzt direkt hinter der Wand) |
+| Länge des Riegels | Der Riegel sitzt mittig auf der Kante |
+| Anzahl Haken | Gleichmäßig auf dem Riegel verteilt |
+| Breite des Hakenschafts | Breite der Haken im Deckelschlitz |
+| Hakenüberstand | So weit greift die Nase über den Deckel – und so weit muss der Riegel beim Einrasten ausweichen |
+| Hakenkopf über dem Deckel | So weit steht der Kopf mindestens oben über; daran schiebt man zum Öffnen. Bei steiler Schräge wird er höher |
+| Neigung der Schräge an der Nase | Winkel der Schräge zur Deckelfläche (Standard 60°). Steiler = die Schlitzkante drückt den Haken beim Aufsetzen des Deckels leichter zur Seite; die Nasenspitze und der Kopf sind verrundet. Die Schräge reicht immer bis über den Schaft, damit die Kante sicher auf ihr landet |
+| Schenkel der Feder | Ungerade Anzahl; mehr Schenkel = weichere Feder, längerer Riegel nötig |
+| Stegbreite der Feder / Schlitz | Breite des Federstegs und Abstand der Schenkel |
+| Höhe der Halter | Höhe der Halter und damit der Öse und des Riegels |
+| Innere Lage | Riegel zwischen Wand und innerer Lage; die innere Lage bekommt längere Schlitze für die Köpfe der Halter. Ist ein drittes Teil ausgewählt, ist das die innere Lage (gleiche Größe wie die Wand, gemessen von links oben), sonst wird eine Kopie der Wand erzeugt |
+| Stärke der inneren Lage | Länge des Halterkopfs |
+| Rand des Riegels | Material um Fenster und Langloch |
+| Spiel | Luft in den Schlitzen, in Öse und Langloch |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+
 <!-- hilfe: nummerieren -->
 ### Teile nummerieren
 
@@ -1534,6 +1631,8 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
 | Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
 | Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
+| Federverschluss an Kante… | | Schnappverschluss für einen Deckel: Zunge an einer Mäanderfeder, Aussparung mit Schulter ([Federverschluss an Kante](#federverschluss-an-kante)) |
+| Federriegel mit Haken… | | Riegel hinter der Vorderwand, Haken durch den Deckel, Mäanderfeder ([Federriegel mit Haken](#federriegel-mit-haken)) |
 | Teile nummerieren… | | Teile durchnummerieren und Nummer eingravieren, gleiche Teile gleiche Nummer ([Teile nummerieren](#teile-nummerieren)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 

@@ -1,6 +1,7 @@
 """Headless-Tests für den Kern (ohne GUI, ohne Laser).  Start:  python -m pytest tests  oder  python tests/test_core.py"""
 import base64
 import io
+import math
 import os
 import sys
 import tempfile
@@ -2358,6 +2359,83 @@ def test_group_parts_nested_and_fast():
     parts = g.group_parts(many)
     assert len(parts) == 900 and all(len(p) == 3 and p[0] % 3 == 0 for p in parts)
     assert time.time() - t0 < 5
+
+
+def test_spring_latch():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import LatchSpec, latch_spring_line, spring_latch
+    A = [np.array([[0, 0], [100, 0], [100, 60], [0, 60]], float)]              # Vorderwand Deckel (Feder)
+    B = [np.array([[100, 0], [0, 0], [0, -40], [100, -40]], float)]            # Vorderwand Box
+    spec = LatchSpec()
+    ra, rb, n, d = spring_latch(A, B, spec)
+    assert n == 1 and len(ra) == 1 and len(rb) == 1
+    area = lambda r: 0.5 * abs(np.dot(r[:, 0], np.roll(r[:, 1], -1)) - np.dot(r[:, 1], np.roll(r[:, 0], -1)))
+    assert area(ra[0]) < 6000 and area(rb[0]) < 4000                           # Fenster bzw. Aussparung
+    # Zunge mit Haken ragt in B, Aussparung in B ist größer als die Zunge (Spiel), keine Überlappung
+    assert ra[0][:, 1].min() < -d["depth"] + 1e-6 and rb[0][:, 1].max() <= 1e-9
+    low = ra[0][ra[0][:, 1] < -0.5]
+    probe = np.array([[(low[:, 0].min() + low[:, 0].max()) / 2, -d["depth"] / 2]])
+    assert inside(probe, ra)[0] and not inside(probe, rb)[0]
+    # Feder: 3 Schenkel, runde Wendungen; Mittellinie endet an der Drucktaste
+    line = latch_spring_line(spec)
+    assert abs(line[0, 1] - d["top"]) < 1e-9 and abs(line[-1, 1] - d["yt"]) < 1e-9
+    assert len(line) > 20
+    # Drucktaste breiter als der Durchlass (liegt beim Ziehen auf dem Steg auf)
+    assert d["wb2"] > d["w2"] + spec.catch + spec.clearance
+    # zwei Verschlüsse, gerade Schenkelzahl abgelehnt, zu kurze Kante abgelehnt
+    assert spring_latch(A, B, LatchSpec(count=2, inset=5))[2] == 2
+    for bad in (LatchSpec(legs=4), LatchSpec(count=4, inset=20)):
+        try:
+            spring_latch(A, B, bad)
+            raise AssertionError("ValueError erwartet")
+        except ValueError:
+            pass
+
+
+def test_slider_latch():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import SliderLatchSpec, slider_latch, slider_plate, slider_spring_line
+    L = [np.array([[0, 0], [120, 0], [120, 70], [0, 70]], float)]               # Deckel
+    W = [np.array([[120, 0], [0, 0], [0, -40], [120, -40]], float)]             # Vorderwand
+    spec = SliderLatchSpec()
+    lid_slots, wall_slots, plate, keys, d = slider_latch(L, W, spec)
+    assert len(lid_slots) == 2 and len(wall_slots) == 2 and len(plate) == 4 and len(keys) == 2
+    # Hakenschlitze eine Wandstärke hinter der Deckelkante, Halterschlitze in der Wand auf Höhe der Öse
+    assert all(abs(r[:, 1].min() - (spec.wall - spec.clearance / 2)) < 1e-9 for r in lid_slots)
+    assert all(abs(r[:, 1].mean() - d["key_y"]) < 1e-9 for r in wall_slots)
+    # Riegel: Haken oben, Fenster, Öse und Langloch liegen im Riegel; Halter sitzt in der Öse
+    pl, hx = slider_plate(spec)
+    assert pl[0][:, 1].max() > spec.lid + spec.clearance and len(hx) == 2
+    for r in pl[1:]:
+        assert inside(r, [pl[0]]).all()
+    assert inside(np.array([[d["key_a"], d["key_y"]]]), [pl[2]])[0]
+    line = slider_spring_line(spec)
+    assert abs(line[-1, 1] - d["win_bot"]) < 1e-9 and abs(line[0, 0] - d["ring_r"]) < 1e-9
+    # Hakennase: Schräge im eingestellten Winkel, reicht über die Schaftkante, Rastfläche auf Deckelhöhe
+    from tilaser.core.joints import hook_profile
+    for ang in (45.0, 60.0, 75.0):
+        pr = np.array(hook_profile(0.0, SliderLatchSpec(ramp_angle=ang)))
+        y1 = spec.lid + spec.clearance
+        assert np.isclose(pr[1, 1], y1) and pr[:, 0].max() <= spec.hook_width + spec.catch + 1e-9
+        seg = np.diff(pr, axis=0)
+        slopes = [math.degrees(math.atan2(dy, -dx)) for dx, dy in seg if dx < -0.05 and dy > 0.05]
+        assert any(abs(s_ - ang) < 0.5 for s_ in slopes)
+    # Langloch erlaubt genau den Federweg
+    assert abs(np.ptp(pl[3][:, 0]) - (d["hole_w"] + d["travel"])) < 1e-9
+    assert d["head_slots"] == [] and abs(np.ptp(keys[0][:, 0]) - (spec.wall + spec.thickness + spec.clearance + 3)) < 1e-9
+    # mit innerer Lage: Kopf so lang wie die Lage dick, Kopfschlitze höher als die Halterschlitze, gleiche Mitte
+    sp2 = SliderLatchSpec(inner=4.0)
+    _, ws2, _, k2, d2 = slider_latch(L, W, sp2)
+    assert abs(np.ptp(k2[0][:, 0]) - (sp2.wall + sp2.thickness + sp2.clearance + 4)) < 1e-9
+    assert len(d2["head_slots"]) == 2
+    for hs, s_ in zip(d2["head_slots"], ws2):
+        assert np.ptp(hs[:, 1]) > np.ptp(s_[:, 1]) + 3.9 and np.allclose(hs.mean(0), s_.mean(0))
+    for bad in (SliderLatchSpec(legs=4), SliderLatchSpec(length=40)):
+        try:
+            slider_latch(L, W, bad)
+            raise AssertionError("ValueError erwartet")
+        except ValueError:
+            pass
 
 if __name__ == "__main__":
     import inspect

@@ -701,3 +701,399 @@ def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
     pins = [np.array([[0, 0], [span + 2 * t, 0], [span + 2 * t, t], [0, t]], float)
             for _ in starts] if spec.pin <= 0 else []
     return slots_a, slots_b, plates, pins, e.length
+
+
+# ---------------------------------------------------------------- Federverschluss (Mäanderfeder)
+#
+# Zwei Teile liegen Kante an Kante, z. B. die Vorderwand der Box und die Vorderwand des (mit Scharnier
+# beweglichen) Deckels. In Teil A (Federteil) wird nahe der Kante ein Fenster geschnitten. Darin hängt an einer
+# S- bzw. Mäanderfeder eine Zunge, die durch einen schmalen Durchlass über die Kante in Teil B ragt. Ihr Haken
+# rastet dort hinter einer Schulter ein. Beim Schließen drückt die Schräge des Hakens die Zunge zur Seite –
+# die Feder biegt sich, schnappt zurück und hält. Zum Öffnen die Zunge (Drucktaste im Fenster) zur Seite
+# schieben. Die Mäanderform verteilt die Biegung auf mehrere Schenkel: viel Federweg auf engem Raum, ohne dass
+# das Holz an einer Stelle zu stark gebogen wird. Die Drucktaste ist breiter als der Durchlass im Steg: Zieht
+# man am geschlossenen Deckel, liegt sie auf dem Steg auf – die Kraft geht nicht durch die Feder.
+
+@dataclass
+class LatchSpec:
+    width: float = 6.0          # Breite der Zunge
+    catch: float = 1.2          # Hakenüberstand = Federweg beim Einrasten
+    hold: float = 3.0           # Materialsteg von Teil B über dem Haken (Schulter)
+    legs: int = 3               # Schenkel der Feder (ungerade; 3 = S-Form)
+    leg_length: float = 15.0    # Länge eines Schenkels
+    bar: float = 1.5            # Stegbreite der Feder
+    gap: float = 1.2            # Schlitz zwischen den Schenkeln und zum Fensterrand
+    button: float = 8.0         # Länge der Drucktaste (Zunge innerhalb des Fensters)
+    grip: float = 6.0           # Platz neben der Drucktaste zum Drücken (Finger, Stift)
+    frame: float = 3.0          # Steg zwischen Fenster und Kante
+    clearance: float = 0.15     # Spiel im Durchlass und in der Aussparung
+    count: int = 1              # Anzahl Verschlüsse auf der Kante
+    inset: float = 15.0         # Abstand der äußeren Verschlüsse vom Ende der Kante (ab 2 Verschlüssen)
+
+
+def _offset_polyline(pts: np.ndarray, r: float) -> np.ndarray:
+    """Parallele im Abstand r (links positiv) zu einem Linienzug, mit Gehrung an den Ecken."""
+    d = np.diff(pts, axis=0)
+    d /= np.hypot(d[:, 0], d[:, 1])[:, None]
+    nrm = np.c_[-d[:, 1], d[:, 0]]
+    out = [pts[0] + r * nrm[0]]
+    for i in range(1, len(pts) - 1):
+        m = nrm[i - 1] + nrm[i]
+        out.append(pts[i] + r * m / (1 + nrm[i - 1] @ nrm[i]))
+    out.append(pts[-1] + r * nrm[-1])
+    return np.array(out)
+
+
+def latch_dims(spec: LatchSpec) -> dict:
+    """Maße des Verschlusses im Kantensystem (x entlang der Kante, Zungenmitte = 0; y > 0 in Teil A)."""
+    k, b, gp, c = spec.legs, spec.bar, spec.gap, spec.clearance
+    r, w2 = b / 2, spec.width / 2
+    pitch = b + gp
+    ramp = max(1.5, 2.5 * spec.catch)                 # Schräge zum Einführen (etwa 22°)
+    flat = max(1.0, spec.catch)
+    y_sh = -(spec.hold + c)                           # Oberseite des Hakens
+    depth = -y_sh + flat + ramp                       # so weit ragt die Zunge in Teil B
+    yt = spec.frame + spec.button                     # Oberkante der Drucktaste
+    ybot = yt + gp + r + pitch / 2                    # Mittelpunkte der unteren Wendungen (Halbkreise)
+    ytop = ybot + spec.leg_length                     # Mittelpunkte der oberen Wendungen
+    top = ytop + pitch / 2 + r + gp                   # Oberkante des Fensters
+    x0 = -(k - 1) * pitch                             # erster Schenkel (hängt oben am Fensterrand)
+    wb2 = w2 + spec.catch + c + 1.5                   # Drucktaste breiter als der Durchlass: liegt beim Ziehen auf
+    yb = spec.frame + c                               # Unterkante der Drucktaste (knapp über dem Steg)
+    xl = min(x0 - r, -wb2) - gp - spec.catch
+    xr = max(r, wb2) + spec.grip
+    return dict(r=r, w2=w2, wb2=wb2, yb=yb, pitch=pitch, ramp=ramp, flat=flat, y_sh=y_sh, depth=depth, yt=yt, ybot=ybot,
+                ytop=ytop, top=top, x0=x0, xl=xl, xr=xr)
+
+
+def latch_spring_line(spec: LatchSpec, step_deg: float = 15.0) -> np.ndarray:
+    """Mittellinie der Mäanderfeder vom Fensterrand oben bis zur Drucktaste.
+
+    Gerade Schenkel, an den Wendungen Halbkreise – ohne scharfe Innenecken verteilt sich die Biegespannung,
+    das Holz reißt dort nicht ein."""
+    d = latch_dims(spec)
+    k, R = spec.legs, d["pitch"] / 2
+    xs = [d["x0"] + i * d["pitch"] for i in range(k)]
+    pts = [(xs[0], d["top"])]
+    m = max(2, int(math.ceil(180 / step_deg)))
+    for i in range(k):
+        if i == k - 1:
+            pts.append((xs[i], d["yt"]))
+            break
+        cx = (xs[i] + xs[i + 1]) / 2
+        if i % 2 == 0:                                  # unten wenden: von links unten herum nach rechts
+            cy, angs = d["ybot"], np.linspace(math.pi, 2 * math.pi, m + 1)
+        else:                                           # oben wenden
+            cy, angs = d["ytop"], np.linspace(math.pi, 0, m + 1)
+        pts += [(cx + R * math.cos(a), cy + R * math.sin(a)) for a in angs]
+    return np.array(pts, float)
+
+
+def latch_profiles(spec: LatchSpec):
+    """Konturstücke (x, y) für Teil A (Fenster, Feder, Zunge) und Teil B (Aussparung mit Schulter).
+
+    Beide verlaufen von links nach rechts und beginnen/enden auf der Kante (y = 0); Material von A liegt
+    in Laufrichtung links, das von B rechts."""
+    d = latch_dims(spec)
+    c, f, catch = spec.clearance, spec.frame, spec.catch
+    w2, r = d["w2"], d["r"]
+    ol, orr = -w2 - catch - c, w2 + c                 # Durchlass im Steg bzw. Eingang der Aussparung
+    line = latch_spring_line(spec)
+    side1 = _offset_polyline(line, -r)               # Feder liegt beim Hinunterlaufen links
+    side2 = _offset_polyline(line, +r)[::-1]
+    yt, depth, y_sh = d["yt"], d["depth"], d["y_sh"]
+    wb2, yb = d["wb2"], d["yb"]
+    tongue = [(-wb2, yt), (-wb2, yb), (-w2, yb), (-w2, -depth), (w2, -depth), (w2 + catch, -depth + d["ramp"]),
+              (w2 + catch, y_sh), (w2, y_sh), (w2, yb), (wb2, yb), (wb2, yt)]
+    a = ([(ol, 0.0), (ol, f), (d["xl"], f), (d["xl"], d["top"])] + [tuple(p) for p in side1] + tongue
+         + [tuple(p) for p in side2] + [(d["xr"], d["top"]), (d["xr"], f), (orr, f), (orr, 0.0)])
+    b = [(ol, 0.0), (ol, -depth - c), (w2 + catch + c, -depth - c), (w2 + catch + c, y_sh + c), (orr, y_sh + c),
+         (orr, 0.0)]
+    return np.array(a, float), np.array(b, float)
+
+
+def spring_latch(rings_a, rings_b, spec: LatchSpec, tol: float = 0.5):
+    """Federverschluss an der längsten gemeinsamen Kante: Teil A bekommt Fenster, Mäanderfeder und Zunge,
+    Teil B die Aussparung mit Schulter. Gibt (Ringe A, Ringe B, Anzahl Verschlüsse, Maße) zurück."""
+    if spec.legs < 1 or spec.legs % 2 == 0:
+        raise ValueError("Die Feder braucht eine ungerade Anzahl Schenkel (1, 3 = S-Form, 5, 7 …).")
+    if min(spec.width, spec.bar, spec.gap, spec.catch, spec.hold, spec.frame, spec.button,
+           spec.leg_length) <= 0:
+        raise ValueError("Alle Maße müssen größer als 0 sein.")
+    if spec.width <= spec.bar:
+        raise ValueError("Die Zunge muss breiter sein als der Federsteg.")
+    if spec.clearance >= spec.catch:
+        raise ValueError("Das Spiel muss kleiner sein als der Hakenüberstand, sonst rastet nichts ein.")
+    d = latch_dims(spec)
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    span = d["xr"] - d["xl"]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=span + 2)
+    if not edges:
+        raise ValueError(f"Keine gemeinsame Kante gefunden, die lang genug für den Verschluss ist (mindestens "
+                         f"{span + 2:.0f} mm). Die beiden Teile Kante an Kante legen (z. B. mit Anordnen → Kanten "
+                         "aneinanderlegen).")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    v = _material_normal(ra, e.p0, e.p1)               # in Teil A hinein
+    n = max(1, spec.count)
+    mid = -(d["xl"] + d["xr"]) / 2                     # Zungenmitte relativ zur Mitte des Fensters
+    if n >= 2:
+        first, last = spec.inset + span / 2, e.length - spec.inset - span / 2
+        if last - first < (n - 1) * (span + 2):
+            raise ValueError(f"Die Kante ist zu kurz für {n} Verschlüsse – weniger Verschlüsse wählen oder den "
+                             "Abstand vom Rand verkleinern.")
+        centers = [first + (last - first) * j / (n - 1) + mid for j in range(n)]
+    else:
+        centers = [e.length / 2 + mid]
+    pa, pb = latch_profiles(spec)
+
+    def world(prof, sc):
+        return np.array([e.p0 + u * (sc + x) + v * y for x, y in prof])
+    for sc in centers:
+        win = world([(d["xl"], spec.frame), (d["xr"], spec.frame), (d["xr"], d["top"]), (d["xl"], d["top"])], sc)
+        if not inside(win, ra).all():
+            raise ValueError(f"Das Fenster für die Feder ({span:.0f} × {d['top']:.0f} mm) passt nicht in Teil A – "
+                             "kürzere Schenkel oder weniger Schenkel wählen.")
+        notch = world([(pb[1][0], pb[1][1]), (pb[2][0], pb[2][1]), (pb[2][0] + 1, pb[2][1])], sc)
+        if not inside(notch, rb).all():
+            raise ValueError(f"Teil B ist an der Kante zu schmal – die Zunge ragt {d['depth'] + spec.clearance:.1f} mm "
+                             "hinein.")
+    pts_a = [e.p0] + [p for sc in centers for p in world(pa, sc)] + [e.p1]
+    pts_b = [e.p0] + [p for sc in centers for p in world(pb, sc)] + [e.p1]
+    ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array(pts_a))
+    rb[e.rb] = _insert_points(rb[e.rb], e.kb, np.array(pts_b))
+    return ra, rb, n, d
+
+
+# ---------------------------------------------------------------- Federriegel (Haken durch den Deckel)
+#
+# Nach dem Vorbild der „box with living hinge and spring catch“: Hinter der Vorderwand (innen) liegt ein Riegel,
+# eine schmale Platte, deren Haken oben durch Schlitze im Deckel greifen. Zwei T-förmige Halter stecken durch
+# den Riegel und sind in Schlitze der Vorderwand geleimt. Der eine Halter sitzt in einer Öse am Ende einer
+# langen Mäanderfeder, der andere in einem Langloch. So kann der Riegel seitlich gleiten und wird von der Feder
+# zurückgeschoben. Beim Schließen drücken die Schlitzkanten des Deckels die Schrägen der Haken zur Seite; der
+# Riegel weicht aus, schnappt zurück und die Haken liegen auf dem Deckel. Zum Öffnen die Hakenköpfe, die oben
+# aus dem Deckel ragen, zur Seite schieben. Wie in der Vorlage kann der Riegel auch zwischen zwei Lagen liegen
+# (Wand und innere Lage, z. B. zwei gleiche Platten); der Kopf der Halter steckt dann bündig in einem längeren
+# Schlitz der inneren Lage.
+
+@dataclass
+class SliderLatchSpec:
+    thickness: float = 3.0      # Materialstärke von Riegel und Haltern
+    lid: float = 3.0            # Deckelstärke (Hakenschaft = Deckelstärke + Spiel)
+    wall: float = 3.0           # Wandstärke: so weit liegt der Riegel hinter der Deckelkante
+    length: float = 80.0        # Länge des Riegels
+    hooks: int = 2              # Anzahl Haken
+    hook_width: float = 6.0     # Breite des Hakenschafts
+    catch: float = 1.5          # Hakenüberstand = Federweg
+    head: float = 3.5           # so weit steht der Hakenkopf mindestens über dem Deckel
+    ramp_angle: float = 60.0    # Neigung der Schräge an der Hakennase gegen die Deckelfläche (steiler = leichter)
+    legs: int = 9               # Schenkel der Feder (ungerade)
+    bar: float = 1.5            # Stegbreite der Feder
+    gap: float = 1.2            # Schlitz zwischen den Schenkeln
+    key: float = 8.0            # Höhe der Halter
+    inner: float = 0.0          # Stärke einer inneren Lage (zweiter Boden); 0 = keine, Riegel liegt innen frei
+    margin: float = 4.0         # Rand des Riegels um Fenster und Langloch
+    clearance: float = 0.15     # Spiel
+
+
+def slider_dims(spec: SliderLatchSpec) -> dict:
+    """Maße des Riegels (x entlang, y = 0 Oberkante, nach unten negativ)."""
+    t, c, gp, k = spec.thickness, spec.clearance, spec.gap, spec.legs
+    r, pitch = spec.bar / 2, spec.bar + gp
+    R = pitch / 2
+    travel = spec.catch + c
+    hole_w, hole_h = t + c, spec.key + c
+    rw = max(2.0, spec.bar + 0.5)                      # Wand der Öse
+    ring_w, ring_h = hole_w + 2 * rw, hole_h + 2 * rw
+    m = spec.margin
+    # Fenster-Koordinaten: y_s = Oberkante der Feder (Mittellinie)
+    y_s = -m - gp - r
+    ring_top, ring_bot = y_s + r, y_s + r - ring_h
+    ring_l = m + gp
+    ring_r = ring_l + ring_w
+    x0 = ring_r + r + gp + travel                      # erster Schenkel
+    ytop = y_s - R
+    ybot = ring_bot + R + r
+    win_top, win_bot = -m, min(ybot - R - r - gp, ring_bot - gp)
+    xs = [x0 + i * pitch for i in range(k)]
+    win_l, win_r = m, xs[-1] + r + gp
+    height = -win_bot + m
+    key_a = (ring_l + ring_r) / 2                     # Halter in der Öse
+    slot_l = win_r + m                                # Langloch für den zweiten Halter
+    key_b = max(slot_l + hole_w / 2, spec.length - m - hole_w / 2 - travel)
+    key_y = (ring_top + ring_bot) / 2
+    return dict(r=r, pitch=pitch, R=R, travel=travel, hole_w=hole_w, hole_h=hole_h, ring_l=ring_l, ring_r=ring_r,
+                ring_top=ring_top, ring_bot=ring_bot, y_s=y_s, ytop=ytop, ybot=ybot, xs=xs, win_l=win_l,
+                win_r=win_r, win_top=win_top, win_bot=win_bot, height=height, key_a=key_a, key_b=key_b, key_y=key_y,
+                min_length=slot_l + hole_w + travel + m)
+
+
+def slider_spring_line(spec: SliderLatchSpec, step_deg: float = 15.0) -> np.ndarray:
+    """Mittellinie der Feder: von der Öse waagerecht, Viertelbogen, dann Schenkel mit Halbkreis-Wendungen;
+    der letzte Schenkel endet unten am Fensterrand."""
+    d = slider_dims(spec)
+    R, xs = d["R"], d["xs"]
+    m = max(2, int(math.ceil(180 / step_deg)))
+    pts = [(d["ring_r"], d["y_s"])]
+    pts += [(xs[0] - R + R * math.cos(a), d["ytop"] + R * math.sin(a)) for a in np.linspace(math.pi / 2, 0, m // 2 + 1)]
+    for i in range(len(xs)):
+        if i == len(xs) - 1:
+            pts.append((xs[i], d["win_bot"]))
+            break
+        cx = (xs[i] + xs[i + 1]) / 2
+        if i % 2 == 0:
+            pts += [(cx + R * math.cos(a), d["ybot"] + R * math.sin(a)) for a in np.linspace(math.pi, 2 * math.pi, m + 1)]
+        else:
+            pts += [(cx + R * math.cos(a), d["ytop"] + R * math.sin(a)) for a in np.linspace(math.pi, 0, m + 1)]
+    return np.array(pts, float)
+
+
+def _fillet(p_prev, p, p_next, radius: float, step_deg: float = 10.0) -> list[tuple[float, float]]:
+    """Ecke p (zwischen p_prev und p_next) durch einen Bogen mit Radius radius ersetzen."""
+    p_prev, p, p_next = (np.asarray(q, float) for q in (p_prev, p, p_next))
+    a = (p - p_prev) / np.hypot(*(p - p_prev))
+    b = (p_next - p) / np.hypot(*(p_next - p))
+    phi = math.acos(float(np.clip(-a @ b, -1, 1)))          # Innenwinkel
+    if phi < 1e-6 or phi > math.pi - 1e-6:
+        return [tuple(p)]
+    t = min(radius / math.tan(phi / 2), 0.45 * np.hypot(*(p - p_prev)), 0.45 * np.hypot(*(p_next - p)))
+    r = t * math.tan(phi / 2)
+    s, e = p - a * t, p + b * t
+    bis = (b - a) / np.hypot(*(b - a))
+    c = p + bis * (r / math.sin(phi / 2))
+    a0, a1 = math.atan2(*(s - c)[::-1]), math.atan2(*(e - c)[::-1])
+    da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+    m = max(2, int(abs(math.degrees(da)) / step_deg) + 1)
+    return [(c[0] + r * math.cos(a0 + da * i / m), c[1] + r * math.sin(a0 + da * i / m)) for i in range(m + 1)]
+
+
+def hook_profile(x: float, spec: SliderLatchSpec, step_deg: float = 10.0) -> list[tuple[float, float]]:
+    """Haken auf der Riegeloberkante (y = 0), von rechts nach links: Schaft, waagerechte Rastfläche (liegt auf dem
+    Deckel), runde Nasenspitze, steile Schräge nach links oben, verrundeter Kopf.
+
+    Die Schräge steht im Winkel ``ramp_angle`` zur Deckelfläche und reicht bis über die Schaftkante – die
+    Schlitzkante des Deckels trifft beim Aufschieben immer auf die Schräge und drückt den Haken zur Seite."""
+    c, ws, n = spec.clearance, spec.hook_width, spec.catch
+    y1 = spec.lid + c
+    xt = x + ws + n                                    # Nasenspitze
+    rt = min(0.6, n / 2)
+    al = math.radians(min(80.0, max(20.0, spec.ramp_angle)))
+    th = math.pi / 2 - al                              # Übergang Bogen -> Schräge
+    cx, cy = xt - rt, y1 + rt
+    m = max(3, int(math.degrees(th + math.pi / 2) / step_deg))
+    tip = [(cx + rt * math.cos(-math.pi / 2 + (th + math.pi / 2) * i / m),
+            cy + rt * math.sin(-math.pi / 2 + (th + math.pi / 2) * i / m)) for i in range(m + 1)]
+    sx, sy = tip[-1]
+    reach = sx - (x + ws - 0.5)                        # Schräge reicht etwas über die Schaftkante nach links
+    top = max(y1 + spec.head, sy + reach * math.tan(al))
+    crest = (sx - (top - sy) / math.tan(al), top)
+    rc = min(1.0, 0.3 * ws)
+    head = _fillet(tip[-1], crest, (x, top), rc, step_deg)
+    left = _fillet(head[-1], (x, top), (x, 0.0), min(0.8, 0.2 * ws), step_deg)
+    return [(x + ws, 0.0), (x + ws, y1)] + tip + head + left + [(x, 0.0)]
+
+
+def slider_plate(spec: SliderLatchSpec) -> tuple[list[np.ndarray], list[float]]:
+    """Riegel als Ringe (Außenkontur mit Haken, Fenster mit Feder und Öse, Loch der Öse, Langloch).
+
+    Gibt außerdem die x-Positionen der Hakenschäfte (linke Kante) zurück."""
+    d = slider_dims(spec)
+    L, ws, n = spec.length, spec.hook_width, spec.catch
+    k = max(1, spec.hooks)
+    inset = spec.margin + 2
+    span = L - 2 * inset - ws - n
+    hx = [inset + span * (i / (k - 1) if k > 1 else 0.5) for i in range(k)]
+    outer = [(0.0, -d["height"]), (L, -d["height"])]
+    for x in reversed(hx):                             # Oberkante von rechts nach links
+        outer += hook_profile(x, spec)
+    outer = [(0.0, -d["height"]), (L, -d["height"]), (L, 0.0)] + outer[2:] + [(0.0, 0.0)]
+    # Fenster: rechts vom letzten Schenkel um das Fenster herum, an der Feder entlang zur Öse, um die Öse, zurück
+    line = slider_spring_line(spec)
+    lo = _offset_polyline(line, -spec.bar / 2)        # untere/linke Seite
+    hi = _offset_polyline(line, +spec.bar / 2)
+    xs = d["xs"]
+    r = d["r"]
+    win = ([(xs[-1] + r, d["win_bot"]), (d["win_r"], d["win_bot"]), (d["win_r"], d["win_top"]),
+            (d["win_l"], d["win_top"]), (d["win_l"], d["win_bot"]), (xs[-1] - r, d["win_bot"])]
+           + [tuple(p) for p in lo[::-1][1:]]
+           + [(d["ring_r"], d["ring_bot"]), (d["ring_l"], d["ring_bot"]), (d["ring_l"], d["ring_top"])]
+           + [tuple(p) for p in hi[:-1]])
+    hw, hh = d["hole_w"] / 2, d["hole_h"] / 2
+    ka, kb, ky = d["key_a"], d["key_b"], d["key_y"]
+    hole = [(ka - hw, ky - hh), (ka + hw, ky - hh), (ka + hw, ky + hh), (ka - hw, ky + hh)]
+    slot = [(kb - hw, ky - hh), (kb + hw + d["travel"], ky - hh), (kb + hw + d["travel"], ky + hh), (kb - hw, ky + hh)]
+    rings = [np.array(p, float) for p in (outer, win, hole, slot)]
+    return [_cleanup(r_) for r_ in rings], hx
+
+
+KEY_HEAD = 2.0                  # so weit ist der Kopf des Halters oben und unten breiter als der Schaft
+
+
+def slider_key(spec: SliderLatchSpec) -> np.ndarray:
+    """T-förmiger Halter: Schaft durch Wand und Riegel, Kopf hält den Riegel an der Wand. Mit innerer Lage ist
+    der Kopf so lang wie diese dick ist und steckt bündig in ihrem Schlitz."""
+    ls = spec.wall + spec.thickness + spec.clearance
+    h, e = spec.key, KEY_HEAD
+    hl = spec.inner if spec.inner > 0 else 3.0
+    return np.array([(0, 0), (ls, 0), (ls, -e), (ls + hl, -e), (ls + hl, h + e), (ls, h + e), (ls, h), (0, h)], float)
+
+
+def slider_latch(rings_lid, rings_wall, spec: SliderLatchSpec, tol: float = 0.5):
+    """Federriegel an der gemeinsamen Kante von Deckel und Vorderwand (wie bei geschlossenem Deckel Kante an
+    Kante gelegt). Gibt (Schlitze im Deckel, Schlitze in der Wand, Riegel-Ringe in Weltlage, Halter, Maße)
+    zurück; der Riegel liegt dabei noch auf der Wand und muss neben die Teile verschoben werden."""
+    if spec.legs < 1 or spec.legs % 2 == 0:
+        raise ValueError("Die Feder braucht eine ungerade Anzahl Schenkel (1, 3, 5, 7 …).")
+    if min(spec.thickness, spec.lid, spec.hook_width, spec.catch, spec.head, spec.bar, spec.gap, spec.key,
+           spec.margin) <= 0:
+        raise ValueError("Alle Maße müssen größer als 0 sein.")
+    if spec.clearance >= spec.catch:
+        raise ValueError("Das Spiel muss kleiner sein als der Hakenüberstand, sonst rastet nichts ein.")
+    d = slider_dims(spec)
+    if spec.length < d["min_length"]:
+        raise ValueError(f"Der Riegel ist zu kurz für Feder und Langloch – mindestens {d['min_length']:.0f} mm oder "
+                         "weniger Schenkel.")
+    k = max(1, spec.hooks)
+    if k * (spec.hook_width + spec.catch + 3) > spec.length - 2 * spec.margin:
+        raise ValueError("Die Haken passen nicht auf den Riegel – weniger oder schmalere Haken wählen.")
+    rl = [np.asarray(r, float) for r in rings_lid]
+    rw = [np.asarray(r, float) for r in rings_wall]
+    edges = find_shared_edges(rl, rw, tol=tol, min_len=spec.length + 2)
+    if not edges:
+        raise ValueError(f"Keine gemeinsame Kante gefunden, die lang genug für den Riegel ist ({spec.length:.0f} mm). "
+                         "Deckel und Vorderwand Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen) "
+                         "oder den Riegel kürzer machen.")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    nl = _material_normal(rl, e.p0, e.p1)              # in den Deckel
+    nw = _material_normal(rw, e.p0, e.p1)              # in die Wand
+    s0 = (e.length - spec.length) / 2
+    c, t, ws, n = spec.clearance, spec.thickness, spec.hook_width, spec.catch
+    plate, hx = slider_plate(spec)
+
+    def on_wall(pts):                                  # Riegelkoordinaten -> Welt (Riegel liegt auf der Wand)
+        return np.array([e.p0 + u * (s0 + x) - nw * y for x, y in pts])
+    lid_slots = []
+    for x in hx:
+        xa, xb = s0 + x - n - 1.5 * c, s0 + x + ws + c / 2
+        ya, yb = spec.wall - c / 2, spec.wall + t + c / 2
+        lid_slots.append(np.array([e.p0 + u * xx + nl * yy for xx, yy in ((xa, ya), (xb, ya), (xb, yb), (xa, yb))]))
+    hw, hh = d["hole_w"] / 2, d["hole_h"] / 2
+    wall_slots = [on_wall([(kx - hw, d["key_y"] - hh), (kx + hw, d["key_y"] - hh), (kx + hw, d["key_y"] + hh),
+                           (kx - hw, d["key_y"] + hh)]) for kx in (d["key_a"], d["key_b"])]
+    for s_ in lid_slots:
+        if not inside(s_, rl).all():
+            raise ValueError("Die Schlitze für die Haken passen nicht in den Deckel – Wandstärke prüfen.")
+    for s_ in wall_slots:
+        if not inside(s_, rw).all():
+            raise ValueError("Die Schlitze für die Halter passen nicht in die Vorderwand – die Wand ist zu niedrig.")
+    plate_world = [on_wall(r_) for r_ in plate]
+    keys = [slider_key(spec), slider_key(spec)]
+    # Schlitze für die Köpfe in der inneren Lage – in Wandkoordinaten (die innere Lage ist so groß wie die Wand)
+    he = KEY_HEAD + spec.clearance / 2
+    d["head_slots"] = [on_wall([(kx - hw, d["key_y"] - hh - he), (kx + hw, d["key_y"] - hh - he),
+                                (kx + hw, d["key_y"] + hh + he), (kx - hw, d["key_y"] + hh + he)])
+                       for kx in (d["key_a"], d["key_b"])] if spec.inner > 0 else []
+    return lid_slots, wall_slots, plate_world, keys, d

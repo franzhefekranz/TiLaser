@@ -771,6 +771,101 @@ are placed next to the parts separately for each part (*Knuckles* + part name).
 | Clearance | Play in the hole around the pin and in the slots around the tabs |
 | Tolerance | How far apart the edges may be and still count as “touching” |
 
+<!-- hilfe: federverschluss -->
+### Spring latch on edge
+
+*Tools → Spring latch on edge…* builds a **snap latch made only from the material** – e.g. for the lid of a
+box with a [knuckle hinge](#knuckle-hinge-on-edge), on the side opposite the hinge. It is meant for two parts
+that meet **in one plane** when the lid is closed, typically the **front wall of the box and the front wall of
+the lid**.
+
+One part gets a **window** near the edge. In it, a **tongue** hangs on a **meander spring** (S shape: a narrow
+bar in tight loops) and reaches through an opening across the edge into a **recess** in the other part. Its
+hook snaps in behind a shoulder there. When closing, the bevel of the hook pushes the tongue aside, the spring
+bends and snaps back. To **open**, push the button in the window aside with a finger or a pen. Because the
+bending is spread over several legs with round turns, the spring gets a lot of travel in a small space
+without the wood breaking at one spot. The button is wider than the opening: if you pull on the closed lid,
+it rests on the bar – the force does not go through the spring.
+
+1. Lay both parts as they meet with the lid closed: **edge to edge** (easiest with
+   [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Spring latch on edge…*, choose which part gets the spring and tongue.
+
+If the lid rests on top of the wall instead, use the [Spring bolt with hooks](#spring-bolt-with-hooks).
+
+![Spring latch: window with S spring and tongue, recess with shoulder; variants with more legs](screenshots/en/federverschluss.png)
+
+| Setting | Effect |
+|---|---|
+| Spring and tongue on | Part with window, spring and tongue; the other one gets the recess |
+| Number of latches | 1 = centred on the edge; from 2 on, the outer ones sit near the ends, the others evenly in between |
+| Distance of the outer latches from the end of the edge | From two latches on: distance of the window from the end of the edge |
+| Spring legs | Odd number: 1 = simple leaf spring, 3 = S shape, 5, 7 … = meander. More legs = softer, more travel |
+| Leg length | Length of the straight pieces of the spring; longer = softer |
+| Spring bar width | Width of the spring bar; narrower = softer but more fragile. For 3 mm plywood about 1.2–2 mm |
+| Slot between the legs | Distance between the legs (at least a little more than the kerf) |
+| Tongue width | Width of the tongue in the opening |
+| Hook overhang | How far the hook sticks out sideways – the spring has to give way this much when snapping in |
+| Shoulder above the hook | Material of the other part above the hook; carries the load when pulling |
+| Button length | Part of the tongue in the window you push to open |
+| Room for pushing | Free space next to the button for a finger or pen |
+| Bar between window and edge | Bar of material at the edge on which the button rests |
+| Clearance | Play in the opening, in the recess and under the shoulder |
+| Tolerance | How far apart the edges may be and still count as "touching" |
+
+<!-- hilfe: federriegel -->
+### Spring bolt with hooks
+
+*Tools → Spring bolt with hooks…* is the second kind of spring latch – for a **lid that rests on top of the
+front wall** (e.g. a box with a living hinge). A **bolt** sits on the inside **behind the front wall**: a
+narrow plate whose **hooks** reach up through slots in the lid. Two **T-shaped holders** go through the bolt
+and into slots in the wall. One sits in an **eye at the end of a long meander spring**, the other in an
+**elongated hole** – so the bolt can slide sideways and the spring pushes it back.
+
+When closing, the edges of the slots in the lid push the bevels of the hooks aside; the bolt gives way, snaps
+back, and the noses of the hooks rest on the lid. **To open**, push the hook heads that stick out of the lid
+aside and lift the lid.
+
+1. Lay the lid and the front wall so that the **front edge of the lid touches the top edge of the wall** –
+   edge to edge (easiest with [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Spring bolt with hooks…*, choose which part is the lid.
+
+TiLaser cuts the hook slots into the lid (one wall thickness behind its edge) and the slots for the holders
+into the wall. The bolt (*Bolt* + name of the wall) and the two holders are placed to the right of the parts.
+
+![Spring bolt: lid and wall with slots, bolt with meander spring, eye and elongated hole, holders; section](screenshots/en/federriegel.png)
+
+**Assembly:** Place the bolt on the inside of the front wall, top edge flush with the wall, with the noses of the
+hooks pointing to the short side of the lid slots. Push the holders from the inside through the eye and the
+elongated hole into the wall slots (head on the inside) and glue them in the wall – do not glue the bolt.
+
+**With a second layer** (as in many templates): the bolt lies between the front wall and an **inner layer** of the
+same size – guided on both sides, nothing needs gluing. The inner layer gets longer slots for the wider head of
+the holders, in which it sits flush (head length = thickness of the inner layer). Either select the inner layer
+as a third part, or tick *Create inner layer as a copy of the wall* – TiLaser then places a copy of the wall
+(*name* + "inner") with the head slots below the parts.
+
+| Setting | Effect |
+|---|---|
+| Lid is | Which of the two parts is the lid; the other is the front wall |
+| Material thickness | Thickness of the bolt and the holders (width of the slots) |
+| Lid thickness | The hook shank is lid thickness + clearance long, so the nose rests on the lid |
+| Wall thickness | The hook slots lie this far behind the lid edge (the bolt sits directly behind the wall) |
+| Length of the bolt | The bolt is centred on the edge |
+| Number of hooks | Evenly spread on the bolt |
+| Hook shank width | Width of the hooks in the lid slot |
+| Hook overhang | How far the nose reaches over the lid – and how far the bolt has to give way when snapping in |
+| Hook head above the lid | Minimum height of the head above the lid; push it to open. With a steep bevel it becomes taller |
+| Bevel angle at the nose | Angle of the bevel to the lid surface (default 60°). Steeper = the slot edge pushes the hook aside more easily when the lid is put on; the nose tip and the head are rounded. The bevel always reaches past the shank so the edge reliably lands on it |
+| Spring legs | Odd number; more legs = softer spring, longer bolt needed |
+| Spring bar width / slot | Width of the spring bar and distance between the legs |
+| Holder height | Height of the holders and thus of the eye and the bolt |
+| Inner layer | Bolt between the wall and an inner layer; the inner layer gets longer slots for the heads of the holders. If a third part is selected, it is the inner layer (same size as the wall, measured from the top left), otherwise a copy of the wall is created |
+| Inner layer thickness | Length of the holder head |
+| Bolt margin | Material around the window and the elongated hole |
+| Clearance | Play in the slots, in the eye and the elongated hole |
+| Tolerance | How far apart the edges may be and still count as "touching" |
+
 <!-- hilfe: nummerieren -->
 ### Numbering parts
 
@@ -1513,6 +1608,8 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
 | Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
+| Spring latch on edge… | | Snap latch for a lid: tongue on a meander spring, recess with shoulder ([Spring latch on edge](#spring-latch-on-edge)) |
+| Spring bolt with hooks… | | Bolt behind the front wall, hooks through the lid, meander spring ([Spring bolt with hooks](#spring-bolt-with-hooks)) |
 | Number parts… | | Number the parts and engrave the number, identical parts same number ([Numbering parts](#numbering-parts)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 

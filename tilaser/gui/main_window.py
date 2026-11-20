@@ -361,6 +361,12 @@ class MainWindow(QMainWindow):
         wz.addAction(self._act("Knöchelscharnier an Kante…", self.knuckle_hinge_tool, None,
                                "Scharnier zwischen zwei Boxteilen (z. B. Rückwand Box und Deckel): Knöchel mit je zwei "
                                "Fingerzinken, Schlitze in den Wänden, Stift"))
+        wz.addAction(self._act("Federverschluss an Kante…", self.spring_latch_tool, None,
+                               "Verschluss für einen Deckel: Zunge mit Haken an einer Mäanderfeder (S-Form) im einen "
+                               "Teil, Aussparung mit Schulter im anderen"))
+        wz.addAction(self._act("Federriegel mit Haken…", self.slider_latch_tool, None,
+                               "Riegel hinter der Vorderwand, dessen Haken durch Schlitze im Deckel greifen; eine lange "
+                               "Mäanderfeder schiebt ihn zurück"))
         wz.addAction(self._act("Teile nummerieren…", self.number_parts_tool, None,
                                "Teile durchnummerieren und die Nummer eingravieren; gleiche Teile bekommen dieselbe "
                                "Nummer"))
@@ -1995,6 +2001,189 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt; {a.name} wurde um "
                                      f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
+
+    def spring_latch_tool(self):
+        from ..core.joints import LatchSpec, sides, spring_latch
+        title = "Federverschluss an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren – z. B. "
+                                                 "die Vorderwand der Box und die Vorderwand des Deckels.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, wie sie "
+                                                 "bei geschlossenem Deckel aneinanderstoßen (z. B. mit Anordnen → "
+                                                 "Kanten aneinanderlegen), dann erneut versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = LatchSpec()
+        fields = [("spring_on", "Feder und Zunge an", "c", "0", who),
+                  ("count", "Anzahl Verschlüsse (1 = mittig)", "i", d.count, (1, 20)),
+                  ("inset", "Abstand der äußeren Verschlüsse vom Ende der Kante", "f", d.inset, (0, 500, 1, 1, " mm")),
+                  ("legs", "Schenkel der Feder (ungerade, 3 = S-Form)", "i", d.legs, (1, 41)),
+                  ("leg_length", "Schenkellänge", "f", d.leg_length, (3, 200, 1, 1, " mm")),
+                  ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
+                  ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
+                  ("width", "Zungenbreite", "f", d.width, (2, 50, 1, 0.5, " mm")),
+                  ("catch", "Hakenüberstand (Federweg)", "f", d.catch, (0.3, 10, 2, 0.1, " mm")),
+                  ("hold", "Schulter über dem Haken", "f", d.hold, (1, 30, 1, 0.5, " mm")),
+                  ("button", "Länge der Drucktaste", "f", d.button, (2, 50, 1, 0.5, " mm")),
+                  ("grip", "Platz zum Drücken neben der Taste", "f", d.grip, (1, 50, 1, 0.5, " mm")),
+                  ("frame", "Steg zwischen Fenster und Kante", "f", d.frame, (1, 30, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für zwei Teile, die bei geschlossenem Deckel in einer Ebene aneinanderstoßen – z. B. die Vorderwand "
+                "der Box und die Vorderwand des Deckels (gegenüber vom Scharnier). Das gewählte Teil bekommt ein "
+                "Fenster mit einer Mäanderfeder, an der eine Zunge mit Haken hängt; sie ragt über die Kante in eine "
+                "Aussparung des anderen Teils. Beim Schließen drückt die Schräge des Hakens die Zunge zur Seite, die "
+                "Feder schnappt zurück und der Haken hält hinter der Schulter. Zum Öffnen die Drucktaste im Fenster "
+                "zur Seite schieben. Mehr Schenkel oder längere Schenkel = weichere Feder mit mehr Federweg.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = LatchSpec(width=v["width"], catch=v["catch"], hold=v["hold"], legs=int(v["legs"]),
+                         leg_length=v["leg_length"], bar=v["bar"], gap=v["gap"], button=v["button"], grip=v["grip"],
+                         frame=v["frame"], clearance=v["clearance"], count=int(v["count"]), inset=v["inset"])
+        first = 1 if str(v["spring_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n, dims = spring_latch([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        new_ids = []
+        for it, world, idx, rr in ((a, wa, ia, ra), (b, wb, ib, rb)):
+            new_world = list(world)
+            for k, i in enumerate(idx):
+                if len(rr[k]) != len(world[i][0].pts) or not np.allclose(rr[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rr[k], True), world[i][1])
+            new_ids.append(self._replace_item(it, new_world).id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(
+            f"Federverschluss: {n} × an {a.name}. Fenster {dims['xr'] - dims['xl']:.1f} × {dims['top']:.1f} mm, die "
+            f"Zunge ragt {dims['depth']:.1f} mm in {b.name}.", 8000)
+
+    def slider_latch_tool(self):
+        from ..core.joints import SliderLatchSpec, sides, slider_latch
+        title = "Federriegel mit Haken"
+        sel = self._vector_selection()
+        if len(sel) not in (2, 3):
+            QMessageBox.information(self, title, "Bitte den Deckel und die Vorderwand der Box auswählen, Kante an Kante "
+                                                 "gelegt – optional dazu die innere Lage (zweiter Boden, so groß wie "
+                                                 "die Wand), zwischen der und der Wand der Riegel liegt.")
+            return
+        inner_item = None
+        items, pos = sel[:2], None
+        for i, j in ((0, 1), (0, 2), (1, 2)) if len(sel) == 3 else ((0, 1),):
+            ri = [p.pts for p in sel[i].world_paths() if p.closed]
+            rj = [p.pts for p in sel[j].world_paths() if p.closed]
+            pos = sides(ri, rj, tol=2.0)
+            if pos is not None:
+                items = [sel[i], sel[j]]
+                inner_item = next((it for it in sel if it not in items), None)
+                break
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Deckel und Vorderwand so hinlegen, "
+                                                 "dass die Vorderkante des Deckels an der Oberkante der Wand liegt "
+                                                 "(z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = SliderLatchSpec()
+        fields = [("lid_is", "Deckel ist", "c", "0", who),
+                  ("thickness", "Materialstärke (Riegel, Halter)", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
+                  ("lid", "Deckelstärke", "f", d.lid, (1, 30, 2, 0.5, " mm")),
+                  ("wall", "Wandstärke (Abstand des Riegels von der Deckelkante)", "f", d.wall,
+                   (0, 50, 2, 0.5, " mm")),
+                  ("length", "Länge des Riegels", "f", d.length, (30, 1000, 1, 5, " mm")),
+                  ("hooks", "Anzahl Haken", "i", d.hooks, (1, 10)),
+                  ("hook_width", "Breite des Hakenschafts", "f", d.hook_width, (2, 30, 1, 0.5, " mm")),
+                  ("catch", "Hakenüberstand (Federweg)", "f", d.catch, (0.5, 10, 2, 0.1, " mm")),
+                  ("head", "Hakenkopf über dem Deckel (mindestens)", "f", d.head, (1, 20, 1, 0.5, " mm")),
+                  ("ramp_angle", "Neigung der Schräge an der Nase", "f", d.ramp_angle, (20, 80, 0, 5, "°")),
+                  ("legs", "Schenkel der Feder (ungerade)", "i", d.legs, (1, 61)),
+                  ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
+                  ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
+                  ("key", "Höhe der Halter", "f", d.key, (3, 40, 1, 0.5, " mm")),
+                  ("inner_copy", "Innere Lage als Kopie der Wand erzeugen" if inner_item is None else
+                   "Drittes ausgewähltes Teil als innere Lage verwenden", "b", inner_item is not None, None),
+                  ("inner", "Stärke der inneren Lage", "f", d.wall, (0.5, 50, 2, 0.5, " mm")),
+                  ("margin", "Rand des Riegels", "f", d.margin, (1.5, 20, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für einen Deckel, der oben auf der Vorderwand aufliegt. Innen hinter der Vorderwand sitzt ein Riegel, "
+                "dessen Haken durch Schlitze im Deckel greifen. Zwei T-förmige Halter stecken durch den Riegel in "
+                "Schlitzen der Wand; einer sitzt in der Öse am Ende einer langen Mäanderfeder, der andere in einem "
+                "Langloch. Beim Schließen drücken die Schlitzkanten die Schrägen der Haken zur Seite, die Feder schiebt "
+                "den Riegel zurück und die Haken liegen auf dem Deckel. Zum Öffnen die Hakenköpfe zur Seite schieben. "
+                "Die Schlitze kommen in Deckel und Wand, Riegel und Halter entstehen neben den Teilen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = SliderLatchSpec(thickness=v["thickness"], lid=v["lid"], wall=v["wall"], length=v["length"],
+                               hooks=int(v["hooks"]), hook_width=v["hook_width"], catch=v["catch"], head=v["head"],
+                               ramp_angle=v["ramp_angle"],
+                               legs=int(v["legs"]), bar=v["bar"], gap=v["gap"], key=v["key"], margin=v["margin"],
+                               clearance=v["clearance"], inner=v["inner"] if v["inner_copy"] else 0.0)
+        first = 1 if str(v["lid_is"]) == "1" else 0
+        lid, wall = items[first], items[1 - first]
+        wl, ww = worlds[first], worlds[1 - first]
+        try:
+            lid_slots, wall_slots, plate, keys, dims = slider_latch([p.pts for p, _ in wl if p.closed],
+                                                                    [p.pts for p, _ in ww if p.closed], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        lid_l = next((l for p, l in wl if p.closed), next(iter(lid.layer_ids())))
+        lid_w = next((l for p, l in ww if p.closed), next(iter(wall.layer_ids())))
+        bb = g.bbox_of([p for p, _ in wl + ww])
+        ids = [self._replace_item(lid, list(wl) + [(g.Polyline(r, True), lid_l) for r in lid_slots]).id,
+               self._replace_item(wall, list(ww) + [(g.Polyline(r, True), lid_w) for r in wall_slots]).id]
+        pts = np.vstack(plate)
+        shift = np.array([bb[2] + 10.0 - pts[:, 0].min(), bb[1] - pts[:, 1].min()])
+        ids.append(self._add_generated(f"Riegel {wall.name}", [(g.Polyline(r + shift, True), lid_w) for r in plate],
+                                       False).id)
+        kx, ky = bb[2] + 10.0, bb[1] - 10.0 - spec.key - 4
+        key_world = []
+        for r in keys:
+            key_world.append((g.Polyline(r + [kx, ky], True), lid_w))
+            kx += float(np.ptp(r[:, 0])) + 4
+        ids.append(self._add_generated(f"Halter ({len(keys)})", key_world, False).id)
+        if spec.inner > 0:
+            bw = g.bbox_of([p for p, _ in ww])
+            if inner_item is not None:
+                wi = [(p, vp.layer_id) for p, vp in zip(inner_item.world_paths(), inner_item.paths)]
+                bi = g.bbox_of([p for p, _ in wi])
+                if abs((bi[2] - bi[0]) - (bw[2] - bw[0])) > 0.5 or abs((bi[3] - bi[1]) - (bw[3] - bw[1])) > 0.5:
+                    QMessageBox.information(self, title, "Die innere Lage ist nicht so groß wie die Vorderwand – die "
+                                                         "Schlitze für die Köpfe der Halter wurden trotzdem an "
+                                                         "derselben Stelle (von links oben gemessen) geschnitten.")
+                off = np.array([bi[0] - bw[0], bi[3] - bw[3]])
+                lid_i = next((l for p, l in wi if p.closed), lid_w)
+                ids.append(self._replace_item(inner_item, wi + [(g.Polyline(r + off, True), lid_i)
+                                                                for r in dims["head_slots"]]).id)
+            else:                                     # Kopie der Wand ohne deren Halterschlitze, unter alles gelegt
+                bb_all = g.bbox_of([p for p, _ in wl + ww])
+                off = np.array([0.0, bb_all[1] - 10.0 - bw[3]])
+                copy = [(g.Polyline(p.pts + off, p.closed), l) for p, l in ww]
+                copy += [(g.Polyline(r + off, True), lid_w) for r in dims["head_slots"]]
+                ids.append(self._add_generated(f"{wall.name} innen", copy, False).id)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(
+            f"Federriegel: {spec.hooks} Haken durch {lid.name}, Halter in {wall.name}. Riegel {spec.length:g} × "
+            f"{dims['height']:.1f} mm, Federweg {dims['travel']:.2f} mm.", 10000)
 
     def knuckle_hinge_tool(self):
         from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_square, sides
