@@ -135,7 +135,7 @@ Der Workflow `.github/workflows/build.yml` baut alle Pakete und legt ein GitHub-
 | Haltestege | Ebene (Schneiden): Anzahl und Breite, optional nur Außenkonturen |
 | Bildoptionen | Ebene (Raster): Helligkeit, Kontrast, Gamma; Dithering Floyd-Steinberg, Jarvis, Stucki, Atkinson, Schwellwert, Graustufen |
 | Bild nachzeichnen | *Werkzeuge → Bild nachzeichnen* (Alt+T) bzw. Rechtsklick auf ein Bild |
-| Materialtest | *Werkzeuge → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
+| Materialtest | *Werkzeuge → Lasertests → Materialtest*: Raster Leistung × Geschwindigkeit, beschriftet; Vorschau, Export oder direkt senden |
 | Muster in Fläche | *Werkzeuge → Muster in Fläche*: Biegescharnier, Lochmuster/Lüftungsgitter, Gravurmuster (Hahnentritt, Fischgrät, Waben …) |
 | Fingerzinken an Kante | Zwei Teile mit berührenden Kanten verzinken, als Eckverbindung oder ineinandergreifend, optional mit Dogbone-Ecken |
 | Zahnrad, Puzzle, Schablone | *Werkzeuge → Generatoren*: Evolventen-Zahnrad (auch als Paar), Puzzle; *Schablonen-Stege* für Innenteile |
@@ -143,7 +143,7 @@ Der Workflow `.github/workflows/build.yml` baut alle Pakete und legt ein GitHub-
 | Sprachen | Deutsch und Englisch (*Ansicht → Sprache / Language*); weitere Sprachen über eine Textdatei je Sprache (`lang/<code>.json`), siehe Kapitel 21 der Anleitung |
 | Auftragsprotokoll | *Maschine → Auftragsprotokoll*: Dauer, Ergebnis, Ebenen und Kosten jedes Auftrags, CSV |
 | Box-Generator | *Werkzeuge → Generatoren → Box-Generator* (Strg+Umschalt+B): Kasten mit Fingerzinken, Innen- oder Außenmaße, optional mit Deckel und Beschriftung der Teile |
-| Fokus- und Zeilenabstandstest | *Werkzeuge → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |
+| Fokus- und Zeilenabstandstest | *Werkzeuge → Lasertests → Fokustest* (Rampe ohne Z-Achse oder Z-Stufen) und *Zeilenabstandstest* |
 | Offset-Füllung | Ebenenmodus: Flächen mit Konturlinien von außen nach innen füllen |
 | Variable Texte, QR-Code, Barcode | Platzhalter `{nr}`, `{datum}`, `{Spalte}` aus CSV, zählt nach jedem Auftrag weiter; QR-Code und Code 128 ohne Zusatzprogramm |
 | Laser positionieren | Rechtsklick → *Laser hierher fahren*, *Laser zur Auswahl fahren*, Startpunkt je Kontur (Knoten-Werkzeug, Taste A) |

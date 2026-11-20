@@ -1467,5 +1467,6 @@
  "Schrifthöhe (höchstens)": "Text height (maximum)",
  "Schrifthöhe (mindestens)": "Text height (minimum)",
  "Vorhandene Nummern auf dieser Ebene ersetzen": "Replace existing numbers on this layer",
- "Nummern": "Numbers"
+ "Nummern": "Numbers",
+ "Lasertests": "Laser tests"
 }

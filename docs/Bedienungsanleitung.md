@@ -957,7 +957,7 @@ Der Tooltip eines Presets zeigt Material und Herkunft der Werte. Eigene Presets 
 
 ![Materialtest](screenshots/26_materialtest.png)
 
-*Werkzeuge → Materialtest* lasert ein beschriftetes Raster: in den **Spalten** steigt die Leistung, in den
+*Werkzeuge → Lasertests → Materialtest…* lasert ein beschriftetes Raster: in den **Spalten** steigt die Leistung, in den
 **Zeilen** die Geschwindigkeit. So findet man in einem Durchgang die passenden Werte für ein neues Material.
 
 | Einstellung | Beschreibung |
@@ -975,7 +975,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 <!-- hilfe: fokustest -->
 ### Fokustest
 
-*Werkzeuge → Fokustest…* findet den besten Abstand zwischen Laser und Material:
+*Werkzeuge → Lasertests → Fokustest…* findet den besten Abstand zwischen Laser und Material:
 
 - **Ohne Z-Achse – Rampe** (für den AlgoLaser und die meisten Diodenlaser): TiLaser lasert eine lange Linie
   mit Skala. Dafür ein Brett so schräg legen, dass ein Ende etwa 10 mm höher liegt, und auf die Mitte
@@ -987,7 +987,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 <!-- hilfe: zeilenabstandstest -->
 ### Zeilenabstandstest
 
-*Werkzeuge → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
+*Werkzeuge → Lasertests → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
 und schreibt den Wert darunter. Das Feld, in dem die Linien gerade zu einer gleichmäßigen Fläche verschmelzen,
 ist der passende Zeilenabstand für dieses Material und diesen Fokus – kleiner bringt nur mehr Laufzeit.
 
@@ -1515,7 +1515,9 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Menüpunkt | Taste | Funktion |
 |---|---|---|
 | Bild nachzeichnen… | Alt+T | Bild in Vektorkonturen umwandeln ([Bild nachzeichnen](#bild-nachzeichnen)) |
-| Materialtest… | | Testraster Leistung × Geschwindigkeit ([Materialtest](#materialtest)) |
+| Lasertests → Materialtest… | | Testraster Leistung × Geschwindigkeit ([Materialtest](#materialtest)) |
+| Lasertests → Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
+| Lasertests → Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |
 | Text auf Pfad… | | Text entlang einer Kontur ([Text auf Pfad](#text-auf-pfad)) |
 | QR-Code / Barcode einfügen… | Strg+Umschalt+Q | QR-Code oder Code 128 als Gravur ([Variabler Text, QR-Code und Barcode](#variabler-text-qr-code-und-barcode)) |
 | Variable Texte… | | Startnummer und CSV-Datei für Platzhalter |
@@ -1533,8 +1535,6 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
 | Teile nummerieren… | | Teile durchnummerieren und Nummer eingravieren, gleiche Teile gleiche Nummer ([Teile nummerieren](#teile-nummerieren)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
-| Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
-| Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |
 
 <!-- hilfe: menu-ansicht -->
 ### Menü Ansicht

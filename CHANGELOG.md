@@ -6,6 +6,7 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Materialtest, Fokustest und Zeilenabstandstest stehen gemeinsam unter *Werkzeuge → Lasertests*.
 - **Teile nummerieren** (*Werkzeuge*): Teile in Lesereihenfolge durchnummerieren und die Nummer an der Stelle
   mit dem meisten Platz eingravieren; gleiche Teile (auch gedreht, wahlweise gespiegelt) bekommen dieselbe
   Nummer.

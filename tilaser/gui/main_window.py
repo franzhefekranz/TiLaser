@@ -321,7 +321,12 @@ class MainWindow(QMainWindow):
         self.a_textpath = self._act("Text auf Pfad…", self.text_on_path_dialog, None,
                                     "Text entlang der ausgewählten Kontur setzen")
         wz.addAction(self.a_textpath)
-        wz.addAction(self.a_mattest)
+        tests = wz.addMenu("Lasertests")                       # alle Testmuster an einer Stelle
+        tests.addAction(self.a_mattest)
+        tests.addAction(self._act("Fokustest…", self.focus_test, None,
+                                  "Besten Fokusabstand finden: Rampe auf schrägem Brett oder Linien mit Z-Versatz"))
+        tests.addAction(self._act("Zeilenabstandstest…", self.interval_test, None,
+                                  "Felder mit unterschiedlichem Zeilenabstand gravieren"))
         wz.addSeparator()
         wz.addAction(self._act("QR-Code / Barcode einfügen…", self.insert_barcode, "Ctrl+Shift+Q",
                                "QR-Code oder Code-128-Barcode als Gravur einfügen (Platzhalter erlaubt)"))
@@ -361,11 +366,6 @@ class MainWindow(QMainWindow):
                                "Nummer"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
-        wz.addSeparator()
-        wz.addAction(self._act("Fokustest…", self.focus_test, None,
-                               "Besten Fokusabstand finden: Rampe auf schrägem Brett oder Linien mit Z-Versatz"))
-        wz.addAction(self._act("Zeilenabstandstest…", self.interval_test, None,
-                               "Felder mit unterschiedlichem Zeilenabstand gravieren"))
 
         v = mb.addMenu("&Ansicht")
         self._build_language_menu(v)

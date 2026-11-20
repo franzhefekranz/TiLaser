@@ -941,7 +941,7 @@ The tooltip of a preset shows the material and the origin of the values. Your ow
 
 ![Material test](screenshots/en/26_materialtest.png)
 
-*Tools → Material test* lasers a labeled grid: the power increases in the **columns**, the speed in the
+*Tools → Laser tests → Material test…* lasers a labeled grid: the power increases in the **columns**, the speed in the
 **rows**. This way you find suitable values for a new material in one go.
 
 | Setting | Description |
@@ -958,7 +958,7 @@ Buttons: **Preview** (toolpath on the work area), **Export…** (G-code file) an
 <!-- hilfe: fokustest -->
 ### Focus test
 
-*Tools → Focus test…* finds the best distance between laser and material:
+*Tools → Laser tests → Focus test…* finds the best distance between laser and material:
 
 - **Without Z axis – ramp** (for the AlgoLaser and most diode lasers): TiLaser lasers a long line with a
   scale. Place a board at an angle so that one end is about 10 mm higher, and focus on the middle. After
@@ -970,7 +970,7 @@ Buttons: **Preview** (toolpath on the work area), **Export…** (G-code file) an
 <!-- hilfe: zeilenabstandstest -->
 ### Line interval test
 
-*Tools → Line interval test…* engraves filled squares with increasing line interval (e.g. 0.05–0.30 mm) and
+*Tools → Laser tests → Line interval test…* engraves filled squares with increasing line interval (e.g. 0.05–0.30 mm) and
 writes the value underneath. The field in which the lines just merge into an even area is the right line
 interval for this material and this focus – smaller only costs more time.
 
@@ -1494,7 +1494,9 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Menu item | Key | Function |
 |---|---|---|
 | Trace image… | Alt+T | Convert an image into vector contours ([Trace image](#trace-image)) |
-| Material test… | | Test grid power × speed ([Material test](#material-test)) |
+| Laser tests → Material test… | | Test grid power × speed ([Material test](#material-test)) |
+| Laser tests → Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
+| Laser tests → Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |
 | Text on path… | | Text along a contour ([Text on path](#text-on-path)) |
 | Insert QR code / barcode… | Ctrl+Shift+Q | QR code or Code 128 as an engraving ([Variable text, QR code and barcode](#variable-text-qr-code-and-barcode)) |
 | Variable text… | | Start number and CSV file for placeholders |
@@ -1512,8 +1514,6 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
 | Number parts… | | Number the parts and engrave the number, identical parts same number ([Numbering parts](#numbering-parts)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
-| Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
-| Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |
 
 <!-- hilfe: menu-ansicht -->
 ### View menu
