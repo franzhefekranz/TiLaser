@@ -333,8 +333,6 @@ class MainWindow(QMainWindow):
         gen.addAction(self._act("Zahnrad…", self.gear_generator, None,
                                 "Stirnrad mit Evolventenverzahnung, optional mit passendem Gegenrad"))
         gen.addAction(self._act("Puzzle…", self.puzzle_generator, None, "Puzzle mit zufälligen Nasen"))
-        gen.addAction(self._act("Knöchelscharnier…", self.knuckle_hinge_generator, None,
-                                "Scharnier nur aus Laserteilen: Knöchelscheiben, Scharnierblätter und Stift"))
         mu = wz.addMenu("Muster in Fläche")
         mu.addAction(self._act("Biegescharnier…", lambda: self.pattern_tool("hinge"), None,
                                "Schnittmuster, mit dem sich Holz in der ausgewählten Fläche biegen lässt"))
@@ -352,6 +350,9 @@ class MainWindow(QMainWindow):
         wz.addAction(self._act("Hammerverbindung an Kante…", self.hammer_joint_tool, None,
                                "Zapfen mit mitgelasertem Keil an einem Teil, Zapfenlöcher im anderen; der "
                                "eingeschlagene Keil klemmt die Verbindung (ohne Schrauben und Leim)"))
+        wz.addAction(self._act("Knöchelscharnier an Kante…", self.knuckle_hinge_tool, None,
+                               "Scharnier zwischen zwei Boxteilen (z. B. Rückwand Box und Deckel): Knöchel mit je zwei "
+                               "Fingerzinken, Schlitze in den Wänden, Stift"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -1986,6 +1987,83 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt; {a.name} wurde um "
                                      f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
 
+    def knuckle_hinge_tool(self):
+        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, sides
+        title = "Knöchelscharnier an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren – z. B. "
+                                                 "die Rückwand der Box und die Rückwand des Deckels.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        if sides(rings[0], rings[1], tol=2.0) is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, wie sie "
+                                                 "bei geschlossener Box aneinanderstoßen (z. B. mit Anordnen → Kanten "
+                                                 "aneinanderlegen), dann erneut versuchen.")
+            return
+        d = KnuckleSpec()
+        fields = [("thickness", "Materialstärke", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
+                  ("hinges", "Scharniere", "c", 2, {1: "Eines in der Mitte", 2: "Zwei, nahe den Enden"}),
+                  ("inset", "Abstand vom Ende der Kante (bei zwei)", "f", d.inset, (0, 500, 1, 1, " mm")),
+                  ("knuckles", "Knöchel je Scharnier", "i", d.knuckles, (2, 99)),
+                  ("length", "Knöchellänge", "f", d.length, (8, 200, 1, 1, " mm")),
+                  ("end_height", "Höhe am abgeschrägten Ende", "f", d.end_height, (0.5, 50, 1, 0.5, " mm")),
+                  ("tab", "Länge der Fingerzinken", "f", d.tab, (1, 50, 1, 0.5, " mm")),
+                  ("pin", "Stiftdurchmesser (0 = Vierkantstift mitlasern)", "f", d.pin, (0, 20, 2, 0.5, " mm")),
+                  ("wall", "Wandstärke um das Loch", "f", d.wall, (0.8, 20, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für zwei Boxteile, die bei geschlossener Box aneinanderstoßen – z. B. Rückwand der Box und Rückwand "
+                "des Deckels. Die Knöchel stehen senkrecht außen auf den Wänden, abwechselnd an beiden Teilen, und "
+                "stecken mit je zwei kleinen Fingerzinken in Schlitzen der Wand. Das Auge sitzt genau über der "
+                "gemeinsamen Kante, zum Ende hin ist der Knöchel abgeschrägt. Durch alle Augen geht der Stift – ein "
+                "mitgelaserter Vierkantstift oder ein Rundstab/Draht. Die Schlitze werden in die beiden Teile "
+                "geschnitten, Knöchel und Stifte entstehen neben den Teilen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = KnuckleSpec(thickness=v["thickness"], knuckles=v["knuckles"], hinges=int(v["hinges"]),
+                           inset=v["inset"], pin=v["pin"], clearance=v["clearance"], wall=v["wall"],
+                           length=v["length"], end_height=v["end_height"], tab=v["tab"])
+        a, b = items
+        wa, wb = worlds
+        try:
+            slots_a, slots_b, plates, pins, _ = knuckle_hinge(rings[0], rings[1], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        lid_a = wa[ia[0]][1] if ia else next(iter(a.layer_ids()))
+        lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+        new_a = list(wa) + [(g.Polyline(r, True), lid_a) for r in slots_a]
+        new_b = list(wb) + [(g.Polyline(r, True), lid_b) for r in slots_b]
+        bb = g.bbox_of([p for p, _ in wa + wb])
+        x = bb[2] + 10.0
+        knuckle_world = []
+        for rr in plates:
+            w_ = float(max(r[:, 0].max() for r in rr) - min(r[:, 0].min() for r in rr))
+            dx = x - float(min(r[:, 0].min() for r in rr))
+            knuckle_world += [(g.Polyline(r + [dx, bb[1] - float(min(q[:, 1].min() for q in rr))], True), lid_a)
+                              for r in rr]
+            x += w_ + 3.0
+        ids = [self._replace_item(a, new_a).id, self._replace_item(b, new_b).id,
+               self._add_generated(f"Knöchel ({len(plates)})", knuckle_world, False).id]
+        if pins:
+            y = bb[1] - 10.0
+            pin_world = []
+            for r in pins:
+                pin_world.append((g.Polyline(r + [bb[2] + 10.0, y], True), lid_a))
+                y -= spec.thickness + 3
+            ids.append(self._add_generated(f"Stift ({len(pins)})", pin_world, False).id)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(f"Knöchelscharnier: {spec.hinges} × {spec.knuckles} Knöchel, Loch Ø "
+                                     f"{knuckle_hole(spec):.2f} mm. Ungerade Knöchel gehören zu {a.name}, gerade zu "
+                                     f"{b.name}.", 10000)
+
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)
         n = self.project._item_from_world(it.name, world)
@@ -2067,47 +2145,6 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(ids)
         self.statusBar().showMessage(f"Teilkreis Ø {inf['pitch_d']:g} mm, Kopfkreis Ø {inf['outer_d']:g} mm"
                                      + (f", Achsabstand {dist:g} mm" if b else ""), 10000)
-
-    def knuckle_hinge_generator(self):
-        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole
-        title = "Knöchelscharnier"
-        d = KnuckleSpec()
-        fields = [("thickness", "Materialstärke", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
-                  ("knuckles", "Anzahl Knöchel", "i", 7, (2, 99)),
-                  ("pin", "Stiftdurchmesser (0 = Vierkantstift mitlasern)", "f", d.pin, (0, 20, 2, 0.5, " mm")),
-                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
-                  ("wall", "Wandstärke um das Loch", "f", d.wall, (0.8, 20, 1, 0.5, " mm")),
-                  ("arm", "Armlänge (Achse bis Armende)", "f", d.arm, (5, 100, 1, 1, " mm")),
-                  ("leaf_width", "Breite der Scharnierblätter (0 = keine, Knöchel ankleben)", "f", d.leaf_width,
-                   (0, 200, 1, 1, " mm")),
-                  ("layer", "Ebene", "layer", None, (("cut",), ParamDialog.NEW_CUT))]
-        info = ("Die Knöchel sind Scheiben mit Auge und Arm, die quer zur Drehachse nebeneinander stehen – abwechselnd "
-                "an Scharnierblatt A (Knöchel 1, 3, 5 …) und B (2, 4 …). Jede Scheibe steckt mit ihrer Lasche in "
-                "einem Schlitz ihres Blatts (verleimen). Der Stift geht durch alle Augen: entweder ein mitgelaserter "
-                "Vierkantstift (Kantenlänge = Materialstärke, dreht sich im runden Loch) oder ein Rundstab bzw. Draht "
-                "mit dem angegebenen Durchmesser. Die Scharnierlänge ist Anzahl Knöchel × Materialstärke.")
-        dlg = ParamDialog(title, fields, self.project, info, self)
-        if dlg.exec() != ParamDialog.DialogCode.Accepted:
-            return
-        v = dlg.values()
-        spec = KnuckleSpec(v["thickness"], v["knuckles"], v["pin"], v["clearance"], v["wall"], v["arm"],
-                           v["leaf_width"])
-        try:
-            parts = knuckle_hinge(spec)
-        except ValueError as e:
-            QMessageBox.information(self, title, str(e))
-            return
-        self._checkpoint(title)
-        layer = self._target_layer(v["layer"], "cut", "Scharnier")
-        polys = [g.Polyline(r, True) for _, rings in parts for r in rings]
-        placed = self._place_at(polys)
-        ids, k = [], 0
-        for name, rings in parts:
-            ids.append(self._add_generated(name, [(p, layer.id) for p in placed[k:k + len(rings)]], False).id)
-            k += len(rings)
-        self.canvas.select_only(ids)
-        self.statusBar().showMessage(f"Knöchelscharnier: {spec.knuckles} Knöchel, {spec.knuckles * spec.thickness:g} mm "
-                                     f"lang, Loch Ø {knuckle_hole(spec):.2f} mm.", 10000)
 
     def puzzle_generator(self):
         import random

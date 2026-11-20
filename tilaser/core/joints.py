@@ -567,22 +567,25 @@ def hammer_joint(rings_a, rings_b, spec: HammerSpec, tol: float = 0.5, all_edges
 
 # ---------------------------------------------------------------- Knöchelscharnier (Knuckle Hinge)
 #
-# Ein Scharnier nur aus Laserteilen: Die Knöchel sind Scheiben aus dem Material (Auge mit Loch + Arm),
-# die quer zur Drehachse nebeneinander stehen – abwechselnd an Blatt A und Blatt B. Jede Scheibe steckt mit
-# einer Lasche in einem Schlitz ihres Scharnierblatts. Durch alle Augen geht der Stift: wahlweise ein
-# mitgelaserter Vierkantstift (Kantenlänge = Materialstärke, dreht sich im runden Loch) oder ein fertiger
-# Rundstab/Draht.
+# Scharnier zwischen zwei Teilen einer Box, z. B. Rückwand der Box und Rückwand des Deckels, die Kante an
+# Kante liegen (so wie sie bei geschlossener Box übereinanderstehen). Die Knöchel sind Scheiben aus dem
+# Material, die senkrecht auf der Außenseite der Wände stehen – abwechselnd an Teil A und Teil B – und je
+# mit zwei kleinen Fingerzinken in Schlitzen der Wand stecken. Das Auge mit dem Loch liegt genau über der
+# gemeinsamen Kante; zum Ende hin ist der Knöchel abgeschrägt. Durch alle Augen geht der Stift: ein
+# mitgelaserter Vierkantstift (dreht sich im runden Loch) oder ein Rundstab/Draht.
 
 @dataclass
 class KnuckleSpec:
-    thickness: float = 3.0      # Materialstärke
-    knuckles: int = 5           # Anzahl Scheiben (ungerade: außen beide an Blatt A)
+    thickness: float = 3.0      # Materialstärke (Wände und Knöchel)
+    knuckles: int = 5           # Knöchel je Scharnier (ungerade: außen beide an Teil A)
+    hinges: int = 2             # Scharniere entlang der Kante (1 = mittig, 2 = nahe den Enden)
+    inset: float = 10.0         # bei 2 Scharnieren: Abstand vom Ende der Kante
     pin: float = 0.0            # Stiftdurchmesser; 0 = Vierkantstift mitlasern
-    clearance: float = 0.2      # Spiel: Loch um den Stift, Schlitze um die Laschen
+    clearance: float = 0.2      # Spiel: Loch um den Stift, Schlitze um die Zinken
     wall: float = 2.0           # Wandstärke um das Loch
-    arm: float = 12.0           # Abstand Achse – Ende des Arms
-    leaf_width: float = 20.0    # Breite der Scharnierblätter (quer zur Achse); 0 = keine Blätter (ankleben)
-    margin: float = 4.0         # Blatt steht an den Enden so weit über
+    length: float = 25.0        # Knöchellänge ab der Kante (auf der Wand)
+    end_height: float = 3.0     # Höhe des Knöchels am abgeschrägten Ende
+    tab: float = 4.0            # Länge eines Fingerzinkens
 
 
 def knuckle_hole(spec: KnuckleSpec) -> float:
@@ -591,70 +594,91 @@ def knuckle_hole(spec: KnuckleSpec) -> float:
     return d + spec.clearance
 
 
-def knuckle_plate(spec: KnuckleSpec, with_tab: bool = True, step_deg: float = 10.0) -> list[np.ndarray]:
-    """Eine Knöchelscheibe (lokal: Achse bei 0,0; Arm nach links, Lasche nach unten) und ihr Loch."""
-    R = knuckle_hole(spec) / 2 + spec.wall
-    a, t = spec.arm, spec.thickness
-    tw = max(3.0, (a - R) * 0.6)                          # Laschenbreite
-    x0 = -a + (a - R - tw) / 2                            # Lasche mittig unter dem Arm
-    pts = [(-a, -R)]
-    if with_tab:
-        pts += [(x0, -R), (x0, -R - t), (x0 + tw, -R - t), (x0 + tw, -R)]
-    pts.append((0.0, -R))
-    pts += [(R * math.cos(w), R * math.sin(w)) for w in np.radians(np.arange(-90 + step_deg, 90, step_deg))]
-    pts += [(0.0, R), (-a, R)]
+def knuckle_radius(spec: KnuckleSpec) -> float:
+    return knuckle_hole(spec) / 2 + spec.wall
+
+
+def knuckle_tabs(spec: KnuckleSpec) -> list[tuple[float, float]]:
+    """Lage der beiden Fingerzinken entlang der Wand (Abstand von der Kante: von, bis)."""
+    R, L, tw = knuckle_radius(spec), spec.length, spec.tab
+    c1 = R + tw / 2 + 1.0                                  # erster Zinken gleich hinter dem Auge
+    c2 = L - tw / 2 - 1.5                                  # zweiter kurz vor dem Ende
+    return [(c1 - tw / 2, c1 + tw / 2), (c2 - tw / 2, c2 + tw / 2)]
+
+
+def knuckle_plate(spec: KnuckleSpec, step_deg: float = 10.0) -> list[np.ndarray]:
+    """Ein Knöchel im Querschnitt (lokal: u entlang der Wand weg von der Kante, w von der Wandfläche nach
+    außen; Achse bei (0, R)). Unterkante liegt auf der Wand, zwei Zinken reichen um die Materialstärke
+    hinein, die Oberkante fällt vom Auge zum Ende hin ab. Rückgabe: [Außenkontur, Loch]."""
+    R, L, t, he = knuckle_radius(spec), spec.length, spec.thickness, spec.end_height
+    pts = [(0.0, 0.0)]
+    for a, b in knuckle_tabs(spec):
+        pts += [(a, 0.0), (a, -t), (b, -t), (b, 0.0)]
+    pts += [(L, 0.0), (L, he)]
+    # Tangente vom Endpunkt (L, he) an das Auge (Mitte (0, R), Radius R), obere Seite
+    dist = math.hypot(L, he - R)
+    tang = math.atan2(he - R, L) + math.acos(R / dist)      # Winkel des oberen Tangentenpunkts (von der Mitte)
+    a0 = tang % (2 * math.pi)
+    a1 = 1.5 * math.pi                                      # bis ganz unten (0, 0) gegen den Uhrzeigersinn
+    if a1 < a0:
+        a1 += 2 * math.pi
+    n = max(6, int(math.ceil(math.degrees(a1 - a0) / step_deg)))
+    pts += [(R * math.cos(w), R + R * math.sin(w)) for w in np.linspace(a0, a1, n + 1)[:-1]]
     r = knuckle_hole(spec) / 2
-    hole = np.array([(r * math.cos(w), r * math.sin(w)) for w in np.radians(np.arange(0, 360, step_deg))])
+    hole = np.array([(r * math.cos(w), R + r * math.sin(w)) for w in np.radians(np.arange(0, 360, step_deg))])
     return [np.array(pts), hole]
 
 
-def knuckle_tab(spec: KnuckleSpec) -> tuple[float, float]:
-    R = knuckle_hole(spec) / 2 + spec.wall
-    tw = max(3.0, (spec.arm - R) * 0.6)
-    x0 = -spec.arm + (spec.arm - R - tw) / 2
-    return x0, tw
+def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
+    """Knöchelscharnier an der längsten gemeinsamen Kante von Teil A und B.
 
-
-def knuckle_leaf(spec: KnuckleSpec, first: int) -> list[np.ndarray]:
-    """Scharnierblatt (lokal: Achse entlang x, Blatt bei y < 0) mit Schlitzen für jede zweite Scheibe,
-    beginnend bei Scheibe ``first`` (0 = Blatt A, 1 = Blatt B)."""
-    t, n, m, c = spec.thickness, spec.knuckles, spec.margin, spec.clearance
-    L = n * t
-    x0, tw = knuckle_tab(spec)
-    outer = np.array([[-m, -spec.leaf_width], [L + m, -spec.leaf_width], [L + m, -0.5], [-m, -0.5]])
-    out = [outer]
-    for i in range(first, n, 2):
-        xa, xb = i * t - c / 2, (i + 1) * t + c / 2
-        ya, yb = x0 - c / 2, x0 + tw + c / 2                # Lasche liegt im Arm bei x0 … x0+tw (vor der Achse)
-        out.append(np.array([[xa, ya], [xb, ya], [xb, yb], [xa, yb]]))
-    return out
-
-
-def knuckle_hinge(spec: KnuckleSpec) -> list[tuple[str, list[np.ndarray]]]:
-    """Alle Teile eines Knöchelscharniers, nebeneinander ausgelegt: [(Name, Ringe), …]."""
-    t = spec.thickness
-    if t <= 0 or spec.knuckles < 2:
+    Rückgabe: (Schlitze für A, Schlitze für B, Knöchel-Konturen [Ringe je Knöchel], Stifte, Kantenlänge).
+    Knöchel 1, 3, 5 … jedes Scharniers gehören zu A, 2, 4 … zu B."""
+    t, n = spec.thickness, spec.knuckles
+    if t <= 0 or n < 2:
         raise ValueError("Materialstärke muss größer als 0 sein und es braucht mindestens 2 Knöchel.")
-    R = knuckle_hole(spec) / 2 + spec.wall
-    if spec.arm < R + 4:
-        raise ValueError(f"Der Arm ist zu kurz – mindestens {R + 4:.1f} mm (Augenradius + Lasche).")
-    if spec.leaf_width and spec.leaf_width < spec.arm + 3:
-        raise ValueError("Die Scharnierblätter müssen breiter sein als der Arm (Arm + 3 mm).")
-    parts: list[tuple[str, list[np.ndarray]]] = []
-    x = 0.0
-    plate_w = spec.arm + R
-    for i in range(spec.knuckles):
-        rings = knuckle_plate(spec, with_tab=spec.leaf_width > 0)
-        parts.append((f"Knöchel {i + 1}", [r + [x + spec.arm, 0.0] for r in rings]))
-        x += plate_w + 3
-    y = -(R + t + 6)
-    if spec.leaf_width > 0:
-        for k, name in ((0, "Scharnierblatt A"), (1, "Scharnierblatt B")):
-            rings = knuckle_leaf(spec, k)
-            parts.append((name, [r + [spec.margin + k * (spec.knuckles * t + 2 * spec.margin + 6), y]
-                                 for r in rings]))
-    if spec.pin <= 0:
-        length = spec.knuckles * t + 2 * t                 # steht beidseitig eine Materialstärke über
-        y2 = y - (spec.leaf_width if spec.leaf_width > 0 else 0) - 6
-        parts.append(("Stift", [np.array([[0, y2 - t], [length, y2 - t], [length, y2], [0, y2]])]))
-    return parts
+    R = knuckle_radius(spec)
+    (a1, b1), (a2, b2) = knuckle_tabs(spec)
+    if not (b1 + 1 < a2 and spec.end_height < 2 * R and spec.end_height > 0):
+        raise ValueError(f"Der Knöchel ist zu kurz für Auge und zwei Zinken – Knöchellänge mindestens "
+                         f"{2 * R + 2 * spec.tab + 5:.0f} mm, Höhe am Ende kleiner als {2 * R:.1f} mm.")
+    ra = [np.asarray(r, float) for r in rings_a]
+    rb = [np.asarray(r, float) for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=n * t + 2)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für das Scharnier ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    na = _material_normal(ra, e.p0, e.p1)                  # in Teil A hinein
+    nb = _material_normal(rb, e.p0, e.p1)                  # in Teil B hinein
+    span = n * t
+    if spec.hinges >= 2:
+        starts = [spec.inset, e.length - spec.inset - span]
+        if starts[1] < starts[0] + span + 2:
+            raise ValueError("Die Kante ist zu kurz für zwei Scharniere – Abstand vom Rand verkleinern oder ein "
+                             "Scharnier wählen.")
+    else:
+        starts = [(e.length - span) / 2]
+    if starts[0] < 0:
+        raise ValueError("Das Scharnier ist länger als die Kante – weniger Knöchel wählen.")
+    c = spec.clearance
+    slots_a: list[np.ndarray] = []
+    slots_b: list[np.ndarray] = []
+    for x0 in starts:
+        for i in range(n):
+            xa, xb = x0 + i * t - c / 2, x0 + (i + 1) * t + c / 2
+            nrm, out = (na, slots_a) if i % 2 == 0 else (nb, slots_b)
+            for a, b in knuckle_tabs(spec):
+                ya, yb = a - c / 2, b + c / 2
+                out.append(np.array([e.p0 + u * xx + nrm * yy for xx, yy in ((xa, ya), (xb, ya), (xb, yb), (xa, yb))]))
+    for s_ in slots_a:
+        if not inside(s_, ra).all():
+            raise ValueError("Die Schlitze passen nicht in Teil A – Knöchellänge verkleinern.")
+    for s_ in slots_b:
+        if not inside(s_, rb).all():
+            raise ValueError("Die Schlitze passen nicht in Teil B – Knöchellänge verkleinern.")
+    plates = [knuckle_plate(spec) for _ in range(n * len(starts))]
+    pins = [np.array([[0, 0], [span + 2 * t, 0], [span + 2 * t, t], [0, t]], float)
+            for _ in starts] if spec.pin <= 0 else []
+    return slots_a, slots_b, plates, pins, e.length

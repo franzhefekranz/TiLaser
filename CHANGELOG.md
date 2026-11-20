@@ -14,8 +14,9 @@ the GitHub release.
 - **Hammerverbindung an Kante** (*Werkzeuge*, nach der Hammer-Joint-Zeichnung von Lasersheets): Zapfen mit
   mitgelasertem Keil an zwei Haltestegen und passende Zapfenlöcher – der eingeschlagene Keil spreizt den Zapfen
   im Loch (ohne Schrauben und Leim).
-- **Knöchelscharnier** (*Werkzeuge → Generatoren*): Scharnier nur aus Laserteilen – Knöchelscheiben, zwei
-  Scharnierblätter mit Schlitzen und ein mitgelaserter Vierkantstift (oder Rundstab).
+- **Knöchelscharnier an Kante** (*Werkzeuge*): Scharnier nur aus Laserteilen zwischen zwei Boxteilen (z. B.
+  Rückwand von Box und Deckel) – abgeschrägte Knöchel mit je zwei Fingerzinken in Schlitzen der Wände und ein
+  mitgelaserter Vierkantstift (oder Rundstab).
 
 ## 0.9.1
 

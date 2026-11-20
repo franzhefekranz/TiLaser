@@ -704,34 +704,41 @@ inner parts as in O, A, B or 8 would fall out. Select a text or shape; TiLaser l
 horizontal) of the set width through each inner part.
 
 <!-- hilfe: knoechelscharnier -->
-### Knuckle hinge
+### Knuckle hinge on edge
 
-*Tools → Generators → Knuckle hinge…* creates a **hinge made only of laser-cut parts**, e.g. for box lids.
-The knuckles are flat discs with a round eye and an arm. They stand close together across the axis of
-rotation – alternately on **hinge leaf A** (knuckles 1, 3, 5 …) and **hinge leaf B** (knuckles 2, 4 …).
-Each disc sits with a tab in a slot of its leaf. The **pin** goes through all eyes; the two leaves rotate
-around it.
+*Tools → Knuckle hinge on edge…* builds a **hinge made only of laser-cut parts** between two parts of a box –
+typically the **back wall of the box and the back wall of the lid**. The knuckles are discs of the material
+that stand perpendicular on the outside of the walls, alternately on both parts. Each knuckle sits with **two
+small finger tabs** in slots of its wall. The eye with the hole sits exactly above the shared edge; towards
+the end the knuckle is **bevelled**. The **pin** goes through all eyes; the lid rotates around it.
 
-![Knuckle hinge: parts, across the axis and from above](screenshots/en/knoechelscharnier.png)
+1. Place the two back walls as they meet when the box is closed: **edge to edge** (easiest with
+   [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Knuckle hinge on edge…*
 
-**Assembly:** put the odd-numbered knuckles into the slots of leaf A and the even-numbered ones into leaf B
-(preferably glue them). Slide both leaves together so that the knuckles alternate and the eyes line up, then
-push the pin through. The leaves are glued onto lid and body or are part of the box themselves. The hinge is
-*number of knuckles × material thickness* long.
+TiLaser cuts the slots into both back walls and places the knuckles (and the pins) to the right of the parts.
+Knuckles 1, 3, 5 … of each hinge belong to the part selected first, 2, 4 … to the other – the status bar
+names the assignment.
+
+![Knuckle hinge: back walls with slots, section across the axis, single knuckle](screenshots/en/knoechelscharnier.png)
+
+**Assembly:** put the knuckles into the slots (glue them if you like), place box and lid together so that the
+knuckles alternate and the eyes line up, then push the pin through. The laser-cut pin protrudes by one
+material thickness on both sides; a drop of glue at the ends holds it.
 
 | Setting | Effect |
 |---|---|
-| Material thickness | Thickness of the material; determines the width of each knuckle and of the slots |
-| Number of knuckles | More knuckles = longer and sturdier hinge. With an odd number, both outer knuckles belong to leaf A |
-| Pin diameter | 0 = a **square pin** is cut as well (edge length = material thickness). It turns in the round hole, whose diameter matches the diagonal. Otherwise the diameter of a round rod, toothpick or wire |
-| Clearance | Play in the hole around the pin and in the slots around the tabs |
+| Material thickness | Thickness of the material – width of each knuckle, depth of the finger tabs |
+| Hinges | *One in the middle* or *Two, near the ends* of the edge |
+| Distance from the end of the edge | With two hinges: how far they are from the ends of the edge |
+| Knuckles per hinge | A hinge is *knuckles × material thickness* long. With an odd number, both outer knuckles belong to the first part |
+| Knuckle length | How far the knuckle lies on the wall from the edge |
+| Height at the bevelled end | The knuckle slopes down from the eye to this height |
+| Length of the finger tabs | Length of the two tabs (and slots) along the wall; one sits right behind the eye, one shortly before the end |
+| Pin diameter | 0 = a **square pin** is cut as well (edge length = material thickness); it turns in the round hole, whose diameter matches the diagonal. Otherwise the diameter of a round rod or wire |
 | Wall thickness around the hole | Material between the hole and the outer edge of the eye |
-| Arm length | Distance from the axis to the end of the arm; the tab sits centred below it |
-| Width of the hinge leaves | Width of the leaves across the axis. 0 = no leaves: the knuckles are created without a tab and glued directly onto lid and body |
-| Layer | Layer for the parts |
-
-The laser-cut pin protrudes by one material thickness on both sides; a drop of glue at the ends keeps it
-from sliding out. The parts are created side by side as separate objects.
+| Clearance | Play in the hole around the pin and in the slots around the tabs |
+| Tolerance | How far apart the edges may be and still count as “touching” |
 
 ---
 
@@ -1433,7 +1440,6 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Generators → Box generator… | Ctrl+Shift+B | Box with finger joints ([Box generator](#box-generator)) |
 | Generators → Gear… | | Involute gear, optionally with a mating gear |
 | Generators → Puzzle… | | Puzzle with frame |
-| Generators → Knuckle hinge… | | Hinge made of knuckle discs, leaves and pin ([Knuckle hinge](#knuckle-hinge)) |
 | Patterns in area → Living hinge… | | Cut pattern for bending ([Patterns in an area](#patterns-in-an-area)) |
 | Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
@@ -1441,6 +1447,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
 | Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
+| Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

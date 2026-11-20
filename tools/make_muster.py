@@ -222,51 +222,43 @@ def hammer_types():
 
 
 def knuckle_types():
-    """Knöchelscharnier: links die Teile, Mitte quer zur Achse gesehen, rechts von oben (zusammengesteckt)."""
-    spec = KnuckleSpec(knuckles=7)
-    parts = knuckle_hinge(spec)
+    """Knöchelscharnier: links Rückwände von Box und Deckel mit Schlitzen und die Knöchel, rechts im Schnitt."""
+    spec = KnuckleSpec()
+    A = [np.array([[0, 0], [100, 0], [100, 50], [0, 50.]])]
+    B = [np.array([[0, 50], [100, 50], [100, 75], [0, 75.]])]
+    slots_a, slots_b, plates, pins, _ = knuckle_hinge(A, B, spec)
     im = Image.new("RGB", (1100, 430), "white")
     d = ImageDraw.Draw(im)
-    allp = np.vstack([r for _, rs in parts for r in rs])
-    x0, y1 = allp[:, 0].min(), allp[:, 1].max()
-    sc = min(330 / np.ptp(allp[:, 0]), 330 / np.ptp(allp[:, 1]))
-    for _, rs in parts:
-        d.polygon([(20 + (x - x0) * sc, 30 + (y1 - y) * sc) for x, y in rs[0]], fill=HOLZ, outline=TEXT)
-        for r in rs[1:]:
-            d.polygon([(20 + (x - x0) * sc, 30 + (y1 - y) * sc) for x, y in r], fill="white", outline=TEXT)
-    d.text((190, 400), _t("Teile"), fill=TEXT, font=_font(18), anchor="mm")
-    # quer zur Achse: Blatt A links, Blatt B rechts, je eine Scheibe, Stift im Auge
-    t = spec.thickness
-    R = knuckle_hole(spec) / 2 + spec.wall
-    s2, cx, cy = 9.0, 560, 190
-    plate, hole = knuckle_plate(spec)
+    sc, ox, oy = 3.6, 20, 330
 
-    def Q(pts, mirror=False):
-        return [(cx + (-x if mirror else x) * s2, cy - y * s2) for x, y in pts]
-    for mir, col in ((True, (150, 190, 230)), (False, HOLZ)):
-        lw = spec.leaf_width
-        leaf = [(-lw, -R), (-0.5, -R), (-0.5, -R - t), (-lw, -R - t)]
-        d.polygon(Q(leaf, mir), fill=col, outline=TEXT)
-        d.polygon(Q(plate, mir), fill=col, outline=TEXT)
-    d.polygon(Q(hole), fill="white", outline=TEXT)
+    def P(r, dx=0.0, dy=0.0):
+        return [(ox + (x + dx) * sc, oy - (y + dy) * sc) for x, y in r]
+    d.polygon(P(A[0]), fill=HOLZ, outline=TEXT)
+    d.polygon(P(B[0]), fill=(150, 190, 230), outline=TEXT)
+    for r in slots_a + slots_b:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    d.text((ox + 50 * sc, 400), _t("Rückwand Box und Deckel"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt quer zur Achse: Wände senkrecht, außen rechts; Box unten (Holz), Deckel oben (blau)
+    s2, cx, cy = 7.0, 700, 200
+    t = spec.thickness
+    plate, hole = knuckle_plate(spec)
+    for sign, col, dark in ((1, HOLZ, (190, 160, 110)), (-1, (150, 190, 230), (100, 140, 190))):
+        wall = [(-t, 0), (0, 0), (0, 26), (-t, 26)]
+        d.polygon([(cx + w * s2, cy + sign * u * s2) for w, u in wall], fill=dark, outline=TEXT)
+        d.polygon([(cx + w * s2, cy + sign * u * s2) for u, w in plate], fill=col, outline=TEXT)
+    R = knuckle_hole(spec) / 2 + spec.wall
+    d.polygon([(cx + w * s2, cy + u * s2) for u, w in hole], fill="white", outline=TEXT)
     q = t / 2
-    d.polygon(Q([(-q, -q), (q, -q), (q, q), (-q, q)]), fill=(200, 160, 110), outline=TEXT)
-    d.text((cx, 400), _t("Quer zur Achse"), fill=TEXT, font=_font(18), anchor="mm")
-    # von oben: Scheiben abwechselnd an A (Holz) und B (blau), Achse waagerecht
-    s3, ox, ay = 5.0, 830, 200
-    n = spec.knuckles
-    xl, xr = ox - spec.margin * s3, ox + (n * t + spec.margin) * s3
-    d.rectangle([xl, ay + 0.5 * s3, xr, ay + spec.leaf_width * s3], fill=HOLZ, outline=TEXT)          # Blatt A
-    d.rectangle([xl, ay - spec.leaf_width * s3, xr, ay - 0.5 * s3], fill=(150, 190, 230), outline=TEXT)  # Blatt B
-    for i in range(n):
-        x = ox + i * t * s3
-        if i % 2 == 0:
-            d.rectangle([x, ay - R * s3, x + t * s3, ay + spec.arm * s3], fill=HOLZ, outline=TEXT)
-        else:
-            d.rectangle([x, ay - spec.arm * s3, x + t * s3, ay + R * s3], fill=(150, 190, 230), outline=TEXT)
-    d.rectangle([ox - t * s3, ay - t / 2 * s3, ox + (n + 1) * t * s3, ay + t / 2 * s3],
-                fill=(200, 160, 110), outline=TEXT)
-    d.text((ox + n * t * s3 / 2, 400), _t("Von oben"), fill=TEXT, font=_font(18), anchor="mm")
+    d.polygon([(cx + (R + x) * s2, cy + y * s2) for x, y in ((-q, -q), (q, -q), (q, q), (-q, q))],
+              fill=(200, 160, 110), outline=TEXT)
+    d.text((cx - 30, cy - 140), _t("Deckel"), fill=TEXT, font=_font(16), anchor="rm")
+    d.text((cx - 30, cy + 140), _t("Box"), fill=TEXT, font=_font(16), anchor="rm")
+    d.text((cx, 400), _t("Schnitt quer zur Achse"), fill=TEXT, font=_font(18), anchor="mm")
+    # einzelner Knöchel
+    s3, kx, ky = 5.0, 880, 330
+    d.polygon([(kx + x * s3, ky - y * s3) for x, y in plate], fill=HOLZ, outline=TEXT)
+    d.polygon([(kx + x * s3, ky - y * s3) for x, y in hole], fill="white", outline=TEXT)
+    d.text((kx + 60, 400), _t("Knöchel"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
 
 

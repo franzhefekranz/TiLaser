@@ -715,34 +715,42 @@ auswählen; TiLaser legt durch jedes Innenteil einen Steg (senkrecht oder waager
 Breite.
 
 <!-- hilfe: knoechelscharnier -->
-### Knöchelscharnier
+### Knöchelscharnier an Kante
 
-*Werkzeuge → Generatoren → Knöchelscharnier…* erzeugt ein **Scharnier nur aus Laserteilen**, z. B. für
-Boxdeckel. Die Knöchel sind flache Scheiben mit einem runden Auge und einem Arm. Sie stehen quer zur
-Drehachse dicht nebeneinander – abwechselnd an **Scharnierblatt A** (Knöchel 1, 3, 5 …) und
-**Scharnierblatt B** (Knöchel 2, 4 …). Jede Scheibe steckt mit einer Lasche in einem Schlitz ihres Blatts.
-Durch alle Augen geht der **Stift**, um den sich die beiden Blätter drehen.
+*Werkzeuge → Knöchelscharnier an Kante…* baut ein **Scharnier nur aus Laserteilen** zwischen zwei Teilen
+einer Box – typisch die **Rückwand der Box und die Rückwand des Deckels**. Die Knöchel sind Scheiben aus dem
+Material, die senkrecht außen auf den Wänden stehen, abwechselnd an beiden Teilen. Jeder Knöchel steckt mit
+**zwei kleinen Fingerzinken** in Schlitzen seiner Wand. Das Auge mit dem Loch sitzt genau über der
+gemeinsamen Kante, zum Ende hin ist der Knöchel **abgeschrägt**. Durch alle Augen geht der **Stift**, um den
+sich der Deckel dreht.
 
-![Knöchelscharnier: Teile, quer zur Achse und von oben](screenshots/knoechelscharnier.png)
+1. Die beiden Rückwände so hinlegen, wie sie bei geschlossener Box aneinanderstoßen: **Kante an Kante**
+   (am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen), Alt+K).
+2. Beide auswählen → *Werkzeuge → Knöchelscharnier an Kante…*
 
-**Zusammenbau:** Die Knöchel mit ungerader Nummer in die Schlitze von Blatt A stecken, die mit gerader in
-Blatt B (am besten verleimen). Beide Blätter so zusammenschieben, dass die Knöchel abwechselnd stehen und die
-Augen fluchten, dann den Stift durchschieben. Die Blätter werden auf Deckel und Korpus geleimt oder sind
-selbst Teil der Box. Das Scharnier ist *Anzahl Knöchel × Materialstärke* lang.
+TiLaser schneidet die Schlitze in beide Rückwände und legt die Knöchel (und die Stifte) rechts neben die
+Teile. Knöchel 1, 3, 5 … jedes Scharniers gehören zu dem zuerst ausgewählten Teil, 2, 4 … zum anderen – die
+Statusleiste nennt die Zuordnung.
+
+![Knöchelscharnier: Rückwände mit Schlitzen, Schnitt quer zur Achse, einzelner Knöchel](screenshots/knoechelscharnier.png)
+
+**Zusammenbau:** Die Knöchel in die Schlitze stecken (gerne verleimen), Box und Deckel zusammenstellen, so
+dass die Knöchel abwechselnd stehen und die Augen fluchten, dann den Stift durchschieben. Der mitgelaserte
+Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden hält ihn.
 
 | Einstellung | Wirkung |
 |---|---|
-| Materialstärke | Dicke des Materials; bestimmt die Breite jedes Knöchels und der Schlitze |
-| Anzahl Knöchel | Mehr Knöchel = längeres und stabileres Scharnier. Bei ungerader Anzahl sitzen außen beide Knöchel an Blatt A |
-| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke). Er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs, Zahnstochers oder Drahts |
-| Spiel | Luft im Loch um den Stift und in den Schlitzen um die Laschen |
+| Materialstärke | Dicke des Materials – Breite jedes Knöchels, Tiefe der Fingerzinken |
+| Scharniere | *Eines in der Mitte* oder *Zwei, nahe den Enden* der Kante |
+| Abstand vom Ende der Kante | Bei zwei Scharnieren: wie weit sie von den Enden der Kante entfernt sind |
+| Knöchel je Scharnier | Ein Scharnier ist *Knöchel × Materialstärke* lang. Bei ungerader Anzahl sitzen außen beide Knöchel am ersten Teil |
+| Knöchellänge | Wie weit der Knöchel ab der Kante auf der Wand liegt |
+| Höhe am abgeschrägten Ende | Der Knöchel fällt vom Auge bis hierhin ab |
+| Länge der Fingerzinken | Länge der beiden Zinken (und Schlitze) entlang der Wand; einer sitzt gleich hinter dem Auge, einer kurz vor dem Ende |
+| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke); er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs oder Drahts |
 | Wandstärke um das Loch | Material zwischen Loch und Außenrand des Auges |
-| Armlänge | Abstand von der Drehachse bis zum Ende des Arms; die Lasche sitzt mittig darunter |
-| Breite der Scharnierblätter | Breite der Blätter quer zur Achse. 0 = keine Blätter: die Knöchel werden ohne Lasche erzeugt und direkt auf Deckel und Korpus geleimt |
-| Ebene | Ebene für die Teile |
-
-Der mitgelaserte Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden verhindert,
-dass er herausrutscht. Die Teile werden nebeneinander als einzelne Objekte erzeugt.
+| Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 
 ---
 
@@ -1452,7 +1460,6 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Generatoren → Box-Generator… | Strg+Umschalt+B | Kasten mit Fingerzinken ([Box-Generator](#box-generator)) |
 | Generatoren → Zahnrad… | | Evolventen-Zahnrad, optional mit Gegenrad |
 | Generatoren → Puzzle… | | Puzzle mit Rahmen |
-| Generatoren → Knöchelscharnier… | | Scharnier aus Knöchelscheiben, Blättern und Stift ([Knöchelscharnier](#knöchelscharnier)) |
 | Muster in Fläche → Biegescharnier… | | Schnittmuster zum Biegen ([Muster in einer Fläche](#muster-in-einer-fläche)) |
 | Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
@@ -1460,6 +1467,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
 | Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
+| Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

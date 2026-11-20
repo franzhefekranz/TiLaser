@@ -37,7 +37,7 @@ PARAM_DIALOGS = {"Biegescharnier": "muster", "Lochmuster": "muster", "Gravurmust
                  "Snap-Lock an Kante": "snap-lock", "Hammerverbindung an Kante": "hammerverbindung",
                  "Schablonen-Stege": "zahnrad-puzzle",
                  "Zahnrad": "zahnrad-puzzle", "Puzzle": "zahnrad-puzzle",
-                 "Knöchelscharnier": "knoechelscharnier"}
+                 "Knöchelscharnier an Kante": "knoechelscharnier"}
 # Hauptmenüs (deutscher Titel) -> Abschnitt der Referenz
 MENUS = {"&Datei": "menu-datei", "&Bearbeiten": "menu-bearbeiten", "&Anordnen": "menu-anordnen",
          "&Formen": "menu-formen", "&Werkzeuge": "menu-werkzeuge", "&Ansicht": "menu-ansicht",
@@ -50,7 +50,8 @@ ACTIONS = {
     "Array erstellen…": "array", "Nesting (Teile anordnen)…": "nesting", "Offset…": "dlg-offset",
     "Bild nachzeichnen…": "nachzeichnen", "Materialtest…": "materialtest", "Text auf Pfad…": "text-auf-pfad",
     "QR-Code / Barcode einfügen…": "variabler-text", "Variable Texte…": "variabler-text",
-    "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle", "Knöchelscharnier…": "knoechelscharnier",
+    "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle",
+    "Knöchelscharnier an Kante…": "knoechelscharnier",
     "Biegescharnier…": "muster", "Lochmuster / Lüftungsgitter…": "muster", "Gravurmuster…": "muster",
     "Fingerzinken an Kante…": "fingerzinken", "Puzzle-Verbindung an Kante…": "puzzle-verbindung",
     "Snap-Lock an Kante…": "snap-lock", "Hammerverbindung an Kante…": "hammerverbindung",
