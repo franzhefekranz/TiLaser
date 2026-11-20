@@ -2179,6 +2179,32 @@ def test_puzzle_joint():
             pass
 
 
+def test_snap_lock():
+    from tilaser.core.joints import SnapSpec, snap_height, snap_lock
+    a = [np.array([[0, 0], [60, 0], [60, 30], [0, 30]], float)]
+    b = [np.array([[0, 30], [60, 30], [60, 60], [0, 60]], float)]
+    spec = SnapSpec()
+    ra, rb, n, shift = snap_lock(a, b, spec)
+    assert n == 1 and len(rb) == 1 + 2 and np.allclose(rb[0], b[0])                    # B unverändert + 2 Schlitze
+    assert np.allclose(shift, [0, -(snap_height(spec) + spec.gap)])
+    slot = rb[1]
+    assert abs(np.ptp(slot[:, 0]) - (spec.width + spec.clearance)) < 1e-9
+    assert abs(np.ptp(slot[:, 1]) - (spec.thickness + spec.clearance)) < 1e-9
+    assert abs(slot[:, 1].min() - (30 + spec.inset - spec.clearance / 2)) < 1e-9
+    top = ra[0][:, 1].max() - shift[1]                                                  # Laschen vor dem Verschieben
+    assert abs(top - (30 + snap_height(spec))) < 1e-9 and ra[0][:, 1].max() < 30 - spec.gap + 1e-9
+    xs = ra[0][:, 0]
+    tab = ra[0][ra[0][:, 1] > 30 + shift[1] + 1e-6]
+    assert np.ptp(tab[:, 0]) > spec.width                                              # Haken stehen über
+    assert abs(np.ptp(slot[:, 0]) - spec.width) < 2 * spec.barb and xs.min() == 0
+    for bad in (SnapSpec(barb=1.0), SnapSpec(slit=7.5), SnapSpec(inset=40)):
+        try:
+            snap_lock(a, b, bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

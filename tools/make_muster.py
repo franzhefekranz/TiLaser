@@ -18,7 +18,7 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import finger_joint, puzzle_joint  # noqa: E402
+from tilaser.core.joints import SnapSpec, finger_joint, puzzle_joint, snap_lock, snap_tab_profile  # noqa: E402
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -99,6 +99,7 @@ def main():
     joint_types()
     hinge_types()
     puzzle_types()
+    snap_types()
     print("Bilder in", OUT)
 
 
@@ -134,6 +135,36 @@ def puzzle_types():
                 d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
         d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "puzzle_verbindung.png"), optimize=True)
+
+
+def snap_types():
+    """Snap-Lock: links die Teile wie erzeugt, rechts eine Lasche im Schnitt (eingerastet)."""
+    a = [np.array([[0, 0], [80, 0], [80, 30], [0, 30.]])]
+    b = [np.array([[0, 30], [80, 30], [80, 60], [0, 60.]])]
+    spec = SnapSpec(thickness=4, width=10, barb=0.7, slit=1.6)
+    ra, rb, _, _ = snap_lock(a, b, spec)
+    im = Image.new("RGB", (900, 420), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox = 3.6, 60
+    d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in ra[0]], fill=HOLZ, outline=TEXT)
+    d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in rb[0]], fill=(150, 190, 230), outline=TEXT)
+    for r in rb[1:]:
+        d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in r], fill="white", outline=TEXT)
+    d.text((ox + 40 * sc, 395), _t("Teile wie erzeugt"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt: Teil A (Lasche) steckt senkrecht durch Teil B
+    sc2, cx, base = 9.0, 690, 300
+    prof = snap_tab_profile(0.0, spec)
+    tab = [(cx + s * sc2, base - t * sc2) for s, t in prof]
+    body = [(cx - 12 * sc2, base)] + tab + [(cx + 12 * sc2, base), (cx + 12 * sc2, base + 8 * sc2),
+                                           (cx - 12 * sc2, base + 8 * sc2)]
+    d.polygon(body, fill=HOLZ, outline=TEXT)
+    t = spec.thickness
+    d.rectangle([cx - 20 * sc2, base - t * sc2, cx - (spec.width + spec.clearance) / 2 * sc2, base], fill=(150, 190, 230),
+                outline=TEXT)
+    d.rectangle([cx + (spec.width + spec.clearance) / 2 * sc2, base - t * sc2, cx + 20 * sc2, base], fill=(150, 190, 230),
+                outline=TEXT)
+    d.text((cx, 395), _t("Eingerastet (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "snap_lock.png"), optimize=True)
 
 
 def hinge_types():

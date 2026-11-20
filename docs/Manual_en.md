@@ -604,6 +604,42 @@ If a part is too narrow at the edge for the knobs or the requested number of kno
 TiLaser reports this and changes nothing. Curves of the parts are converted into fine polylines. For the pieces
 of a whole jigsaw picture there is the [puzzle generator](#gear-puzzle-and-stencil-bridges).
 
+<!-- hilfe: snap-lock -->
+### Snap lock on edge
+
+Plug-in joint **at a right angle without glue or screws**: one part gets tabs made of two springy prongs with
+small hooks, the other matching rectangular slots. When pushing through, the prongs are squeezed together;
+on the back the hooks snap in. To release, squeeze the prongs together with your fingers. Typical for
+housings, boxes and brackets.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K). The edge of one part is later plugged into the
+   face of the other.
+2. Select both parts → *Tools → Snap lock on edge…*
+3. Under **Tabs on**, choose which part gets the tabs.
+
+TiLaser places the tabs on the edge, cuts the slots into the other part and then moves the part with the
+tabs away a little so that nothing overlaps (the status bar shows the distance).
+
+![Snap lock: parts as created and snapped in, in section](screenshots/en/snap_lock.png)
+
+| Setting | Effect |
+|---|---|
+| Tabs on | Part that gets the tabs; the other gets the slots |
+| Material thickness | Thickness of the material (both parts). The hooks sit just above it, the slots are that wide |
+| Tab width | Width of one tab (both prongs and the spring slit together) |
+| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed |
+| Hook (sideways overhang) | How far each hook protrudes sideways. More = holds tighter, harder to plug in. Together they must be smaller than spring slit + clearance, otherwise the prongs do not get through |
+| Spring slit | Width of the slit between the two prongs. It reaches a little into the part so that the prongs are longer and spring more softly |
+| Clearance | Play in the slot and under the hooks |
+| Distance of the slots from the edge | How far the slots are from the edge of the other part – the part with the tabs will stand exactly there |
+| Tolerance | How far apart the edges may be and still count as “touching” |
+| All shared edges | Otherwise only the longest shared edge is processed |
+
+**Tips:** The spring effect depends strongly on the material – test plywood and acrylic (brittle!) with a
+sample first. For acrylic choose small hooks (0.3–0.5 mm) and a wider spring slit. If the slots do not fit
+into the other part (too narrow or too close to the edge), TiLaser reports this and changes nothing.
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
 
@@ -1327,6 +1363,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
 | Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
+| Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

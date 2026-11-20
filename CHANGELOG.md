@@ -9,6 +9,8 @@ the GitHub release.
 - **Puzzle-Verbindung an Kante** (*Werkzeuge*): verbindet zwei flach Kante an Kante liegende Teile mit
   runden Puzzle-Nasen (schmaler Hals, formschlüssig); Nasengröße, Anzahl, Spiel und Nasen abwechselnd an
   beiden Teilen einstellbar.
+- **Snap-Lock an Kante** (*Werkzeuge*): federnde Rastlaschen mit Haken an einem Teil und passende Schlitze im
+  anderen – Steckverbindung im rechten Winkel ohne Leim.
 
 ## 0.9.1
 

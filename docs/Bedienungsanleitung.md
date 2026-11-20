@@ -611,6 +611,42 @@ Ist ein Teil an der Kante zu schmal für die Nasen oder passen nicht so viele Na
 TiLaser das und ändert nichts. Kurven der Teile werden in feine Linienzüge umgewandelt. Für die Puzzle-Teile
 eines ganzen Bildes gibt es den [Puzzle-Generator](#zahnrad-puzzle-und-schablonen-stege).
 
+<!-- hilfe: snap-lock -->
+### Snap-Lock an Kante
+
+Steckverbindung **im rechten Winkel ohne Leim und Schrauben**: Das eine Teil bekommt Laschen aus zwei
+federnden Zungen mit kleinen Haken, das andere passende rechteckige Schlitze. Beim Durchstecken werden die
+Zungen zusammengedrückt, auf der Rückseite rasten die Haken ein. Zum Lösen die Zungen mit den Fingern
+zusammendrücken. Typisch für Gehäuse, Boxen und Halterungen.
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
+   [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K). Die Kante des einen Teils wird später an die
+   Fläche des anderen gesteckt.
+2. Beide Teile auswählen → *Werkzeuge → Snap-Lock an Kante…*
+3. Unter **Laschen an** wählen, welches Teil die Laschen bekommt.
+
+TiLaser setzt die Laschen an die Kante, schneidet die Schlitze in das andere Teil und schiebt das Teil mit
+den Laschen anschließend etwas weg, damit sich nichts überlappt (die Statusleiste nennt den Weg).
+
+![Snap-Lock: Teile wie erzeugt und eingerastet im Schnitt](screenshots/snap_lock.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Laschen an | Teil, das die Laschen bekommt; das andere bekommt die Schlitze |
+| Materialstärke | Dicke des Materials (beide Teile). Die Haken sitzen knapp darüber, die Schlitze sind so breit |
+| Laschenbreite | Breite einer Lasche (beide Zungen und der Federschlitz zusammen) |
+| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt |
+| Haken (seitlicher Überstand) | Wie weit jeder Haken seitlich übersteht. Mehr = hält fester, lässt sich schwerer stecken. Muss zusammen kleiner sein als Federschlitz + Spiel, sonst kommen die Zungen nicht durch |
+| Federschlitz | Breite des Schlitzes zwischen den beiden Zungen. Er reicht etwas in das Teil hinein, damit die Zungen länger und weicher federn |
+| Spiel | Luft im Schlitz und unter den Haken |
+| Abstand der Schlitze zur Kante | Wie weit die Schlitze vom Rand des anderen Teils entfernt sind – das Teil mit den Laschen steht später genau dort |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+
+**Tipps:** Die Federwirkung hängt stark vom Material ab – Sperrholz und Acryl (spröde!) vorher mit einem
+Probestück testen. Bei Acryl kleine Haken (0,3–0,5 mm) und einen breiteren Federschlitz wählen. Passen die
+Schlitze nicht in das andere Teil (zu schmal oder zu nah am Rand), meldet TiLaser das und ändert nichts.
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
 
@@ -1343,6 +1379,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
 | Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
 | Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
+| Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

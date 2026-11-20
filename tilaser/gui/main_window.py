@@ -344,6 +344,9 @@ class MainWindow(QMainWindow):
                                "Zinken an der gemeinsamen Kante zweier Teile, optional mit Dogbone-Ecken"))
         wz.addAction(self._act("Puzzle-Verbindung an Kante…", self.puzzle_joint_tool, None,
                                "Puzzle-Nasen an der gemeinsamen Kante zweier Teile, die Kante an Kante liegen"))
+        wz.addAction(self._act("Snap-Lock an Kante…", self.snap_lock_tool, None,
+                               "Federnde Rastlaschen an einem Teil, passende Schlitze im anderen (Steckverbindung "
+                               "im rechten Winkel ohne Leim)"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -1842,6 +1845,70 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Puzzle-Verbindung an {n} Kante(n) erzeugt (Nasen ragen "
                                      f"{puzzle_height(v['size']):.1f} mm über die Kante).", 6000)
+
+    def snap_lock_tool(self):
+        from ..core.joints import SnapSpec, sides, snap_height, snap_lock
+        title = "Snap-Lock an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile Kante an Kante "
+                                                 "legen (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                                                 "versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = SnapSpec()
+        fields = [("tabs_on", "Laschen an", "c", "0", who),
+                  ("thickness", "Materialstärke", "f", d.thickness, (0.5, 20, 2, 0.1, " mm")),
+                  ("width", "Laschenbreite", "f", d.width, (3, 100, 1, 0.5, " mm")),
+                  ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
+                  ("barb", "Haken (seitlicher Überstand)", "f", d.barb, (0.1, 3, 2, 0.05, " mm")),
+                  ("slit", "Federschlitz", "f", d.slit, (0.3, 10, 2, 0.1, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("inset", "Abstand der Schlitze zur Kante", "f", d.inset, (0.5, 100, 1, 0.5, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Das gewählte Teil bekommt Laschen aus zwei federnden Zungen mit Haken, das andere passende "
+                "rechteckige Schlitze. Zusammengesteckt stehen die Teile im rechten Winkel; die Zungen werden "
+                "beim Durchstecken zusammengedrückt und die Haken rasten auf der Rückseite ein. Danach wird das "
+                "Teil mit den Laschen etwas weggeschoben, damit sich nichts überlappt. Lösen: Zungen "
+                "zusammendrücken.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = SnapSpec(v["thickness"], v["width"], v["count"], v["barb"], v["slit"], v["clearance"], v["inset"])
+        first = 1 if str(v["tabs_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n, shift = snap_lock([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec,
+                                         v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        moved = [(p.transformed(g.translate(float(shift[0]), float(shift[1]))), lid) for p, lid in wa]
+        for k, i in enumerate(ia):
+            moved[i] = (g.Polyline(ra[k], True), wa[i][1])
+        new_b = list(wb)
+        for k, i in enumerate(ib):
+            if len(rb[k]) != len(wb[i][0].pts) or not np.allclose(rb[k], wb[i][0].pts):
+                new_b[i] = (g.Polyline(rb[k], True), wb[i][1])
+        lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+        new_b += [(g.Polyline(r, True), lid_b) for r in rb[len(ib):]]           # neue Schlitze
+        new_ids = [self._replace_item(a, moved).id, self._replace_item(b, new_b).id]
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"Snap-Lock an {n} Kante(n) erzeugt; {a.name} wurde um "
+                                     f"{snap_height(spec) + spec.gap:.1f} mm weggeschoben.", 8000)
 
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)

@@ -358,3 +358,87 @@ def puzzle_joint(rings_a, rings_b, size: float = 10.0, count: int = 0, clearance
     for e, centers, signs, u, v in sorted(jobs, key=lambda j: -j[0].kb):
         rb[e.rb] = _insert_points(rb[e.rb], e.kb, world(e, centers, signs, u, v, +half))
     return ra, rb, len(jobs)
+
+
+# ---------------------------------------------------------------- Snap-Lock (Rastlaschen)
+
+@dataclass
+class SnapSpec:
+    thickness: float = 3.0     # Materialstärke (beide Teile)
+    width: float = 8.0         # Breite einer Lasche
+    count: int = 0             # 0 = automatisch
+    barb: float = 0.5          # wie weit der Haken seitlich übersteht
+    slit: float = 1.5          # Breite des Federschlitzes zwischen den beiden Zungen
+    clearance: float = 0.1     # Spiel im Schlitz und unter dem Haken
+    inset: float = 3.0         # Abstand der Schlitze in Teil B von dessen Kante
+    gap: float = 3.0           # Abstand, um den Teil A nach dem Erzeugen von B weggeschoben wird
+
+
+def snap_tab_profile(sc: float, spec: SnapSpec) -> list[tuple[float, float]]:
+    """Kontur einer Rastlasche (s entlang der Kante, t > 0 = aus Teil A heraus).
+
+    Zwei federnde Zungen mit einem Schlitz dazwischen, der in Teil A hineinreicht. Außen sitzt je ein
+    Haken knapp über der Materialstärke, darüber eine Schräge zum Einführen."""
+    w2, g2, b = spec.width / 2, spec.slit / 2, spec.barb
+    y1 = spec.thickness + spec.clearance                 # Unterkante des Hakens: liegt auf der Gegenseite an
+    top = y1 + max(1.5, 3 * b)                           # Schräge zum Einführen
+    depth = max(2.0, spec.thickness)                     # Schlitz reicht so weit in Teil A
+    return [(sc - w2, 0.0), (sc - w2, y1), (sc - w2 - b, y1), (sc - w2, top), (sc - g2, top), (sc - g2, -depth),
+            (sc + g2, -depth), (sc + g2, top), (sc + w2, top), (sc + w2 + b, y1), (sc + w2, y1), (sc + w2, 0.0)]
+
+
+def snap_height(spec: SnapSpec) -> float:
+    return spec.thickness + spec.clearance + max(1.5, 3 * spec.barb)
+
+
+def snap_lock(rings_a, rings_b, spec: SnapSpec, tol: float = 0.5, all_edges: bool = False):
+    """Rastlaschen an Teil A und passende Schlitze in Teil B (T- oder L-Verbindung im rechten Winkel).
+
+    Die Teile liegen beim Aufruf Kante an Kante (wie bei den Fingerzinken). Teil A bekommt an der Kante
+    federnde Laschen mit Haken, Teil B rechteckige Durchbrüche im Abstand ``inset`` von seiner Kante.
+    Danach wird Teil A um Laschenhöhe + ``gap`` von B weggeschoben, damit sich nichts überlappt.
+    Gibt (Ringe A, Ringe B inkl. neuer Schlitze, Anzahl Kanten, Verschiebung von A) zurück."""
+    t = spec.thickness
+    if t <= 0 or spec.width <= 0:
+        raise ValueError("Materialstärke und Laschenbreite müssen größer als 0 sein.")
+    if spec.slit >= spec.width - 2.0:
+        raise ValueError("Der Federschlitz ist zu breit für die Lasche – jede Zunge braucht mindestens 1 mm.")
+    if 2 * spec.barb > spec.slit + spec.clearance:
+        raise ValueError("Die Haken stehen weiter über, als die Zungen in den Federschlitz ausweichen können "
+                         "(2 × Haken ≤ Schlitzbreite + Spiel).")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=spec.width + 4)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Laschen ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    if not all_edges:
+        edges = edges[:1]
+    jobs, slots = [], []
+    for e in edges:
+        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (4 * spec.width))))
+        if n * (spec.width + 2 * spec.barb + 3) > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Laschen mit {spec.width:g} mm – "
+                             "weniger oder schmalere Laschen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)              # von A nach B
+        for sc in centers:
+            hw, c = (spec.width + spec.clearance) / 2, spec.clearance / 2
+            box = [(sc - hw, spec.inset - c), (sc + hw, spec.inset - c), (sc + hw, spec.inset + t + c),
+                   (sc - hw, spec.inset + t + c)]
+            ring = np.array([e.p0 + u * s + v * tt for s, tt in box])
+            if not inside(ring, rb).all():
+                raise ValueError("Die Schlitze passen nicht in Teil B – Abstand zur Kante oder Laschenbreite "
+                                 "verkleinern.")
+            slots.append(ring)
+        jobs.append((e, centers, u, v))
+    for e, centers, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        pts = [(0.0, 0.0)]
+        for sc in centers:
+            pts += snap_tab_profile(sc, spec)
+        pts.append((e.length, 0.0))
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array([e.p0 + u * s + v * tt for s, tt in pts]))
+    shift = -jobs[0][3] * (snap_height(spec) + spec.gap)
+    ra = [r + shift for r in ra]
+    return ra, rb + slots, len(jobs), shift
