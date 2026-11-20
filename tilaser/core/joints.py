@@ -887,7 +887,8 @@ class SliderLatchSpec:
     hooks: int = 2              # Anzahl Haken
     hook_width: float = 6.0     # Breite des Hakenschafts
     catch: float = 1.5          # Hakenüberstand = Federweg
-    head: float = 3.5           # so weit steht der Hakenkopf über dem Deckel
+    head: float = 3.5           # so weit steht der Hakenkopf mindestens über dem Deckel
+    ramp_angle: float = 60.0    # Neigung der Schräge an der Hakennase gegen die Deckelfläche (steiler = leichter)
     legs: int = 9               # Schenkel der Feder (ungerade)
     bar: float = 1.5            # Stegbreite der Feder
     gap: float = 1.2            # Schlitz zwischen den Schenkeln
@@ -949,22 +950,64 @@ def slider_spring_line(spec: SliderLatchSpec, step_deg: float = 15.0) -> np.ndar
     return np.array(pts, float)
 
 
+def _fillet(p_prev, p, p_next, radius: float, step_deg: float = 10.0) -> list[tuple[float, float]]:
+    """Ecke p (zwischen p_prev und p_next) durch einen Bogen mit Radius radius ersetzen."""
+    p_prev, p, p_next = (np.asarray(q, float) for q in (p_prev, p, p_next))
+    a = (p - p_prev) / np.hypot(*(p - p_prev))
+    b = (p_next - p) / np.hypot(*(p_next - p))
+    phi = math.acos(float(np.clip(-a @ b, -1, 1)))          # Innenwinkel
+    if phi < 1e-6 or phi > math.pi - 1e-6:
+        return [tuple(p)]
+    t = min(radius / math.tan(phi / 2), 0.45 * np.hypot(*(p - p_prev)), 0.45 * np.hypot(*(p_next - p)))
+    r = t * math.tan(phi / 2)
+    s, e = p - a * t, p + b * t
+    bis = (b - a) / np.hypot(*(b - a))
+    c = p + bis * (r / math.sin(phi / 2))
+    a0, a1 = math.atan2(*(s - c)[::-1]), math.atan2(*(e - c)[::-1])
+    da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+    m = max(2, int(abs(math.degrees(da)) / step_deg) + 1)
+    return [(c[0] + r * math.cos(a0 + da * i / m), c[1] + r * math.sin(a0 + da * i / m)) for i in range(m + 1)]
+
+
+def hook_profile(x: float, spec: SliderLatchSpec, step_deg: float = 10.0) -> list[tuple[float, float]]:
+    """Haken auf der Riegeloberkante (y = 0), von rechts nach links: Schaft, waagerechte Rastfläche (liegt auf dem
+    Deckel), runde Nasenspitze, steile Schräge nach links oben, verrundeter Kopf.
+
+    Die Schräge steht im Winkel ``ramp_angle`` zur Deckelfläche und reicht bis über die Schaftkante – die
+    Schlitzkante des Deckels trifft beim Aufschieben immer auf die Schräge und drückt den Haken zur Seite."""
+    c, ws, n = spec.clearance, spec.hook_width, spec.catch
+    y1 = spec.lid + c
+    xt = x + ws + n                                    # Nasenspitze
+    rt = min(0.6, n / 2)
+    al = math.radians(min(80.0, max(20.0, spec.ramp_angle)))
+    th = math.pi / 2 - al                              # Übergang Bogen -> Schräge
+    cx, cy = xt - rt, y1 + rt
+    m = max(3, int(math.degrees(th + math.pi / 2) / step_deg))
+    tip = [(cx + rt * math.cos(-math.pi / 2 + (th + math.pi / 2) * i / m),
+            cy + rt * math.sin(-math.pi / 2 + (th + math.pi / 2) * i / m)) for i in range(m + 1)]
+    sx, sy = tip[-1]
+    reach = sx - (x + ws - 0.5)                        # Schräge reicht etwas über die Schaftkante nach links
+    top = max(y1 + spec.head, sy + reach * math.tan(al))
+    crest = (sx - (top - sy) / math.tan(al), top)
+    rc = min(1.0, 0.3 * ws)
+    head = _fillet(tip[-1], crest, (x, top), rc, step_deg)
+    left = _fillet(head[-1], (x, top), (x, 0.0), min(0.8, 0.2 * ws), step_deg)
+    return [(x + ws, 0.0), (x + ws, y1)] + tip + head + left + [(x, 0.0)]
+
+
 def slider_plate(spec: SliderLatchSpec) -> tuple[list[np.ndarray], list[float]]:
     """Riegel als Ringe (Außenkontur mit Haken, Fenster mit Feder und Öse, Loch der Öse, Langloch).
 
     Gibt außerdem die x-Positionen der Hakenschäfte (linke Kante) zurück."""
     d = slider_dims(spec)
-    c, L, ws, n = spec.clearance, spec.length, spec.hook_width, spec.catch
+    L, ws, n = spec.length, spec.hook_width, spec.catch
     k = max(1, spec.hooks)
     inset = spec.margin + 2
     span = L - 2 * inset - ws - n
     hx = [inset + span * (i / (k - 1) if k > 1 else 0.5) for i in range(k)]
-    y1 = spec.lid + c                                  # Unterseite der Nase liegt auf dem Deckel
-    top = y1 + spec.head
     outer = [(0.0, -d["height"]), (L, -d["height"])]
     for x in reversed(hx):                             # Oberkante von rechts nach links
-        outer += [(x + ws, 0.0), (x + ws, y1), (x + ws + n, y1), (x + ws + n, y1 + min(1.0, spec.head / 3)),
-                  (x + 0.4 * ws, top), (x, top), (x, 0.0)]
+        outer += hook_profile(x, spec)
     outer = [(0.0, -d["height"]), (L, -d["height"]), (L, 0.0)] + outer[2:] + [(0.0, 0.0)]
     # Fenster: rechts vom letzten Schenkel um das Fenster herum, an der Feder entlang zur Öse, um die Öse, zurück
     line = slider_spring_line(spec)

@@ -7,7 +7,8 @@ the GitHub release.
 ## Unveröffentlicht
 
 - Neu: *Werkzeuge → Federriegel mit Haken…* – Riegel hinter der Vorderwand, dessen Haken durch Schlitze im Deckel
-  greifen; T-Halter in Öse (am Ende einer langen Mäanderfeder) und Langloch, Öffnen durch Schieben der Hakenköpfe. Optional
+  greifen; T-Halter in Öse (am Ende einer langen Mäanderfeder) und Langloch, Öffnen durch Schieben der Hakenköpfe. Hakennase mit
+  steiler, einstellbarer Schräge (Standard 60°) und verrundeter Spitze. Optional
   mit innerer Lage (zweiter Boden), zwischen der und der Wand der Riegel liegt; dort Schlitze für die Halterköpfe.
 - Neu: *Werkzeuge → Federverschluss an Kante…* – Schnappverschluss für Deckel: Zunge mit Haken an einer
   Mäanderfeder (S-Form, runde Wendungen) im einen Teil, Aussparung mit Schulter im anderen; Öffnen per Drucktaste.

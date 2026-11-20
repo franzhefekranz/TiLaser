@@ -1541,5 +1541,7 @@
  "Innere Lage als Kopie der Wand erzeugen": "Create inner layer as a copy of the wall",
  "Drittes ausgewähltes Teil als innere Lage verwenden": "Use the third selected part as the inner layer",
  "Die innere Lage ist nicht so groß wie die Vorderwand – die Schlitze für die Köpfe der Halter wurden trotzdem an derselben Stelle (von links oben gemessen) geschnitten.": "The inner layer is not the same size as the front wall – the slots for the holder heads were still cut at the same position (measured from the top left).",
- "innere Lage": "inner layer"
+ "innere Lage": "inner layer",
+ "Hakenkopf über dem Deckel (mindestens)": "Hook head above the lid (minimum)",
+ "Neigung der Schräge an der Nase": "Bevel angle at the nose"
 }

@@ -1,6 +1,7 @@
 """Headless-Tests für den Kern (ohne GUI, ohne Laser).  Start:  python -m pytest tests  oder  python tests/test_core.py"""
 import base64
 import io
+import math
 import os
 import sys
 import tempfile
@@ -2410,6 +2411,15 @@ def test_slider_latch():
     assert inside(np.array([[d["key_a"], d["key_y"]]]), [pl[2]])[0]
     line = slider_spring_line(spec)
     assert abs(line[-1, 1] - d["win_bot"]) < 1e-9 and abs(line[0, 0] - d["ring_r"]) < 1e-9
+    # Hakennase: Schräge im eingestellten Winkel, reicht über die Schaftkante, Rastfläche auf Deckelhöhe
+    from tilaser.core.joints import hook_profile
+    for ang in (45.0, 60.0, 75.0):
+        pr = np.array(hook_profile(0.0, SliderLatchSpec(ramp_angle=ang)))
+        y1 = spec.lid + spec.clearance
+        assert np.isclose(pr[1, 1], y1) and pr[:, 0].max() <= spec.hook_width + spec.catch + 1e-9
+        seg = np.diff(pr, axis=0)
+        slopes = [math.degrees(math.atan2(dy, -dx)) for dx, dy in seg if dx < -0.05 and dy > 0.05]
+        assert any(abs(s_ - ang) < 0.5 for s_ in slopes)
     # Langloch erlaubt genau den Federweg
     assert abs(np.ptp(pl[3][:, 0]) - (d["hole_w"] + d["travel"])) < 1e-9
     assert d["head_slots"] == [] and abs(np.ptp(keys[0][:, 0]) - (spec.wall + spec.thickness + spec.clearance + 3)) < 1e-9

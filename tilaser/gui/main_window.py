@@ -2109,7 +2109,8 @@ class MainWindow(QMainWindow):
                   ("hooks", "Anzahl Haken", "i", d.hooks, (1, 10)),
                   ("hook_width", "Breite des Hakenschafts", "f", d.hook_width, (2, 30, 1, 0.5, " mm")),
                   ("catch", "Hakenüberstand (Federweg)", "f", d.catch, (0.5, 10, 2, 0.1, " mm")),
-                  ("head", "Hakenkopf über dem Deckel", "f", d.head, (1, 20, 1, 0.5, " mm")),
+                  ("head", "Hakenkopf über dem Deckel (mindestens)", "f", d.head, (1, 20, 1, 0.5, " mm")),
+                  ("ramp_angle", "Neigung der Schräge an der Nase", "f", d.ramp_angle, (20, 80, 0, 5, "°")),
                   ("legs", "Schenkel der Feder (ungerade)", "i", d.legs, (1, 61)),
                   ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
                   ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
@@ -2132,6 +2133,7 @@ class MainWindow(QMainWindow):
         v = dlg.values()
         spec = SliderLatchSpec(thickness=v["thickness"], lid=v["lid"], wall=v["wall"], length=v["length"],
                                hooks=int(v["hooks"]), hook_width=v["hook_width"], catch=v["catch"], head=v["head"],
+                               ramp_angle=v["ramp_angle"],
                                legs=int(v["legs"]), bar=v["bar"], gap=v["gap"], key=v["key"], margin=v["margin"],
                                clearance=v["clearance"], inner=v["inner"] if v["inner_copy"] else 0.0)
         first = 1 if str(v["lid_is"]) == "1" else 0

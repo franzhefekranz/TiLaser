@@ -855,7 +855,8 @@ as a third part, or tick *Create inner layer as a copy of the wall* – TiLaser 
 | Number of hooks | Evenly spread on the bolt |
 | Hook shank width | Width of the hooks in the lid slot |
 | Hook overhang | How far the nose reaches over the lid – and how far the bolt has to give way when snapping in |
-| Hook head above the lid | How far the head sticks out; push it to open |
+| Hook head above the lid | Minimum height of the head above the lid; push it to open. With a steep bevel it becomes taller |
+| Bevel angle at the nose | Angle of the bevel to the lid surface (default 60°). Steeper = the slot edge pushes the hook aside more easily when the lid is put on; the nose tip and the head are rounded. The bevel always reaches past the shank so the edge reliably lands on it |
 | Spring legs | Odd number; more legs = softer spring, longer bolt needed |
 | Spring bar width / slot | Width of the spring bar and distance between the legs |
 | Holder height | Height of the holders and thus of the eye and the bolt |

@@ -869,7 +869,8 @@ ankreuzen – dann legt TiLaser eine Kopie der Wand (*Name* + „innen“) mit d
 | Anzahl Haken | Gleichmäßig auf dem Riegel verteilt |
 | Breite des Hakenschafts | Breite der Haken im Deckelschlitz |
 | Hakenüberstand | So weit greift die Nase über den Deckel – und so weit muss der Riegel beim Einrasten ausweichen |
-| Hakenkopf über dem Deckel | So weit steht der Kopf oben über; daran schiebt man zum Öffnen |
+| Hakenkopf über dem Deckel | So weit steht der Kopf mindestens oben über; daran schiebt man zum Öffnen. Bei steiler Schräge wird er höher |
+| Neigung der Schräge an der Nase | Winkel der Schräge zur Deckelfläche (Standard 60°). Steiler = die Schlitzkante drückt den Haken beim Aufsetzen des Deckels leichter zur Seite; die Nasenspitze und der Kopf sind verrundet. Die Schräge reicht immer bis über den Schaft, damit die Kante sicher auf ihr landet |
 | Schenkel der Feder | Ungerade Anzahl; mehr Schenkel = weichere Feder, längerer Riegel nötig |
 | Stegbreite der Feder / Schlitz | Breite des Federstegs und Abstand der Schenkel |
 | Höhe der Halter | Höhe der Halter und damit der Öse und des Riegels |
