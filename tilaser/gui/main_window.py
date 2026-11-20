@@ -361,6 +361,9 @@ class MainWindow(QMainWindow):
         wz.addAction(self._act("Knöchelscharnier an Kante…", self.knuckle_hinge_tool, None,
                                "Scharnier zwischen zwei Boxteilen (z. B. Rückwand Box und Deckel): Knöchel mit je zwei "
                                "Fingerzinken, Schlitze in den Wänden, Stift"))
+        wz.addAction(self._act("Federverschluss an Kante…", self.spring_latch_tool, None,
+                               "Verschluss für einen Deckel: Zunge mit Haken an einer Mäanderfeder (S-Form) im einen "
+                               "Teil, Aussparung mit Schulter im anderen"))
         wz.addAction(self._act("Teile nummerieren…", self.number_parts_tool, None,
                                "Teile durchnummerieren und die Nummer eingravieren; gleiche Teile bekommen dieselbe "
                                "Nummer"))
@@ -1995,6 +1998,76 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt; {a.name} wurde um "
                                      f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
+
+    def spring_latch_tool(self):
+        from ..core.joints import LatchSpec, sides, spring_latch
+        title = "Federverschluss an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren – z. B. "
+                                                 "die Vorderwand der Box und die Vorderwand des Deckels.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, wie sie "
+                                                 "bei geschlossenem Deckel aneinanderstoßen (z. B. mit Anordnen → "
+                                                 "Kanten aneinanderlegen), dann erneut versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = LatchSpec()
+        fields = [("spring_on", "Feder und Zunge an", "c", "0", who),
+                  ("count", "Anzahl Verschlüsse (1 = mittig)", "i", d.count, (1, 20)),
+                  ("inset", "Abstand der äußeren Verschlüsse vom Ende der Kante", "f", d.inset, (0, 500, 1, 1, " mm")),
+                  ("legs", "Schenkel der Feder (ungerade, 3 = S-Form)", "i", d.legs, (1, 41)),
+                  ("leg_length", "Schenkellänge", "f", d.leg_length, (3, 200, 1, 1, " mm")),
+                  ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
+                  ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
+                  ("width", "Zungenbreite", "f", d.width, (2, 50, 1, 0.5, " mm")),
+                  ("catch", "Hakenüberstand (Federweg)", "f", d.catch, (0.3, 10, 2, 0.1, " mm")),
+                  ("hold", "Schulter über dem Haken", "f", d.hold, (1, 30, 1, 0.5, " mm")),
+                  ("button", "Länge der Drucktaste", "f", d.button, (2, 50, 1, 0.5, " mm")),
+                  ("grip", "Platz zum Drücken neben der Taste", "f", d.grip, (1, 50, 1, 0.5, " mm")),
+                  ("frame", "Steg zwischen Fenster und Kante", "f", d.frame, (1, 30, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für zwei Teile, die bei geschlossenem Deckel in einer Ebene aneinanderstoßen – z. B. die Vorderwand "
+                "der Box und die Vorderwand des Deckels (gegenüber vom Scharnier). Das gewählte Teil bekommt ein "
+                "Fenster mit einer Mäanderfeder, an der eine Zunge mit Haken hängt; sie ragt über die Kante in eine "
+                "Aussparung des anderen Teils. Beim Schließen drückt die Schräge des Hakens die Zunge zur Seite, die "
+                "Feder schnappt zurück und der Haken hält hinter der Schulter. Zum Öffnen die Drucktaste im Fenster "
+                "zur Seite schieben. Mehr Schenkel oder längere Schenkel = weichere Feder mit mehr Federweg.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = LatchSpec(width=v["width"], catch=v["catch"], hold=v["hold"], legs=int(v["legs"]),
+                         leg_length=v["leg_length"], bar=v["bar"], gap=v["gap"], button=v["button"], grip=v["grip"],
+                         frame=v["frame"], clearance=v["clearance"], count=int(v["count"]), inset=v["inset"])
+        first = 1 if str(v["spring_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n, dims = spring_latch([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        new_ids = []
+        for it, world, idx, rr in ((a, wa, ia, ra), (b, wb, ib, rb)):
+            new_world = list(world)
+            for k, i in enumerate(idx):
+                if len(rr[k]) != len(world[i][0].pts) or not np.allclose(rr[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rr[k], True), world[i][1])
+            new_ids.append(self._replace_item(it, new_world).id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(
+            f"Federverschluss: {n} × an {a.name}. Fenster {dims['xr'] - dims['xl']:.1f} × {dims['top']:.1f} mm, die "
+            f"Zunge ragt {dims['depth']:.1f} mm in {b.name}.", 8000)
 
     def knuckle_hinge_tool(self):
         from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_square, sides

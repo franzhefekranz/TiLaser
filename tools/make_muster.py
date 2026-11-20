@@ -18,7 +18,8 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import (HammerSpec, KnuckleSpec, SnapSpec, finger_joint, hammer_joint,  # noqa: E402
+from tilaser.core.joints import (HammerSpec, KnuckleSpec, LatchSpec, SnapSpec, finger_joint,  # noqa: E402
+                                 hammer_joint, spring_latch,
                                  hammer_tenon_profile, knuckle_hinge, knuckle_hole, knuckle_plate, puzzle_joint,
                                  snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
@@ -104,6 +105,7 @@ def main():
     snap_types()
     hammer_types()
     knuckle_types()
+    latch_types()
     bend_example()
     numbering_example()
     print("Bilder in", OUT)
@@ -265,6 +267,35 @@ def knuckle_types():
         d.text((kx + 125, ky - 30), _t(label), fill=TEXT, font=_font(15), anchor="lm")
     d.text((kx + 60, 400), _t("Knöchel"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
+
+
+def latch_types():
+    """Federverschluss: S-Feder (3 Schenkel) groß, daneben 5 und 9 Schenkel – je ein Ausschnitt um die Kante."""
+    im = Image.new("RGB", (1100, 430), "white")
+    d = ImageDraw.Draw(im)
+    variants = ((LatchSpec(), "3 Schenkel (S-Form)", 7.5, (40, 20, 480, 380)),
+                (LatchSpec(legs=5, leg_length=12), "5 Schenkel", 6.5, (520, 60, 790, 380)),
+                (LatchSpec(legs=9, leg_length=8, bar=1.2, gap=1.0), "9 Schenkel", 6.5, (820, 60, 1090, 380)))
+    for spec, label, sc, box in variants:
+        w = 120.0
+        A = [np.array([[0, 0], [w, 0], [w, 60], [0, 60.]])]
+        B = [np.array([[w, 0], [0, 0], [0, -30], [w, -30.]])]
+        ra, rb, _, dims = spring_latch(A, B, spec)
+        sub = Image.new("RGB", (box[2] - box[0], box[3] - box[1]), "white")
+        sd = ImageDraw.Draw(sub)
+        cx = w / 2                                         # Fenstermitte
+        ey = sub.height - 13 * sc                          # Kante
+
+        def P(r):
+            return [(sub.width / 2 + (x - cx) * sc, ey - y * sc) for x, y in r]
+        sd.polygon(P(rb[0]), fill=HOLZ, outline=TEXT)
+        sd.polygon(P(ra[0]), fill=(150, 190, 230), outline=TEXT)
+        if sc >= 7:
+            sd.text((sub.width - 8, ey - 22 * sc), _t("Deckel"), fill=TEXT, font=_font(16), anchor="rm")
+            sd.text((sub.width - 8, ey + 9 * sc), _t("Box"), fill=TEXT, font=_font(16), anchor="rm")
+        im.paste(sub, box[:2])
+        d.text(((box[0] + box[2]) / 2, 405), _t(label), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "federverschluss.png"), optimize=True)
 
 
 def bend_example():

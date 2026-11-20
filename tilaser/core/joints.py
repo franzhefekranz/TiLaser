@@ -701,3 +701,166 @@ def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
     pins = [np.array([[0, 0], [span + 2 * t, 0], [span + 2 * t, t], [0, t]], float)
             for _ in starts] if spec.pin <= 0 else []
     return slots_a, slots_b, plates, pins, e.length
+
+
+# ---------------------------------------------------------------- Federverschluss (Mäanderfeder)
+#
+# Zwei Teile liegen Kante an Kante, z. B. die Vorderwand der Box und die Vorderwand des (mit Scharnier
+# beweglichen) Deckels. In Teil A (Federteil) wird nahe der Kante ein Fenster geschnitten. Darin hängt an einer
+# S- bzw. Mäanderfeder eine Zunge, die durch einen schmalen Durchlass über die Kante in Teil B ragt. Ihr Haken
+# rastet dort hinter einer Schulter ein. Beim Schließen drückt die Schräge des Hakens die Zunge zur Seite –
+# die Feder biegt sich, schnappt zurück und hält. Zum Öffnen die Zunge (Drucktaste im Fenster) zur Seite
+# schieben. Die Mäanderform verteilt die Biegung auf mehrere Schenkel: viel Federweg auf engem Raum, ohne dass
+# das Holz an einer Stelle zu stark gebogen wird. Die Drucktaste ist breiter als der Durchlass im Steg: Zieht
+# man am geschlossenen Deckel, liegt sie auf dem Steg auf – die Kraft geht nicht durch die Feder.
+
+@dataclass
+class LatchSpec:
+    width: float = 6.0          # Breite der Zunge
+    catch: float = 1.2          # Hakenüberstand = Federweg beim Einrasten
+    hold: float = 3.0           # Materialsteg von Teil B über dem Haken (Schulter)
+    legs: int = 3               # Schenkel der Feder (ungerade; 3 = S-Form)
+    leg_length: float = 15.0    # Länge eines Schenkels
+    bar: float = 1.5            # Stegbreite der Feder
+    gap: float = 1.2            # Schlitz zwischen den Schenkeln und zum Fensterrand
+    button: float = 8.0         # Länge der Drucktaste (Zunge innerhalb des Fensters)
+    grip: float = 6.0           # Platz neben der Drucktaste zum Drücken (Finger, Stift)
+    frame: float = 3.0          # Steg zwischen Fenster und Kante
+    clearance: float = 0.15     # Spiel im Durchlass und in der Aussparung
+    count: int = 1              # Anzahl Verschlüsse auf der Kante
+    inset: float = 15.0         # Abstand der äußeren Verschlüsse vom Ende der Kante (ab 2 Verschlüssen)
+
+
+def _offset_polyline(pts: np.ndarray, r: float) -> np.ndarray:
+    """Parallele im Abstand r (links positiv) zu einem Linienzug, mit Gehrung an den Ecken."""
+    d = np.diff(pts, axis=0)
+    d /= np.hypot(d[:, 0], d[:, 1])[:, None]
+    nrm = np.c_[-d[:, 1], d[:, 0]]
+    out = [pts[0] + r * nrm[0]]
+    for i in range(1, len(pts) - 1):
+        m = nrm[i - 1] + nrm[i]
+        out.append(pts[i] + r * m / (1 + nrm[i - 1] @ nrm[i]))
+    out.append(pts[-1] + r * nrm[-1])
+    return np.array(out)
+
+
+def latch_dims(spec: LatchSpec) -> dict:
+    """Maße des Verschlusses im Kantensystem (x entlang der Kante, Zungenmitte = 0; y > 0 in Teil A)."""
+    k, b, gp, c = spec.legs, spec.bar, spec.gap, spec.clearance
+    r, w2 = b / 2, spec.width / 2
+    pitch = b + gp
+    ramp = max(1.5, 2.5 * spec.catch)                 # Schräge zum Einführen (etwa 22°)
+    flat = max(1.0, spec.catch)
+    y_sh = -(spec.hold + c)                           # Oberseite des Hakens
+    depth = -y_sh + flat + ramp                       # so weit ragt die Zunge in Teil B
+    yt = spec.frame + spec.button                     # Oberkante der Drucktaste
+    ybot = yt + gp + r + pitch / 2                    # Mittelpunkte der unteren Wendungen (Halbkreise)
+    ytop = ybot + spec.leg_length                     # Mittelpunkte der oberen Wendungen
+    top = ytop + pitch / 2 + r + gp                   # Oberkante des Fensters
+    x0 = -(k - 1) * pitch                             # erster Schenkel (hängt oben am Fensterrand)
+    wb2 = w2 + spec.catch + c + 1.5                   # Drucktaste breiter als der Durchlass: liegt beim Ziehen auf
+    yb = spec.frame + c                               # Unterkante der Drucktaste (knapp über dem Steg)
+    xl = min(x0 - r, -wb2) - gp - spec.catch
+    xr = max(r, wb2) + spec.grip
+    return dict(r=r, w2=w2, wb2=wb2, yb=yb, pitch=pitch, ramp=ramp, flat=flat, y_sh=y_sh, depth=depth, yt=yt, ybot=ybot,
+                ytop=ytop, top=top, x0=x0, xl=xl, xr=xr)
+
+
+def latch_spring_line(spec: LatchSpec, step_deg: float = 15.0) -> np.ndarray:
+    """Mittellinie der Mäanderfeder vom Fensterrand oben bis zur Drucktaste.
+
+    Gerade Schenkel, an den Wendungen Halbkreise – ohne scharfe Innenecken verteilt sich die Biegespannung,
+    das Holz reißt dort nicht ein."""
+    d = latch_dims(spec)
+    k, R = spec.legs, d["pitch"] / 2
+    xs = [d["x0"] + i * d["pitch"] for i in range(k)]
+    pts = [(xs[0], d["top"])]
+    m = max(2, int(math.ceil(180 / step_deg)))
+    for i in range(k):
+        if i == k - 1:
+            pts.append((xs[i], d["yt"]))
+            break
+        cx = (xs[i] + xs[i + 1]) / 2
+        if i % 2 == 0:                                  # unten wenden: von links unten herum nach rechts
+            cy, angs = d["ybot"], np.linspace(math.pi, 2 * math.pi, m + 1)
+        else:                                           # oben wenden
+            cy, angs = d["ytop"], np.linspace(math.pi, 0, m + 1)
+        pts += [(cx + R * math.cos(a), cy + R * math.sin(a)) for a in angs]
+    return np.array(pts, float)
+
+
+def latch_profiles(spec: LatchSpec):
+    """Konturstücke (x, y) für Teil A (Fenster, Feder, Zunge) und Teil B (Aussparung mit Schulter).
+
+    Beide verlaufen von links nach rechts und beginnen/enden auf der Kante (y = 0); Material von A liegt
+    in Laufrichtung links, das von B rechts."""
+    d = latch_dims(spec)
+    c, f, catch = spec.clearance, spec.frame, spec.catch
+    w2, r = d["w2"], d["r"]
+    ol, orr = -w2 - catch - c, w2 + c                 # Durchlass im Steg bzw. Eingang der Aussparung
+    line = latch_spring_line(spec)
+    side1 = _offset_polyline(line, -r)               # Feder liegt beim Hinunterlaufen links
+    side2 = _offset_polyline(line, +r)[::-1]
+    yt, depth, y_sh = d["yt"], d["depth"], d["y_sh"]
+    wb2, yb = d["wb2"], d["yb"]
+    tongue = [(-wb2, yt), (-wb2, yb), (-w2, yb), (-w2, -depth), (w2, -depth), (w2 + catch, -depth + d["ramp"]),
+              (w2 + catch, y_sh), (w2, y_sh), (w2, yb), (wb2, yb), (wb2, yt)]
+    a = ([(ol, 0.0), (ol, f), (d["xl"], f), (d["xl"], d["top"])] + [tuple(p) for p in side1] + tongue
+         + [tuple(p) for p in side2] + [(d["xr"], d["top"]), (d["xr"], f), (orr, f), (orr, 0.0)])
+    b = [(ol, 0.0), (ol, -depth - c), (w2 + catch + c, -depth - c), (w2 + catch + c, y_sh + c), (orr, y_sh + c),
+         (orr, 0.0)]
+    return np.array(a, float), np.array(b, float)
+
+
+def spring_latch(rings_a, rings_b, spec: LatchSpec, tol: float = 0.5):
+    """Federverschluss an der längsten gemeinsamen Kante: Teil A bekommt Fenster, Mäanderfeder und Zunge,
+    Teil B die Aussparung mit Schulter. Gibt (Ringe A, Ringe B, Anzahl Verschlüsse, Maße) zurück."""
+    if spec.legs < 1 or spec.legs % 2 == 0:
+        raise ValueError("Die Feder braucht eine ungerade Anzahl Schenkel (1, 3 = S-Form, 5, 7 …).")
+    if min(spec.width, spec.bar, spec.gap, spec.catch, spec.hold, spec.frame, spec.button,
+           spec.leg_length) <= 0:
+        raise ValueError("Alle Maße müssen größer als 0 sein.")
+    if spec.width <= spec.bar:
+        raise ValueError("Die Zunge muss breiter sein als der Federsteg.")
+    if spec.clearance >= spec.catch:
+        raise ValueError("Das Spiel muss kleiner sein als der Hakenüberstand, sonst rastet nichts ein.")
+    d = latch_dims(spec)
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    span = d["xr"] - d["xl"]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=span + 2)
+    if not edges:
+        raise ValueError(f"Keine gemeinsame Kante gefunden, die lang genug für den Verschluss ist (mindestens "
+                         f"{span + 2:.0f} mm). Die beiden Teile Kante an Kante legen (z. B. mit Anordnen → Kanten "
+                         "aneinanderlegen).")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    v = _material_normal(ra, e.p0, e.p1)               # in Teil A hinein
+    n = max(1, spec.count)
+    mid = -(d["xl"] + d["xr"]) / 2                     # Zungenmitte relativ zur Mitte des Fensters
+    if n >= 2:
+        first, last = spec.inset + span / 2, e.length - spec.inset - span / 2
+        if last - first < (n - 1) * (span + 2):
+            raise ValueError(f"Die Kante ist zu kurz für {n} Verschlüsse – weniger Verschlüsse wählen oder den "
+                             "Abstand vom Rand verkleinern.")
+        centers = [first + (last - first) * j / (n - 1) + mid for j in range(n)]
+    else:
+        centers = [e.length / 2 + mid]
+    pa, pb = latch_profiles(spec)
+
+    def world(prof, sc):
+        return np.array([e.p0 + u * (sc + x) + v * y for x, y in prof])
+    for sc in centers:
+        win = world([(d["xl"], spec.frame), (d["xr"], spec.frame), (d["xr"], d["top"]), (d["xl"], d["top"])], sc)
+        if not inside(win, ra).all():
+            raise ValueError(f"Das Fenster für die Feder ({span:.0f} × {d['top']:.0f} mm) passt nicht in Teil A – "
+                             "kürzere Schenkel oder weniger Schenkel wählen.")
+        notch = world([(pb[1][0], pb[1][1]), (pb[2][0], pb[2][1]), (pb[2][0] + 1, pb[2][1])], sc)
+        if not inside(notch, rb).all():
+            raise ValueError(f"Teil B ist an der Kante zu schmal – die Zunge ragt {d['depth'] + spec.clearance:.1f} mm "
+                             "hinein.")
+    pts_a = [e.p0] + [p for sc in centers for p in world(pa, sc)] + [e.p1]
+    pts_b = [e.p0] + [p for sc in centers for p in world(pb, sc)] + [e.p1]
+    ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array(pts_a))
+    rb[e.rb] = _insert_points(rb[e.rb], e.kb, np.array(pts_b))
+    return ra, rb, n, d

@@ -2359,6 +2359,37 @@ def test_group_parts_nested_and_fast():
     assert len(parts) == 900 and all(len(p) == 3 and p[0] % 3 == 0 for p in parts)
     assert time.time() - t0 < 5
 
+
+def test_spring_latch():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import LatchSpec, latch_spring_line, spring_latch
+    A = [np.array([[0, 0], [100, 0], [100, 60], [0, 60]], float)]              # Vorderwand Deckel (Feder)
+    B = [np.array([[100, 0], [0, 0], [0, -40], [100, -40]], float)]            # Vorderwand Box
+    spec = LatchSpec()
+    ra, rb, n, d = spring_latch(A, B, spec)
+    assert n == 1 and len(ra) == 1 and len(rb) == 1
+    area = lambda r: 0.5 * abs(np.dot(r[:, 0], np.roll(r[:, 1], -1)) - np.dot(r[:, 1], np.roll(r[:, 0], -1)))
+    assert area(ra[0]) < 6000 and area(rb[0]) < 4000                           # Fenster bzw. Aussparung
+    # Zunge mit Haken ragt in B, Aussparung in B ist größer als die Zunge (Spiel), keine Überlappung
+    assert ra[0][:, 1].min() < -d["depth"] + 1e-6 and rb[0][:, 1].max() <= 1e-9
+    low = ra[0][ra[0][:, 1] < -0.5]
+    probe = np.array([[(low[:, 0].min() + low[:, 0].max()) / 2, -d["depth"] / 2]])
+    assert inside(probe, ra)[0] and not inside(probe, rb)[0]
+    # Feder: 3 Schenkel, runde Wendungen; Mittellinie endet an der Drucktaste
+    line = latch_spring_line(spec)
+    assert abs(line[0, 1] - d["top"]) < 1e-9 and abs(line[-1, 1] - d["yt"]) < 1e-9
+    assert len(line) > 20
+    # Drucktaste breiter als der Durchlass (liegt beim Ziehen auf dem Steg auf)
+    assert d["wb2"] > d["w2"] + spec.catch + spec.clearance
+    # zwei Verschlüsse, gerade Schenkelzahl abgelehnt, zu kurze Kante abgelehnt
+    assert spring_latch(A, B, LatchSpec(count=2, inset=5))[2] == 2
+    for bad in (LatchSpec(legs=4), LatchSpec(count=4, inset=20)):
+        try:
+            spring_latch(A, B, bad)
+            raise AssertionError("ValueError erwartet")
+        except ValueError:
+            pass
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

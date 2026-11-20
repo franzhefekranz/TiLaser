@@ -771,6 +771,46 @@ are placed next to the parts separately for each part (*Knuckles* + part name).
 | Clearance | Play in the hole around the pin and in the slots around the tabs |
 | Tolerance | How far apart the edges may be and still count as “touching” |
 
+<!-- hilfe: federverschluss -->
+### Spring latch on edge
+
+*Tools → Spring latch on edge…* builds a **snap latch made only from the material** – e.g. for the lid of a
+box with a [knuckle hinge](#knuckle-hinge-on-edge), on the side opposite the hinge. It is meant for two parts
+that meet **in one plane** when the lid is closed, typically the **front wall of the box and the front wall of
+the lid**.
+
+One part gets a **window** near the edge. In it, a **tongue** hangs on a **meander spring** (S shape: a narrow
+bar in tight loops) and reaches through an opening across the edge into a **recess** in the other part. Its
+hook snaps in behind a shoulder there. When closing, the bevel of the hook pushes the tongue aside, the spring
+bends and snaps back. To **open**, push the button in the window aside with a finger or a pen. Because the
+bending is spread over several legs with round turns, the spring gets a lot of travel in a small space
+without the wood breaking at one spot. The button is wider than the opening: if you pull on the closed lid,
+it rests on the bar – the force does not go through the spring.
+
+1. Lay both parts as they meet with the lid closed: **edge to edge** (easiest with
+   [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Spring latch on edge…*, choose which part gets the spring and tongue.
+
+![Spring latch: window with S spring and tongue, recess with shoulder; variants with more legs](screenshots/en/federverschluss.png)
+
+| Setting | Effect |
+|---|---|
+| Spring and tongue on | Part with window, spring and tongue; the other one gets the recess |
+| Number of latches | 1 = centred on the edge; from 2 on, the outer ones sit near the ends, the others evenly in between |
+| Distance of the outer latches from the end of the edge | From two latches on: distance of the window from the end of the edge |
+| Spring legs | Odd number: 1 = simple leaf spring, 3 = S shape, 5, 7 … = meander. More legs = softer, more travel |
+| Leg length | Length of the straight pieces of the spring; longer = softer |
+| Spring bar width | Width of the spring bar; narrower = softer but more fragile. For 3 mm plywood about 1.2–2 mm |
+| Slot between the legs | Distance between the legs (at least a little more than the kerf) |
+| Tongue width | Width of the tongue in the opening |
+| Hook overhang | How far the hook sticks out sideways – the spring has to give way this much when snapping in |
+| Shoulder above the hook | Material of the other part above the hook; carries the load when pulling |
+| Button length | Part of the tongue in the window you push to open |
+| Room for pushing | Free space next to the button for a finger or pen |
+| Bar between window and edge | Bar of material at the edge on which the button rests |
+| Clearance | Play in the opening, in the recess and under the shoulder |
+| Tolerance | How far apart the edges may be and still count as "touching" |
+
 <!-- hilfe: nummerieren -->
 ### Numbering parts
 
@@ -1513,6 +1553,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
 | Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
+| Spring latch on edge… | | Snap latch for a lid: tongue on a meander spring, recess with shoulder ([Spring latch on edge](#spring-latch-on-edge)) |
 | Number parts… | | Number the parts and engrave the number, identical parts same number ([Numbering parts](#numbering-parts)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 

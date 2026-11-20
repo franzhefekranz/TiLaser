@@ -783,6 +783,47 @@ Knöchel; die Knöchel liegen für jedes Teil getrennt neben den Teilen (*Knöch
 | Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 
+<!-- hilfe: federverschluss -->
+### Federverschluss an Kante
+
+*Werkzeuge → Federverschluss an Kante…* baut einen **Schnappverschluss nur aus dem Material** – z. B. für den
+Deckel einer Box mit [Knöchelscharnier](#knöchelscharnier-an-kante), auf der Seite gegenüber vom Scharnier.
+Gedacht für zwei Teile, die bei geschlossenem Deckel **in einer Ebene aneinanderstoßen**, typisch die
+**Vorderwand der Box und die Vorderwand des Deckels**.
+
+Das eine Teil bekommt nahe der Kante ein **Fenster**. Darin hängt an einer **Mäanderfeder** (S-Form: ein
+schmaler Steg in engen Schlaufen) eine **Zunge**, die durch einen Durchlass über die Kante in eine
+**Aussparung** des anderen Teils ragt. Ihr Haken rastet dort hinter einer Schulter ein. Beim Schließen drückt
+die Schräge des Hakens die Zunge zur Seite, die Feder biegt sich und schnappt zurück. Zum **Öffnen** die
+Drucktaste im Fenster mit Finger oder Stift zur Seite schieben. Weil sich die Biegung auf mehrere Schenkel
+mit runden Wendungen verteilt, bekommt die Feder viel Federweg auf engem Raum, ohne dass das Holz an einer
+Stelle bricht. Die Drucktaste ist breiter als der Durchlass: Zieht man am geschlossenen Deckel, liegt sie
+auf dem Steg auf – die Kraft geht nicht durch die Feder.
+
+1. Die beiden Teile so hinlegen, wie sie bei geschlossenem Deckel aneinanderstoßen: **Kante an Kante**
+   (am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen), Alt+K).
+2. Beide auswählen → *Werkzeuge → Federverschluss an Kante…*, wählen, welches Teil Feder und Zunge bekommt.
+
+![Federverschluss: Fenster mit S-Feder und Zunge, Aussparung mit Schulter; Varianten mit mehr Schenkeln](screenshots/federverschluss.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Feder und Zunge an | Teil mit Fenster, Feder und Zunge; das andere bekommt die Aussparung |
+| Anzahl Verschlüsse | 1 = mittig auf der Kante; ab 2 sitzen die äußeren nahe den Enden, die übrigen gleichmäßig dazwischen |
+| Abstand der äußeren Verschlüsse vom Ende der Kante | Ab zwei Verschlüssen: Abstand des Fensters vom Ende der Kante |
+| Schenkel der Feder | Ungerade Anzahl: 1 = einfache Blattfeder, 3 = S-Form, 5, 7 … = Mäander. Mehr Schenkel = weicher, mehr Federweg |
+| Schenkellänge | Länge der geraden Stücke der Feder; länger = weicher |
+| Stegbreite der Feder | Breite des Federstegs; schmaler = weicher, aber empfindlicher. Für 3-mm-Sperrholz etwa 1,2–2 mm |
+| Schlitz zwischen den Schenkeln | Abstand der Schenkel (mindestens etwas mehr als die Schnittbreite) |
+| Zungenbreite | Breite der Zunge im Durchlass |
+| Hakenüberstand | Wie weit der Haken seitlich übersteht – so weit muss die Feder beim Einrasten ausweichen |
+| Schulter über dem Haken | Material des anderen Teils über dem Haken; trägt die Last beim Ziehen |
+| Länge der Drucktaste | Teil der Zunge im Fenster, an dem man zum Öffnen drückt |
+| Platz zum Drücken | Freiraum neben der Taste für Finger oder Stift |
+| Steg zwischen Fenster und Kante | Materialsteg an der Kante, auf dem die Drucktaste aufliegt |
+| Spiel | Luft im Durchlass, in der Aussparung und unter der Schulter |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+
 <!-- hilfe: nummerieren -->
 ### Teile nummerieren
 
@@ -1534,6 +1575,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
 | Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
 | Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
+| Federverschluss an Kante… | | Schnappverschluss für einen Deckel: Zunge an einer Mäanderfeder, Aussparung mit Schulter ([Federverschluss an Kante](#federverschluss-an-kante)) |
 | Teile nummerieren… | | Teile durchnummerieren und Nummer eingravieren, gleiche Teile gleiche Nummer ([Teile nummerieren](#teile-nummerieren)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 

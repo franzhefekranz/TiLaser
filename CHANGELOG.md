@@ -6,6 +6,8 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Neu: *Werkzeuge → Federverschluss an Kante…* – Schnappverschluss für Deckel: Zunge mit Haken an einer
+  Mäanderfeder (S-Form, runde Wendungen) im einen Teil, Aussparung mit Schulter im anderen; Öffnen per Drucktaste.
 - Gruppieren und Gruppierung aufheben sind bei vielen Teilen deutlich schneller (Zuordnung der Löcher zu ihren
   Außenkonturen vorgefiltert, Auswahl-Aktualisierung nur noch einmal am Ende statt für jedes Teil).
 - Knöchelscharnier: Beim mitgelaserten Vierkantstift haben der erste und der letzte Knöchel des ersten
