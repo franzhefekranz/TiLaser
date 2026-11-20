@@ -256,10 +256,13 @@ def knuckle_types():
     d.text((cx - 30, cy - 140), _t("Deckel"), fill=TEXT, font=_font(16), anchor="rm")
     d.text((cx - 30, cy + 140), _t("Box"), fill=TEXT, font=_font(16), anchor="rm")
     d.text((cx, 400), _t("Schnitt quer zur Achse"), fill=TEXT, font=_font(18), anchor="mm")
-    # einzelner Knöchel
-    s3, kx, ky = 5.0, 880, 330
-    d.polygon([(kx + x * s3, ky - y * s3) for x, y in plate], fill=HOLZ, outline=TEXT)
-    d.polygon([(kx + x * s3, ky - y * s3) for x, y in hole], fill="white", outline=TEXT)
+    # einzelne Knöchel: außen mit Vierkantloch (Stift fest), innen mit rundem Loch (Stift dreht sich)
+    s3, kx = 4.6, 870
+    for ky, sq, label in ((190, True, "außen"), (330, False, "innen")):
+        pl, hl = knuckle_plate(spec, square=sq)
+        d.polygon([(kx + x * s3, ky - y * s3) for x, y in pl], fill=HOLZ, outline=TEXT)
+        d.polygon([(kx + x * s3, ky - y * s3) for x, y in hl], fill="white", outline=TEXT)
+        d.text((kx + 125, ky - 30), _t(label), fill=TEXT, font=_font(15), anchor="lm")
     d.text((kx + 60, 400), _t("Knöchel"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
 

@@ -1994,7 +1994,7 @@ class MainWindow(QMainWindow):
                                      f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
 
     def knuckle_hinge_tool(self):
-        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, sides
+        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_square, sides
         title = "Knöchelscharnier an Kante"
         items = self._vector_selection()
         if len(items) != 2:
@@ -2049,15 +2049,20 @@ class MainWindow(QMainWindow):
         new_b = list(wb) + [(g.Polyline(r, True), lid_b) for r in slots_b]
         bb = g.bbox_of([p for p, _ in wa + wb])
         x = bb[2] + 10.0
-        knuckle_world = []
-        for rr in plates:
-            w_ = float(max(r[:, 0].max() for r in rr) - min(r[:, 0].min() for r in rr))
-            dx = x - float(min(r[:, 0].min() for r in rr))
-            knuckle_world += [(g.Polyline(r + [dx, bb[1] - float(min(q[:, 1].min() for q in rr))], True), lid_a)
-                              for r in rr]
-            x += w_ + 3.0
-        ids = [self._replace_item(a, new_a).id, self._replace_item(b, new_b).id,
-               self._add_generated(f"Knöchel ({len(plates)})", knuckle_world, False).id]
+        ids = [self._replace_item(a, new_a).id, self._replace_item(b, new_b).id]
+        for part, owner in (("A", a), ("B", b)):
+            group = [rr for p_, rr in plates if p_ == part]
+            if not group:
+                continue
+            world_k = []
+            for rr in group:
+                w_ = float(max(r[:, 0].max() for r in rr) - min(r[:, 0].min() for r in rr))
+                dx = x - float(min(r[:, 0].min() for r in rr))
+                dy = bb[1] - float(min(q[:, 1].min() for q in rr))
+                world_k += [(g.Polyline(r + [dx, dy], True), lid_a) for r in rr]
+                x += w_ + 3.0
+            x += 7.0
+            ids.append(self._add_generated(f"Knöchel {owner.name} ({len(group)})", world_k, False).id)
         if pins:
             y = bb[1] - 10.0
             pin_world = []
@@ -2066,9 +2071,15 @@ class MainWindow(QMainWindow):
                 y -= spec.thickness + 3
             ids.append(self._add_generated(f"Stift ({len(pins)})", pin_world, False).id)
         self.canvas.select_only(ids)
-        self.statusBar().showMessage(f"Knöchelscharnier: {spec.hinges} × {spec.knuckles} Knöchel, Loch Ø "
-                                     f"{knuckle_hole(spec):.2f} mm. Ungerade Knöchel gehören zu {a.name}, gerade zu "
-                                     f"{b.name}.", 10000)
+        msg = (f"Knöchelscharnier: {spec.hinges} × {spec.knuckles} Knöchel. Ungerade Knöchel gehören zu {a.name}, "
+               f"gerade zu {b.name}.")
+        if spec.pin <= 0:
+            outer = "beiden äußeren Knöcheln" if spec.knuckles % 2 else "ersten Knöchel"
+            msg += (f" Der Vierkantstift sitzt in den {outer} jedes Scharniers fest (Vierkant "
+                    f"{knuckle_square(spec):.2f} mm) und dreht sich in den übrigen (Ø {knuckle_hole(spec):.2f} mm).")
+        else:
+            msg += f" Loch Ø {knuckle_hole(spec):.2f} mm."
+        self.statusBar().showMessage(msg, 12000)
 
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)

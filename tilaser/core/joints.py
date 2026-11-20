@@ -606,7 +606,12 @@ def knuckle_tabs(spec: KnuckleSpec) -> list[tuple[float, float]]:
     return [(c1 - tw / 2, c1 + tw / 2), (c2 - tw / 2, c2 + tw / 2)]
 
 
-def knuckle_plate(spec: KnuckleSpec, step_deg: float = 10.0) -> list[np.ndarray]:
+def knuckle_square(spec: KnuckleSpec) -> float:
+    """Kantenlänge des Vierkantlochs, in dem der mitgelaserte Stift fest sitzt."""
+    return spec.thickness + spec.clearance / 2
+
+
+def knuckle_plate(spec: KnuckleSpec, step_deg: float = 10.0, square: bool = False) -> list[np.ndarray]:
     """Ein Knöchel im Querschnitt (lokal: u entlang der Wand weg von der Kante, w von der Wandfläche nach
     außen; Achse bei (0, R)). Unterkante liegt auf der Wand, zwei Zinken reichen um die Materialstärke
     hinein, die Oberkante fällt vom Auge zum Ende hin ab. Rückgabe: [Außenkontur, Loch]."""
@@ -624,16 +629,21 @@ def knuckle_plate(spec: KnuckleSpec, step_deg: float = 10.0) -> list[np.ndarray]
         a1 += 2 * math.pi
     n = max(6, int(math.ceil(math.degrees(a1 - a0) / step_deg)))
     pts += [(R * math.cos(w), R + R * math.sin(w)) for w in np.linspace(a0, a1, n + 1)[:-1]]
-    r = knuckle_hole(spec) / 2
-    hole = np.array([(r * math.cos(w), R + r * math.sin(w)) for w in np.radians(np.arange(0, 360, step_deg))])
+    if square:                                             # Stift sitzt fest (dreht sich nicht in diesem Knöchel)
+        q = knuckle_square(spec) / 2
+        hole = np.array([(-q, R - q), (q, R - q), (q, R + q), (-q, R + q)])
+    else:
+        r = knuckle_hole(spec) / 2
+        hole = np.array([(r * math.cos(w), R + r * math.sin(w)) for w in np.radians(np.arange(0, 360, step_deg))])
     return [np.array(pts), hole]
 
 
 def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
     """Knöchelscharnier an der längsten gemeinsamen Kante von Teil A und B.
 
-    Rückgabe: (Schlitze für A, Schlitze für B, Knöchel-Konturen [Ringe je Knöchel], Stifte, Kantenlänge).
-    Knöchel 1, 3, 5 … jedes Scharniers gehören zu A, 2, 4 … zu B."""
+    Rückgabe: (Schlitze für A, Schlitze für B, Knöchel [(„A“ oder „B“, Ringe)], Stifte, Kantenlänge).
+    Knöchel 1, 3, 5 … jedes Scharniers gehören zu A, 2, 4 … zu B. Beim mitgelaserten Vierkantstift haben die
+    beiden äußeren Knöchel ein Vierkantloch (Stift sitzt fest), alle anderen ein rundes Loch."""
     t, n = spec.thickness, spec.knuckles
     if t <= 0 or n < 2:
         raise ValueError("Materialstärke muss größer als 0 sein und es braucht mindestens 2 Knöchel.")
@@ -680,7 +690,13 @@ def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
     for s_ in slots_b:
         if not inside(s_, rb).all():
             raise ValueError("Die Schlitze passen nicht in Teil B – Knöchellänge verkleinern.")
-    plates = [knuckle_plate(spec) for _ in range(n * len(starts))]
+    # Mitgelaserter Vierkantstift: in den beiden äußeren Knöcheln (beide an Teil A, bei gerader Anzahl nur im
+    # ersten) sitzt er fest im Vierkantloch, in allen anderen dreht er sich im runden Loch. Mit Rundstab:
+    # überall runde Löcher.
+    def square(i):
+        return spec.pin <= 0 and i % 2 == 0 and i in (0, n - 1)
+    plates = [("A" if i % 2 == 0 else "B", knuckle_plate(spec, square=square(i)))
+              for _ in starts for i in range(n)]
     pins = [np.array([[0, 0], [span + 2 * t, 0], [span + 2 * t, t], [0, t]], float)
             for _ in starts] if spec.pin <= 0 else []
     return slots_a, slots_b, plates, pins, e.length

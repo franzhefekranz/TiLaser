@@ -766,7 +766,8 @@ Statusleiste nennt die Zuordnung.
 
 **Zusammenbau:** Die Knöchel in die Schlitze stecken (gerne verleimen), Box und Deckel zusammenstellen, so
 dass die Knöchel abwechselnd stehen und die Augen fluchten, dann den Stift durchschieben. Der mitgelaserte
-Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden hält ihn.
+Vierkantstift steht beidseitig eine Materialstärke über und klemmt in den Vierkantlöchern der äußeren
+Knöchel; die Knöchel liegen für jedes Teil getrennt neben den Teilen (*Knöchel* + Teilname).
 
 | Einstellung | Wirkung |
 |---|---|
@@ -777,7 +778,7 @@ Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden
 | Knöchellänge | Wie weit der Knöchel ab der Kante auf der Wand liegt |
 | Höhe am abgeschrägten Ende | Der Knöchel fällt vom Auge bis hierhin ab |
 | Länge der Fingerzinken | Länge der beiden Zinken (und Schlitze) entlang der Wand; einer sitzt gleich hinter dem Auge, einer kurz vor dem Ende |
-| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke); er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs oder Drahts |
+| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke). Die **beiden äußeren Knöchel** jedes Scharniers haben ein Vierkantloch (Materialstärke + halbes Spiel), in dem der Stift fest sitzt – so kann er nicht herausrutschen und braucht keinen Leim. In allen anderen Knöcheln dreht er sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Bei gerader Knöchelzahl hat nur der erste Knöchel ein Vierkantloch (die beiden äußeren gehören dann zu verschiedenen Teilen). Sonst der Durchmesser eines Rundstabs oder Drahts – dann haben alle Knöchel runde Löcher |
 | Wandstärke um das Loch | Material zwischen Loch und Außenrand des Auges |
 | Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
