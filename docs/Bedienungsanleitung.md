@@ -198,7 +198,7 @@ Esc schaltet jederzeit zurück zu *Auswählen*.
 | Hoch/runter scrollen | Strg+Mausrad |
 | Kontextmenü | Rechte Maustaste **klicken** |
 | Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen: **nach rechts** gezogen (von oben links) werden nur Objekte ausgewählt, die ganz im Rahmen liegen, **nach links** gezogen (von unten rechts) alle, die der Rahmen berührt. Mit Strg oder Shift kommt die Rahmenauswahl zur bestehenden Auswahl hinzu |
-| Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm, mit Strg 0,1 mm) |
+| Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm, mit Strg 0,1 mm – einstellbar unter *Ansicht → Schrittweiten der Pfeiltasten…*) |
 | Alles zeigen | Strg+0 |
 | Löschen | Entf |
 
@@ -315,6 +315,13 @@ Die Ebenen-Reihenfolge gilt in beiden Fällen weiterhin zuerst.
 **Am Raster fangen:** *Ansicht → Am Raster fangen* (Strg+Shift+F). Beim Verschieben rastet die linke untere
 Objektecke auf das Raster ein. Rastermaß unter *Ansicht → Rastermaß* (0,5 / 1 / 5 / 10 mm).
 Beim Zeichnen rasten auch die Punkte ein.
+
+**An Knoten fangen:** *Ansicht → An Knoten fangen* (standardmäßig an). Ein Teil **an einem Knoten greifen**
+(Ecke oder Ankerpunkt, der Mauszeiger muss nahe daran sein) und ziehen: Kommt dieser Knoten in die Nähe eines
+Knotens eines anderen Teils, **rastet er genau darauf ein** – ein kleines oranges Quadrat zeigt den Fangpunkt.
+So legt man Teile Ecke an Ecke aneinander. Sind mehrere Teile ausgewählt, bewegen sich alle gleich mit.
+Greift man das Teil nicht an einem Knoten, gilt wie bisher das Raster (falls eingeschaltet). **Alt** gedrückt
+halten = ohne Fangen ziehen. Ganze Kanten legt man mit [Kanten aneinanderlegen](#kanten-aneinanderlegen) an.
 
 <!-- hilfe: kanten-anlegen -->
 ### Kanten aneinanderlegen
@@ -1646,6 +1653,8 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Werkzeugweg-Vorschau | Strg+P | Brenn- und Leerwege anzeigen ([Kapitel 13](#13-vorschau-und-simulation)) |
 | G-Code anzeigen… | | Fenster mit dem erzeugten G-Code (sehr lange Dateien werden gekürzt angezeigt; der Export ist vollständig) |
 | Am Raster fangen | Strg+Umschalt+F | Beim Verschieben und Zeichnen am Raster einrasten |
+| Schrittweiten der Pfeiltasten… | | Wie weit die Pfeiltasten verschieben: klein (Strg), mittel, groß (Shift); wird gespeichert |
+| An Knoten fangen | | Den gegriffenen Knoten beim Ziehen an Knoten anderer Teile einrasten (Alt = ohne Fangen) |
 | Gummiband-Rahmen anzeigen | | Linie des Gummiband-Rahmens dauerhaft zeigen (wird nicht gelasert) |
 | Rastermaß | | Untermenü: Rasterweite 0,5 / 1 / 5 / 10 mm |
 

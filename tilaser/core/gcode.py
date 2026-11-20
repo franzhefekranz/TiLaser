@@ -43,6 +43,9 @@ class MachineProfile:
     remove_overlaps: bool = True      # deckungsgleiche Linien einer Ebene nur einmal schneiden
     cut_order: str = "optimized"      # 'optimized' (kürzeste Wege) | 'objects' (Objektreihenfolge)
     frame_rubber_show: bool = False   # Gummiband-Linie dauerhaft auf der Arbeitsfläche zeigen (nur Anzeige)
+    nudge_small: float = 0.1          # Pfeiltasten mit Strg (mm)
+    nudge: float = 1.0                # Pfeiltasten (mm)
+    nudge_large: float = 10.0         # Pfeiltasten mit Shift (mm)
     bed_w: float = 400.0
     bed_h: float = 400.0
     header: str = "G21\nG90"

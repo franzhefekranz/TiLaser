@@ -77,6 +77,7 @@ class MainWindow(QMainWindow):
         self.canvas = LaserCanvas()
         self.setCentralWidget(self.canvas)
         self.canvas.set_bed(self.profile.bed_w, self.profile.bed_h)
+        self.canvas.nudge_steps = (self.profile.nudge_small, self.profile.nudge, self.profile.nudge_large)
         self.canvas.set_project(self.project)
 
         self.layers = LayerPanel()
@@ -387,12 +388,21 @@ class MainWindow(QMainWindow):
                                 "Linke untere Objektecke beim Ziehen auf das Raster legen")
         self.a_snap.setCheckable(True)
         v.addAction(self.a_snap)
+        self.a_node_snap = self._act("An Knoten fangen", self._toggle_node_snap, None,
+                                     "Beim Ziehen rastet der Knoten, an dem man das Teil greift, an Knoten anderer "
+                                     "Teile ein (Alt gedrückt halten = ohne Fangen)")
+        self.a_node_snap.setCheckable(True)
+        self.a_node_snap.setChecked(True)
+        v.addAction(self.a_node_snap)
         self.a_rubber_show = self._act("Gummiband-Rahmen anzeigen", lambda: self._set_rubber_show(
             self.a_rubber_show.isChecked()), None, "Linie, die der Gummiband-Rahmen abfährt, auf der Arbeitsfläche "
                                                      "zeigen – nur zur Ansicht, wird nicht gelasert")
         self.a_rubber_show.setCheckable(True)
         self.a_rubber_show.setChecked(self.profile.frame_rubber_show)
         v.addAction(self.a_rubber_show)
+        v.addAction(self._act("Schrittweiten der Pfeiltasten…", self.nudge_steps_dialog, None,
+                              "Wie weit die Pfeiltasten ausgewählte Teile verschieben: klein (Strg), mittel, groß "
+                              "(Shift)"))
         sm = v.addMenu("Rastermaß")
         for st in (0.5, 1.0, 5.0, 10.0):
             a = sm.addAction(f"{st:g} mm")
@@ -1604,6 +1614,25 @@ class MainWindow(QMainWindow):
 
     def _toggle_snap(self):
         self.canvas.snap_enabled = self.a_snap.isChecked()
+
+    def nudge_steps_dialog(self):
+        p = self.profile
+        fields = [("small", "Klein (Strg + Pfeiltaste)", "f", p.nudge_small, (0.001, 100, 3, 0.01, " mm")),
+                  ("mid", "Mittel (Pfeiltaste)", "f", p.nudge, (0.001, 1000, 3, 0.1, " mm")),
+                  ("large", "Groß (Shift + Pfeiltaste)", "f", p.nudge_large, (0.001, 1000, 3, 1, " mm"))]
+        dlg = ParamDialog("Schrittweiten der Pfeiltasten", fields, self.project,
+                          "Wie weit die Pfeiltasten die ausgewählten Teile verschieben. Wird gespeichert.", self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        p.nudge_small, p.nudge, p.nudge_large = v["small"], v["mid"], v["large"]
+        self.canvas.nudge_steps = (p.nudge_small, p.nudge, p.nudge_large)
+        storage.save_machine(p)
+        self.statusBar().showMessage(f"Pfeiltasten: Strg {p.nudge_small:g} mm, ohne {p.nudge:g} mm, Shift "
+                                     f"{p.nudge_large:g} mm", 5000)
+
+    def _toggle_node_snap(self):
+        self.canvas.node_snap = self.a_node_snap.isChecked()
 
     def _set_snap_step(self, step, menu):
         self.canvas.snap_step = step

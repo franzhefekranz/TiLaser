@@ -198,7 +198,7 @@ Esc always switches back to *Select*.
 | Scroll up/down | Ctrl+mouse wheel |
 | Context menu | **Click** the right mouse button |
 | Select | Click; several with Ctrl+click or by dragging a rubber band: dragged **to the right** (from top left) only objects lying completely inside the frame are selected, dragged **to the left** (from bottom right) all objects the frame touches. With Ctrl or Shift the frame selection is added to the existing selection |
-| Move | Drag, or arrow keys (1 mm, with Shift 10 mm, with Ctrl 0.1 mm) |
+| Move | Drag, or arrow keys (1 mm, with Shift 10 mm, with Ctrl 0.1 mm – adjustable under *View → Arrow key step sizes…*) |
 | Show all | Ctrl+0 |
 | Delete | Del |
 
@@ -314,6 +314,13 @@ The layer order still comes first in both cases.
 
 **Snap to grid:** *View → Snap to grid* (Ctrl+Shift+F). When moving, the bottom left object corner snaps to
 the grid. Grid size under *View → Grid size* (0.5 / 1 / 5 / 10 mm). Points snap while drawing, too.
+
+**Snap to nodes:** *View → Snap to nodes* (on by default). **Grab a part at a node** (corner or anchor point –
+the mouse pointer must be close to it) and drag: when this node comes close to a node of another part, it
+**snaps exactly onto it** – a small orange square shows the snap point. This lets you place parts corner to
+corner. If several parts are selected, they all move along. If you do not grab the part at a node, the grid
+applies as before (if switched on). Hold **Alt** to drag without snapping. To place whole edges together, use
+[Placing edges together](#placing-edges-together).
 
 <!-- hilfe: kanten-anlegen -->
 ### Placing edges together
@@ -1623,6 +1630,8 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Toolpath preview | Ctrl+P | Show burn and travel moves ([chapter 13](#13-preview-and-simulation)) |
 | Show G-code… | | Window with the generated G-code (very long files are shown shortened; the export is complete) |
 | Snap to grid | Ctrl+Shift+F | Snap to the grid when moving and drawing |
+| Arrow key step sizes… | | How far the arrow keys move: small (Ctrl), medium, large (Shift); saved |
+| Snap to nodes | | Snap the grabbed node to nodes of other parts while dragging (Alt = without snapping) |
 | Show rubber band frame | | Always show the rubber band frame line (it is not lasered) |
 | Grid size | | Submenu: grid size 0.5 / 1 / 5 / 10 mm |
 

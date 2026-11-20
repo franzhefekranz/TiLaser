@@ -6,7 +6,10 @@ the GitHub release.
 
 ## Unveröffentlicht
 
-- Feineres Verschieben mit den Pfeiltasten: Strg = 0,1 mm (weiterhin 1 mm, Shift = 10 mm).
+- Neu: *Ansicht → An Knoten fangen* – ein Teil an einem Knoten greifen und ziehen; der Knoten rastet an Knoten
+  anderer Teile ein (orange Markierung, Alt = ohne Fangen).
+- Feineres Verschieben mit den Pfeiltasten: Strg = 0,1 mm (weiterhin 1 mm, Shift = 10 mm); alle drei Schrittweiten
+  einstellbar unter *Ansicht → Schrittweiten der Pfeiltasten…* (werden gespeichert).
 - Neu: *Werkzeuge → Federriegel mit Haken…* – Riegel hinter der Vorderwand, dessen Haken durch Schlitze im Deckel
   greifen; T-Halter in Öse (am Ende einer langen Mäanderfeder) und Langloch, Öffnen durch Schieben der Hakenköpfe. Hakennase mit
   steiler, einstellbarer Schräge (Standard 60°) und verrundeter Spitze. Optional

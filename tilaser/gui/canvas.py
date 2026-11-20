@@ -264,6 +264,9 @@ class LaserCanvas(QGraphicsView):
         self._pan_start = None
         self.bed_w, self.bed_h = 400.0, 400.0
         self.snap_enabled = False
+        self.nudge_steps = (0.1, 1.0, 10.0)   # Pfeiltasten: Strg / ohne / Shift (mm)
+        self.node_snap = True          # beim Ziehen gegriffenen Knoten an Knoten anderer Teile fangen
+        self._grab = None              # laufendes Ziehen mit Knotenfang
         self.snap_step = 1.0
         self._drag = None              # laufende Anfasser-Aktion
         self.overlay = SelectionOverlay(self)
@@ -286,6 +289,12 @@ class LaserCanvas(QGraphicsView):
         self._edge_first_item.setPen(_cosmetic(QColor("#1976d2"), 4))
         self._edge_first_item.setZValue(62)
         self.scene_.addItem(self._edge_first_item)
+        self._snap_mark = QGraphicsRectItem(-5, -5, 10, 10)          # Markierung des gefangenen Knotens
+        self._snap_mark.setPen(_cosmetic(QColor("#ff8f00"), 2))
+        self._snap_mark.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
+        self._snap_mark.setZValue(63)
+        self._snap_mark.setVisible(False)
+        self.scene_.addItem(self._snap_mark)
         self._node_item = QGraphicsPathItem()
         self._node_item.setPen(_cosmetic(QColor("#1976d2"), 1))
         self._node_item.setBrush(QColor("white"))
@@ -488,9 +497,56 @@ class LaserCanvas(QGraphicsView):
         if self.tool != "select":
             self.overlay.setVisible(False)
 
+    def _grab_start(self, gi, x, y):
+        """Beim Drücken auf ein Teil: den Knoten nahe am Mauszeiger merken – an ihm wird beim Ziehen gefangen."""
+        from ..core.edgealign import nearest_node, path_nodes
+        self._grab = None
+        if not self.node_snap or gi is None or gi.item.kind != "vector":
+            return
+        px = 1.0 / max(self.transform().m11(), 1e-6)
+        ref = nearest_node(path_nodes(gi.item.world_paths()), x, y, 12 * px)
+        if ref is not None:
+            self._grab = {"ref": ref, "pos0": {}, "targets": None, "tol": 10 * px}
+
+    def _grab_end(self):
+        self._grab = None
+        self._snap_mark.setVisible(False)
+
+    def _node_snap(self, gi, value):
+        """Knotenfang beim Ziehen. Alle ausgewählten Teile bekommen dieselbe Korrektur, da sie sich aus der
+        Mausbewegung (Verschiebung gegenüber der Startlage) und nicht aus der Lage des einzelnen Teils ergibt."""
+        from PyQt6.QtWidgets import QApplication
+
+        from ..core.edgealign import node_snap_delta, path_nodes
+        g_ = self._grab
+        if QApplication.keyboardModifiers() & Qt.KeyboardModifier.AltModifier:     # Alt: ohne Fangen
+            self._snap_mark.setVisible(False)
+            return None
+        p0 = g_["pos0"].setdefault(gi.item.id, (gi.pos().x(), gi.pos().y()))
+        if g_["targets"] is None:
+            moving = {i for i, gr in self.graphics.items() if gr.isSelected()} | {gi.item.id}
+            others = [p for i, gr in self.graphics.items() if i not in moving and gr.isVisible()
+                      and gr.item.kind == "vector" for p in gr.item.world_paths()]
+            g_["targets"] = path_nodes(others)
+        delta = (value.x() - p0[0], -(value.y() - p0[1]))              # Welt: y nach oben
+        hit = node_snap_delta(g_["ref"], delta, g_["targets"], g_["tol"])
+        if hit is None:
+            self._snap_mark.setVisible(False)
+            return None
+        (dx, dy), t = hit
+        self._snap_mark.setPos(t[0], -t[1])
+        self._snap_mark.setVisible(True)
+        return QPointF(p0[0] + dx, p0[1] - dy)
+
     def _snap(self, gi, value):
-        """Fangen: linke untere Ecke des Objekts auf das Raster legen."""
-        if not self.snap_enabled or self._drag is not None:
+        """Fangen: gegriffenen Knoten an Knoten anderer Teile, sonst linke untere Ecke des Objekts auf das Raster."""
+        if self._drag is not None:
+            return value
+        if self._grab is not None:
+            v = self._node_snap(gi, value)
+            if v is not None:
+                return v
+        if not self.snap_enabled:
             return value
         it = gi.item
         bb = it.world_bbox()
@@ -1160,6 +1216,7 @@ class LaserCanvas(QGraphicsView):
             gi = self._graphic_at(e.position().toPoint())
             if gi is not None:
                 self.aboutToModify.emit("Verschieben")
+            self._grab_start(gi, sp.x(), -sp.y())
         super().mousePressEvent(e)
 
     def mouseMoveEvent(self, e):
@@ -1261,6 +1318,7 @@ class LaserCanvas(QGraphicsView):
             return
         if e.button() == Qt.MouseButton.LeftButton:
             self._rb_origin = None
+            self._grab_end()
         if self._drag is not None and e.button() == Qt.MouseButton.LeftButton:
             self._drag = None
             self.update_overlay()
@@ -1377,11 +1435,11 @@ class LaserCanvas(QGraphicsView):
                 self.node_command(keys[e.key()])
                 return
         mods = e.modifiers()
-        step = 1.0                                     # Pfeiltasten: 1 mm, Shift 10 mm, Strg 0,1 mm
+        small, step, large = self.nudge_steps          # Pfeiltasten: ohne / Shift / Strg, einstellbar
         if mods & Qt.KeyboardModifier.ControlModifier:  # (Strg+Shift+Pfeil ist „Ausrichten“)
-            step = 0.1
+            step = small
         elif mods & Qt.KeyboardModifier.ShiftModifier:
-            step = 10.0
+            step = large
         moves = {Qt.Key.Key_Left: (-step, 0), Qt.Key.Key_Right: (step, 0),
                  Qt.Key.Key_Up: (0, step), Qt.Key.Key_Down: (0, -step)}
         if e.key() in moves and self.selected_ids():
