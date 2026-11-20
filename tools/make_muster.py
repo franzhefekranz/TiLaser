@@ -18,7 +18,7 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import finger_joint                # noqa: E402
+from tilaser.core.joints import finger_joint, puzzle_joint  # noqa: E402
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -98,6 +98,7 @@ def main():
     sheet([hinge, holes, slots, joint, gears, puzzle, sten], 3, "muster_generatoren.png")
     joint_types()
     hinge_types()
+    puzzle_types()
     print("Bilder in", OUT)
 
 
@@ -116,6 +117,23 @@ def joint_types():
                 d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
         d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "zinken_arten.png"), optimize=True)
+
+
+def puzzle_types():
+    """Puzzle-Verbindung: Nasen an einem Teil und abwechselnd, Teile wie gezeichnet, farbig gefüllt."""
+    a = [np.array([[0, 0], [80, 0], [80, 35], [0, 35.]])]
+    b = [np.array([[0, 35], [80, 35], [80, 70], [0, 70.]])]
+    im = Image.new("RGB", (900, 400), "white")
+    d = ImageDraw.Draw(im)
+    sc = 3.6
+    for i, (alt, label) in enumerate(((False, "Nasen an einem Teil"), (True, "Nasen abwechselnd"))):
+        ra, rb, _ = puzzle_joint(a, b, 12, 0, 0.0, alt)
+        ox = 60 + i * 450
+        for rs, col in ((ra, HOLZ), (rb, (150, 190, 230))):
+            for r in rs:
+                d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
+        d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "puzzle_verbindung.png"), optimize=True)
 
 
 def hinge_types():

@@ -33,7 +33,8 @@ DIALOGS = {
 }
 # ParamDialog nach (deutschem) Titel
 PARAM_DIALOGS = {"Biegescharnier": "muster", "Lochmuster": "muster", "Gravurmuster": "muster",
-                 "Fingerzinken an Kante": "fingerzinken", "Schablonen-Stege": "zahnrad-puzzle",
+                 "Fingerzinken an Kante": "fingerzinken", "Puzzle-Verbindung an Kante": "puzzle-verbindung",
+                 "Schablonen-Stege": "zahnrad-puzzle",
                  "Zahnrad": "zahnrad-puzzle", "Puzzle": "zahnrad-puzzle"}
 # Hauptmenüs (deutscher Titel) -> Abschnitt der Referenz
 MENUS = {"&Datei": "menu-datei", "&Bearbeiten": "menu-bearbeiten", "&Anordnen": "menu-anordnen",
@@ -49,7 +50,8 @@ ACTIONS = {
     "QR-Code / Barcode einfügen…": "variabler-text", "Variable Texte…": "variabler-text",
     "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle",
     "Biegescharnier…": "muster", "Lochmuster / Lüftungsgitter…": "muster", "Gravurmuster…": "muster",
-    "Fingerzinken an Kante…": "fingerzinken", "Schablonen-Stege…": "zahnrad-puzzle",
+    "Fingerzinken an Kante…": "fingerzinken", "Puzzle-Verbindung an Kante…": "puzzle-verbindung",
+    "Schablonen-Stege…": "zahnrad-puzzle",
     "Fokustest…": "fokustest", "Zeilenabstandstest…": "zeilenabstandstest",
     "Werkzeugweg-Vorschau": "vorschau", "Am Raster fangen": "anordnen",
     "Maschineneinstellungen…": "maschineneinstellungen", "GRBL-Einstellungen ($$)…": "grbl",

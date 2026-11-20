@@ -582,6 +582,35 @@ eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
 nutzen ([Kerf ermitteln](#kerf-ermitteln)).
 
+<!-- hilfe: puzzle-verbindung -->
+### Puzzle-Verbindung an Kante
+
+Verbindet zwei Teile, die **flach Kante an Kante** liegen, mit runden Nasen wie bei Puzzleteilen – z. B. um
+eine Platte, die größer als die Arbeitsfläche ist, aus zwei Teilen zusammenzusetzen, oder für Schilder und
+Spiele. Der Hals jeder Nase ist schmaler als ihr Kopf, deshalb lassen sich die Teile in der Ebene nicht
+auseinanderziehen.
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
+   [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
+2. Beide Teile auswählen → *Werkzeuge → Puzzle-Verbindung an Kante…*
+3. Unter **Nasen an** wählen, welches Teil die Nasen bekommt; das andere bekommt genau passende Aussparungen.
+
+![Puzzle-Verbindung: Nasen an einem Teil und abwechselnd](screenshots/puzzle_verbindung.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase) |
+| Nasengröße (Kopfdurchmesser) | Durchmesser des runden Kopfes. Der Hals ist 60 % so breit, die Nase ragt etwa 1,15 × Kopfdurchmesser über die Kante – so tief muss auch das andere Teil mindestens sein |
+| Anzahl je Kante | 0 = automatisch: etwa alle 2,5 Kopfdurchmesser eine Nase, gleichmäßig verteilt |
+| Nasen abwechselnd an beiden Teilen | Die Nasen sitzen abwechselnd am einen und am anderen Teil (Bild rechts) – hält auch bei Zug in beide Richtungen quer zur Kante gleich gut |
+| Spiel | Abstand zwischen Nase und Aussparung (je zur Hälfte an beiden Teilen). Positiv = lockerer, negativ = strammer. Der Laser schneidet selbst schon etwas Material weg (Kerf); bei Sperrholz passt meist 0 oder ein leicht negativer Wert, siehe [Kerf ermitteln](#kerf-ermitteln) |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+
+Ist ein Teil an der Kante zu schmal für die Nasen oder passen nicht so viele Nasen auf die Kante, meldet
+TiLaser das und ändert nichts. Kurven der Teile werden in feine Linienzüge umgewandelt. Für die Puzzle-Teile
+eines ganzen Bildes gibt es den [Puzzle-Generator](#zahnrad-puzzle-und-schablonen-stege).
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
 
@@ -1313,6 +1342,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
 | Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
+| Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

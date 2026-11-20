@@ -250,3 +250,111 @@ def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind:
         ra = add_dogbones(ra, dogbone, corners_a)
         rb = add_dogbones(rb, dogbone, corners_b)
     return ra, rb, len(edges)
+
+
+# ---------------------------------------------------------------- Puzzle-Verbindung
+
+def puzzle_profile(centers, signs, size: float, delta: float = 0.0, step_deg: float = 8.0) -> list[tuple[float, float]]:
+    """Punkte (s, t) der Puzzle-Nasen entlang einer Kante (s entlang, t quer, t > 0 = von Teil A nach B).
+
+    size = Durchmesser des Nasenkopfs. Der Hals ist schmaler als der Kopf, so dass die Teile in der
+    Ebene formschlüssig halten. signs: +1 = Nase an Teil A (ragt nach B), -1 = Nase an Teil B.
+    delta verschiebt die Kontur senkrecht nach außen (> 0) bzw. innen (< 0) – für das Spiel."""
+    r, a0, f = size / 2, 0.3 * size, 0.12 * size
+    c = 0.25 * size + math.sqrt(r * r - a0 * a0)          # Mitte des Kopfes über der Kante
+    out: list[tuple[float, float]] = []
+    for sc, sg in zip(centers, signs):
+        a, R = a0 + delta, r + delta
+        t1 = c - math.sqrt(max(R * R - a * a, 1e-12))
+        pts: list[tuple[float, float]] = []
+        for ang in np.radians(np.arange(-90, 0 + 1e-9, step_deg)):          # Ausrundung links
+            pts.append((sc - a - f + f * math.cos(ang), f + f * math.sin(ang)))
+        pts.append((sc - a, t1))
+        th0 = math.atan2(t1 - c, -a) % (2 * math.pi)                         # links unten am Kopf
+        th1 = math.atan2(t1 - c, a)                                          # rechts unten (negativ)
+        n = max(8, int(math.ceil(math.degrees(th0 - th1) / step_deg)))
+        for ang in np.linspace(th0, th1, n + 1)[1:-1]:                       # über den Kopf
+            pts.append((sc + R * math.cos(ang), c + R * math.sin(ang)))
+        pts.append((sc + a, t1))
+        for ang in np.radians(np.arange(180, 270 + 1e-9, step_deg)):         # Ausrundung rechts
+            pts.append((sc + a + f + f * math.cos(ang), f + f * math.sin(ang)))
+        out += [(s, sg * t) for s, t in pts]
+    return out
+
+
+def puzzle_height(size: float) -> float:
+    """Wie weit eine Nase über die Kante ragt."""
+    r, a0 = size / 2, 0.3 * size
+    return 0.25 * size + math.sqrt(r * r - a0 * a0) + r
+
+
+def puzzle_count(length: float, size: float) -> int:
+    """Anzahl Nasen für eine Kante: etwa alle 2,5 Kopfdurchmesser eine."""
+    return max(1, int(length // (2.5 * size)))
+
+
+def _insert_points(ring: np.ndarray, k: int, pts: np.ndarray) -> np.ndarray:
+    """Segment k (Punkt k -> k+1) durch die Weltpunkte pts ersetzen (Richtung wird angepasst)."""
+    a, b = ring[k], ring[(k + 1) % len(ring)]
+    if len(pts) > 1 and (pts[-1] - pts[0]) @ (b - a) < 0:
+        pts = pts[::-1]
+    out = np.vstack([q for q in (ring[: k + 1], pts, ring[k + 1:]) if len(q)])
+    keep = [0] + [i for i in range(1, len(out)) if np.hypot(*(out[i] - out[i - 1])) > 1e-9]
+    out = out[keep]
+    if len(out) > 1 and np.hypot(*(out[0] - out[-1])) <= 1e-9:
+        out = out[:-1]
+    return _cleanup(out)
+
+
+def puzzle_joint(rings_a, rings_b, size: float = 10.0, count: int = 0, clearance: float = 0.0,
+                 alternate: bool = False, tol: float = 0.5, all_edges: bool = False):
+    """Puzzle-Nasen an der längsten gemeinsamen Kante (oder allen) zweier Teile, die Kante an Kante liegen.
+
+    Teil A bekommt die Nasen, Teil B die passenden Aussparungen (bei alternate abwechselnd).
+    clearance = Spiel (gesamt); jede Seite wird um die Hälfte zurückgenommen. Gibt neue Ringe für A, B
+    und die Anzahl der bearbeiteten Kanten zurück."""
+    if size <= 0:
+        raise ValueError("Die Nasengröße muss größer als 0 sein.")
+    if not -0.5 * size < clearance < 0.25 * size:
+        raise ValueError("Das Spiel ist für diese Nasengröße zu groß.")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=1.2 * size)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Nasen ist. Die beiden Teile Kante "
+                         "an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen) oder die Nasen kleiner wählen.")
+    if not all_edges:
+        edges = edges[:1]
+    height = puzzle_height(size)
+    jobs = []
+    for e in edges:
+        n = count if count > 0 else puzzle_count(e.length, size)
+        if n * 1.1 * size > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Nasen mit {size:g} mm – "
+                             "weniger Nasen oder kleinere Nasen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        signs = [(-1 if (alternate and i % 2) else 1) for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)               # von A nach B
+        # die Aussparungen müssen ganz im jeweils anderen Teil liegen
+        for sc, sg in zip(centers, signs):
+            probe = e.p0 + u * sc + v * sg * (height + 0.3)
+            if not inside(probe[None], rb if sg > 0 else ra)[0]:
+                raise ValueError("Ein Teil ist an der Kante zu schmal für die Nasen "
+                                 f"(sie ragen {height:.1f} mm hinein) – kleinere Nasen wählen.")
+        jobs.append((e, centers, signs, u, v))
+
+    def world(e, centers, signs, u, v, grow):
+        # grow < 0: eigene Nasen etwas kleiner, eigene Aussparungen etwas größer (Teil A); grow > 0 für Teil B
+        pts = [(0.0, 0.0)]
+        for sc, sg in zip(centers, signs):
+            pts += puzzle_profile([sc], [sg], size, grow * sg)
+        pts.append((e.length, 0.0))
+        return np.array([e.p0 + u * s + v * t for s, t in pts])
+
+    half = clearance / 2
+    for e, centers, signs, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, world(e, centers, signs, u, v, -half))
+    for e, centers, signs, u, v in sorted(jobs, key=lambda j: -j[0].kb):
+        rb[e.rb] = _insert_points(rb[e.rb], e.kb, world(e, centers, signs, u, v, +half))
+    return ra, rb, len(jobs)

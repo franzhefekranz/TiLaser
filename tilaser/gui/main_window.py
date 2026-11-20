@@ -342,6 +342,8 @@ class MainWindow(QMainWindow):
                                "Hahnentritt, Fischgrät, Waben … als Gravur in der ausgewählten Fläche"))
         wz.addAction(self._act("Fingerzinken an Kante…", self.finger_joint_tool, None,
                                "Zinken an der gemeinsamen Kante zweier Teile, optional mit Dogbone-Ecken"))
+        wz.addAction(self._act("Puzzle-Verbindung an Kante…", self.puzzle_joint_tool, None,
+                               "Puzzle-Nasen an der gemeinsamen Kante zweier Teile, die Kante an Kante liegen"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -1786,6 +1788,61 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Fingerzinken an {n} Kante(n) erzeugt.", 6000)
 
+    def puzzle_joint_tool(self):
+        from ..core.joints import puzzle_height, puzzle_joint, sides
+        title = "Puzzle-Verbindung an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile Kante an Kante "
+                                                 "legen (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                                                 "versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        fields = [("knobs_on", "Nasen an", "c", "0", who),
+                  ("size", "Nasengröße (Kopfdurchmesser)", "f", 10.0, (2, 200, 1, 1, " mm")),
+                  ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
+                  ("alternate", "Nasen abwechselnd an beiden Teilen", "b", False, None),
+                  ("clearance", "Spiel", "f", 0.0, (-1, 2, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Das gewählte Teil bekommt runde Nasen mit schmalerem Hals, das andere genau passende Aussparungen – "
+                "die Teile halten in der Ebene zusammen wie Puzzleteile. Automatisch etwa alle 2,5 Kopfdurchmesser "
+                "eine Nase. Spiel: positiv = lockerer (z. B. 0,1 mm), negativ = strammer; der Laser nimmt selbst "
+                "schon etwas Material weg. Kurven der Teile werden in feine Linienzüge umgewandelt.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        first = 1 if str(v["knobs_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n = puzzle_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], v["size"], v["count"],
+                                     v["clearance"], v["alternate"], v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        new_ids = []
+        for it, world, idx, rr in ((a, wa, ia, ra), (b, wb, ib, rb)):
+            new_world = list(world)
+            for k, i in enumerate(idx):
+                if len(rr[k]) != len(world[i][0].pts) or not np.allclose(rr[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rr[k], True), world[i][1])
+            new_ids.append(self._replace_item(it, new_world).id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"Puzzle-Verbindung an {n} Kante(n) erzeugt (Nasen ragen "
+                                     f"{puzzle_height(v['size']):.1f} mm über die Kante).", 6000)
+
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)
         n = self.project._item_from_world(it.name, world)
@@ -2068,7 +2125,7 @@ class MainWindow(QMainWindow):
         self.canvas.set_tool("select")
         self.canvas.select_only([it.id])
         self.statusBar().showMessage("Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → "
-                                     "Fingerzinken an Kante… verzinkt sie.", 8000)
+                                     "Fingerzinken an Kante… oder Puzzle-Verbindung an Kante… verbindet sie.", 8000)
 
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):

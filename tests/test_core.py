@@ -2149,6 +2149,36 @@ class _MiniMonkeyPatch:
         self._undo.clear()
 
 
+def test_puzzle_joint():
+    from tilaser.core.joints import puzzle_height, puzzle_joint
+
+    def area(r):
+        return abs(0.5 * float(np.sum(r[:, 0] * np.roll(r[:, 1], -1) - np.roll(r[:, 0], -1) * r[:, 1])))
+    a = [np.array([[0, 0], [60, 0], [60, 30], [0, 30]], float)]
+    b = [np.array([[60, 30], [0, 30], [0, 60], [60, 60]], float)]               # Kante gegenläufig
+    for alt in (False, True):
+        ra, rb, n = puzzle_joint(a, b, 10, 0, 0.0, alt)
+        assert n == 1 and abs(area(ra[0]) + area(rb[0]) - 3600) < 1e-6          # lückenlos ineinander
+        top, bottom = ra[0][:, 1].max(), ra[0][:, 1].min()
+        assert top > 30 + 0.95 * puzzle_height(10)                              # Nase von A ragt nach B
+        if alt:
+            assert rb[0][:, 1].min() < 30 - 0.95 * puzzle_height(10)            # und eine von B nach A
+        else:
+            assert abs(area(ra[0]) - 1800) > 50 and bottom == 0
+            knob = ra[0][(ra[0][:, 1] > 30.01) & (ra[0][:, 0] < 30)]                # erste Nase
+            head = knob[knob[:, 1] > 30 + 0.6 * puzzle_height(10)]
+            neck = knob[(knob[:, 1] > 31.19) & (knob[:, 1] < 32.51)]
+            assert np.ptp(head[:, 0]) > np.ptp(neck[:, 0]) + 2                  # Kopf breiter als der Hals
+    ra, rb, _ = puzzle_joint(a, b, 10, 2, 0.2, False)                           # Spiel: Fuge bleibt frei
+    assert 3600 - (area(ra[0]) + area(rb[0])) > 0.5
+    for bad in (dict(size=40), dict(size=10, count=8)):
+        try:
+            puzzle_joint(a, b, bad["size"], bad.get("count", 0))
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

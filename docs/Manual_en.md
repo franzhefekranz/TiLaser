@@ -576,6 +576,34 @@ the other exactly matching cut-outs. This is how:
 Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
 ([Determining the kerf](#determining-the-kerf)).
 
+<!-- hilfe: puzzle-verbindung -->
+### Puzzle joint on edge
+
+Connects two parts lying **flat edge to edge** with round knobs like jigsaw pieces – e.g. to assemble a
+panel larger than the work area from two parts, or for signs and games. The neck of each knob is narrower
+than its head, so the parts cannot be pulled apart in the plane.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K).
+2. Select both parts → *Tools → Puzzle joint on edge…*
+3. Under **Knobs on**, choose which part gets the knobs; the other gets exactly matching cut-outs.
+
+![Puzzle joint: knobs on one part and alternating](screenshots/en/puzzle_verbindung.png)
+
+| Setting | Effect |
+|---|---|
+| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob) |
+| Knob size (head diameter) | Diameter of the round head. The neck is 60 % as wide, the knob protrudes about 1.15 × head diameter beyond the edge – the other part must be at least that deep |
+| Number per edge | 0 = automatic: about one knob every 2.5 head diameters, evenly distributed |
+| Alternate knobs on both parts | The knobs sit alternately on one and the other part (right picture) – holds equally well when pulled in both directions across the edge |
+| Clearance | Gap between knob and cut-out (half on each part). Positive = looser, negative = tighter. The laser itself already removes some material (kerf); for plywood 0 or a slightly negative value usually fits, see [Determining the kerf](#determining-the-kerf) |
+| Tolerance | How far apart the edges may be and still count as “touching” |
+| All shared edges | Otherwise only the longest shared edge is processed |
+
+If a part is too narrow at the edge for the knobs or the requested number of knobs does not fit on the edge,
+TiLaser reports this and changes nothing. Curves of the parts are converted into fine polylines. For the pieces
+of a whole jigsaw picture there is the [puzzle generator](#gear-puzzle-and-stencil-bridges).
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
 
@@ -1298,6 +1326,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
+| Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

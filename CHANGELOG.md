@@ -4,6 +4,12 @@ Jede Version hat einen Abschnitt `## <Version>`; der Release-Workflow übernimmt
 GitHub-Releases. / Each version has a `## <version>` section; the release workflow uses it as the description of
 the GitHub release.
 
+## Unveröffentlicht
+
+- **Puzzle-Verbindung an Kante** (*Werkzeuge*): verbindet zwei flach Kante an Kante liegende Teile mit
+  runden Puzzle-Nasen (schmaler Hals, formschlüssig); Nasengröße, Anzahl, Spiel und Nasen abwechselnd an
+  beiden Teilen einstellbar.
+
 ## 0.9.1
 
 **Sicherheitsupdate (Beta).** Behebt Fehler aus einem Code-Review, die den Laser oder das Programm betreffen.
