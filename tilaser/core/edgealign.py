@@ -191,3 +191,37 @@ def tidy_ring(pts: np.ndarray, eps: float = 0.02, angle_deg: float = 0.2) -> np.
                     changed = True
                     break
     return np.array(p)
+
+
+# ---------------------------------------------------------------- An Knoten fangen
+
+def path_nodes(polys) -> np.ndarray:
+    """Knoten (Eckpunkte) von Pfaden: bei Kurven die Ankerpunkte, sonst die Punkte des Linienzugs.
+    Bei geschlossenen Pfaden ohne doppelten Endpunkt."""
+    out = []
+    for p in polys:
+        pts = p.bez.anchors if getattr(p, "bez", None) is not None else p.pts
+        pts = np.asarray(pts, float).reshape(-1, 2)
+        if len(pts) > 1 and p.closed and np.hypot(*(pts[0] - pts[-1])) < 1e-9:
+            pts = pts[:-1]
+        out.append(pts)
+    return np.vstack(out) if out else np.zeros((0, 2))
+
+
+def nearest_node(nodes: np.ndarray, x: float, y: float, tol: float):
+    """Nächster Knoten zu (x, y) innerhalb tol oder None."""
+    if not len(nodes):
+        return None
+    d = np.hypot(nodes[:, 0] - x, nodes[:, 1] - y)
+    i = int(np.argmin(d))
+    return nodes[i].copy() if d[i] <= tol else None
+
+
+def node_snap_delta(ref, delta, targets: np.ndarray, tol: float):
+    """Beim Ziehen: Der gegriffene Knoten ref wird um delta verschoben. Liegt er dann näher als tol an einem
+    Zielknoten, wird delta so korrigiert, dass er genau darauf liegt. Rückgabe (delta, Ziel) oder None."""
+    p = np.asarray(ref, float) + np.asarray(delta, float)
+    t = nearest_node(targets, float(p[0]), float(p[1]), tol)
+    if t is None:
+        return None
+    return t - np.asarray(ref, float), t

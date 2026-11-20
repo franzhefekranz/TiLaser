@@ -1543,5 +1543,15 @@
  "Die innere Lage ist nicht so groß wie die Vorderwand – die Schlitze für die Köpfe der Halter wurden trotzdem an derselben Stelle (von links oben gemessen) geschnitten.": "The inner layer is not the same size as the front wall – the slots for the holder heads were still cut at the same position (measured from the top left).",
  "innere Lage": "inner layer",
  "Hakenkopf über dem Deckel (mindestens)": "Hook head above the lid (minimum)",
- "Neigung der Schräge an der Nase": "Bevel angle at the nose"
+ "Neigung der Schräge an der Nase": "Bevel angle at the nose",
+ "An Knoten fangen": "Snap to nodes",
+ "Beim Ziehen rastet der Knoten, an dem man das Teil greift, an Knoten anderer Teile ein (Alt gedrückt halten = ohne Fangen)": "While dragging, the node at which you grab the part snaps to nodes of other parts (hold Alt = without snapping)",
+ "Schrittweiten der Pfeiltasten": "Arrow key step sizes",
+ "Schrittweiten der Pfeiltasten…": "Arrow key step sizes…",
+ "Wie weit die Pfeiltasten die ausgewählten Teile verschieben. Wird gespeichert.": "How far the arrow keys move the selected parts. Saved.",
+ "Pfeiltasten: Strg {0} mm, ohne {1} mm, Shift {2} mm": "Arrow keys: Ctrl {0} mm, plain {1} mm, Shift {2} mm",
+ "Wie weit die Pfeiltasten ausgewählte Teile verschieben: klein (Strg), mittel, groß (Shift)": "How far the arrow keys move selected parts: small (Ctrl), medium, large (Shift)",
+ "Klein (Strg + Pfeiltaste)": "Small (Ctrl + arrow key)",
+ "Mittel (Pfeiltaste)": "Medium (arrow key)",
+ "Groß (Shift + Pfeiltaste)": "Large (Shift + arrow key)"
 }

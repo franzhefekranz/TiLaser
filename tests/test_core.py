@@ -2437,6 +2437,18 @@ def test_slider_latch():
         except ValueError:
             pass
 
+
+def test_node_snap():
+    from tilaser.core.edgealign import nearest_node, node_snap_delta, path_nodes
+    sq = g.Polyline(np.array([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], float), True)
+    nodes = path_nodes([sq])
+    assert len(nodes) == 4                                                    # doppelter Endpunkt entfernt
+    assert np.allclose(nearest_node(nodes, 9.5, 0.4, 1.0), [10, 0]) and nearest_node(nodes, 5, 5, 1.0) is None
+    # gegriffene Ecke (0, 0) eines anderen Teils wird um (9.6, 9.7) gezogen -> rastet genau auf (10, 10)
+    d, t = node_snap_delta((0, 0), (9.6, 9.7), nodes, 0.6)
+    assert np.allclose(d, [10, 10]) and np.allclose(t, [10, 10])
+    assert node_snap_delta((0, 0), (5, 5), nodes, 0.6) is None
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):
