@@ -364,6 +364,9 @@ class MainWindow(QMainWindow):
         wz.addAction(self._act("Federverschluss an Kante…", self.spring_latch_tool, None,
                                "Verschluss für einen Deckel: Zunge mit Haken an einer Mäanderfeder (S-Form) im einen "
                                "Teil, Aussparung mit Schulter im anderen"))
+        wz.addAction(self._act("Federriegel mit Haken…", self.slider_latch_tool, None,
+                               "Riegel hinter der Vorderwand, dessen Haken durch Schlitze im Deckel greifen; eine lange "
+                               "Mäanderfeder schiebt ihn zurück"))
         wz.addAction(self._act("Teile nummerieren…", self.number_parts_tool, None,
                                "Teile durchnummerieren und die Nummer eingravieren; gleiche Teile bekommen dieselbe "
                                "Nummer"))
@@ -2068,6 +2071,86 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(
             f"Federverschluss: {n} × an {a.name}. Fenster {dims['xr'] - dims['xl']:.1f} × {dims['top']:.1f} mm, die "
             f"Zunge ragt {dims['depth']:.1f} mm in {b.name}.", 8000)
+
+    def slider_latch_tool(self):
+        from ..core.joints import SliderLatchSpec, sides, slider_latch
+        title = "Federriegel mit Haken"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen: den Deckel und die Vorderwand der "
+                                                 "Box, Kante an Kante gelegt.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Deckel und Vorderwand so hinlegen, "
+                                                 "dass die Vorderkante des Deckels an der Oberkante der Wand liegt "
+                                                 "(z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = SliderLatchSpec()
+        fields = [("lid_is", "Deckel ist", "c", "0", who),
+                  ("thickness", "Materialstärke (Riegel, Halter)", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
+                  ("lid", "Deckelstärke", "f", d.lid, (1, 30, 2, 0.5, " mm")),
+                  ("wall", "Wandstärke (Abstand des Riegels von der Deckelkante)", "f", d.wall,
+                   (0, 50, 2, 0.5, " mm")),
+                  ("length", "Länge des Riegels", "f", d.length, (30, 1000, 1, 5, " mm")),
+                  ("hooks", "Anzahl Haken", "i", d.hooks, (1, 10)),
+                  ("hook_width", "Breite des Hakenschafts", "f", d.hook_width, (2, 30, 1, 0.5, " mm")),
+                  ("catch", "Hakenüberstand (Federweg)", "f", d.catch, (0.5, 10, 2, 0.1, " mm")),
+                  ("head", "Hakenkopf über dem Deckel", "f", d.head, (1, 20, 1, 0.5, " mm")),
+                  ("legs", "Schenkel der Feder (ungerade)", "i", d.legs, (1, 61)),
+                  ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
+                  ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
+                  ("key", "Höhe der Halter", "f", d.key, (3, 40, 1, 0.5, " mm")),
+                  ("margin", "Rand des Riegels", "f", d.margin, (1.5, 20, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für einen Deckel, der oben auf der Vorderwand aufliegt. Innen hinter der Vorderwand sitzt ein Riegel, "
+                "dessen Haken durch Schlitze im Deckel greifen. Zwei T-förmige Halter stecken durch den Riegel in "
+                "Schlitzen der Wand; einer sitzt in der Öse am Ende einer langen Mäanderfeder, der andere in einem "
+                "Langloch. Beim Schließen drücken die Schlitzkanten die Schrägen der Haken zur Seite, die Feder schiebt "
+                "den Riegel zurück und die Haken liegen auf dem Deckel. Zum Öffnen die Hakenköpfe zur Seite schieben. "
+                "Die Schlitze kommen in Deckel und Wand, Riegel und Halter entstehen neben den Teilen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = SliderLatchSpec(thickness=v["thickness"], lid=v["lid"], wall=v["wall"], length=v["length"],
+                               hooks=int(v["hooks"]), hook_width=v["hook_width"], catch=v["catch"], head=v["head"],
+                               legs=int(v["legs"]), bar=v["bar"], gap=v["gap"], key=v["key"], margin=v["margin"],
+                               clearance=v["clearance"])
+        first = 1 if str(v["lid_is"]) == "1" else 0
+        lid, wall = items[first], items[1 - first]
+        wl, ww = worlds[first], worlds[1 - first]
+        try:
+            lid_slots, wall_slots, plate, keys, dims = slider_latch([p.pts for p, _ in wl if p.closed],
+                                                                    [p.pts for p, _ in ww if p.closed], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        lid_l = next((l for p, l in wl if p.closed), next(iter(lid.layer_ids())))
+        lid_w = next((l for p, l in ww if p.closed), next(iter(wall.layer_ids())))
+        bb = g.bbox_of([p for p, _ in wl + ww])
+        ids = [self._replace_item(lid, list(wl) + [(g.Polyline(r, True), lid_l) for r in lid_slots]).id,
+               self._replace_item(wall, list(ww) + [(g.Polyline(r, True), lid_w) for r in wall_slots]).id]
+        pts = np.vstack(plate)
+        shift = np.array([bb[2] + 10.0 - pts[:, 0].min(), bb[1] - pts[:, 1].min()])
+        ids.append(self._add_generated(f"Riegel {wall.name}", [(g.Polyline(r + shift, True), lid_w) for r in plate],
+                                       False).id)
+        kx, ky = bb[2] + 10.0, bb[1] - 10.0 - spec.key - 4
+        key_world = []
+        for r in keys:
+            key_world.append((g.Polyline(r + [kx, ky], True), lid_w))
+            kx += float(np.ptp(r[:, 0])) + 4
+        ids.append(self._add_generated(f"Halter ({len(keys)})", key_world, False).id)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(
+            f"Federriegel: {spec.hooks} Haken durch {lid.name}, Halter in {wall.name}. Riegel {spec.length:g} × "
+            f"{dims['height']:.1f} mm, Federweg {dims['travel']:.2f} mm.", 10000)
 
     def knuckle_hinge_tool(self):
         from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_square, sides

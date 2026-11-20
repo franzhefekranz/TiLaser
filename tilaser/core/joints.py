@@ -864,3 +864,180 @@ def spring_latch(rings_a, rings_b, spec: LatchSpec, tol: float = 0.5):
     ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array(pts_a))
     rb[e.rb] = _insert_points(rb[e.rb], e.kb, np.array(pts_b))
     return ra, rb, n, d
+
+
+# ---------------------------------------------------------------- Federriegel (Haken durch den Deckel)
+#
+# Nach dem Vorbild der „box with living hinge and spring catch“: Hinter der Vorderwand (innen) liegt ein Riegel,
+# eine schmale Platte, deren Haken oben durch Schlitze im Deckel greifen. Zwei T-förmige Halter stecken durch
+# den Riegel und sind in Schlitze der Vorderwand geleimt. Der eine Halter sitzt in einer Öse am Ende einer
+# langen Mäanderfeder, der andere in einem Langloch. So kann der Riegel seitlich gleiten und wird von der Feder
+# zurückgeschoben. Beim Schließen drücken die Schlitzkanten des Deckels die Schrägen der Haken zur Seite; der
+# Riegel weicht aus, schnappt zurück und die Haken liegen auf dem Deckel. Zum Öffnen die Hakenköpfe, die oben
+# aus dem Deckel ragen, zur Seite schieben.
+
+@dataclass
+class SliderLatchSpec:
+    thickness: float = 3.0      # Materialstärke von Riegel und Haltern
+    lid: float = 3.0            # Deckelstärke (Hakenschaft = Deckelstärke + Spiel)
+    wall: float = 3.0           # Wandstärke: so weit liegt der Riegel hinter der Deckelkante
+    length: float = 80.0        # Länge des Riegels
+    hooks: int = 2              # Anzahl Haken
+    hook_width: float = 6.0     # Breite des Hakenschafts
+    catch: float = 1.5          # Hakenüberstand = Federweg
+    head: float = 3.5           # so weit steht der Hakenkopf über dem Deckel
+    legs: int = 9               # Schenkel der Feder (ungerade)
+    bar: float = 1.5            # Stegbreite der Feder
+    gap: float = 1.2            # Schlitz zwischen den Schenkeln
+    key: float = 8.0            # Höhe der Halter
+    margin: float = 4.0         # Rand des Riegels um Fenster und Langloch
+    clearance: float = 0.15     # Spiel
+
+
+def slider_dims(spec: SliderLatchSpec) -> dict:
+    """Maße des Riegels (x entlang, y = 0 Oberkante, nach unten negativ)."""
+    t, c, gp, k = spec.thickness, spec.clearance, spec.gap, spec.legs
+    r, pitch = spec.bar / 2, spec.bar + gp
+    R = pitch / 2
+    travel = spec.catch + c
+    hole_w, hole_h = t + c, spec.key + c
+    rw = max(2.0, spec.bar + 0.5)                      # Wand der Öse
+    ring_w, ring_h = hole_w + 2 * rw, hole_h + 2 * rw
+    m = spec.margin
+    # Fenster-Koordinaten: y_s = Oberkante der Feder (Mittellinie)
+    y_s = -m - gp - r
+    ring_top, ring_bot = y_s + r, y_s + r - ring_h
+    ring_l = m + gp
+    ring_r = ring_l + ring_w
+    x0 = ring_r + r + gp + travel                      # erster Schenkel
+    ytop = y_s - R
+    ybot = ring_bot + R + r
+    win_top, win_bot = -m, min(ybot - R - r - gp, ring_bot - gp)
+    xs = [x0 + i * pitch for i in range(k)]
+    win_l, win_r = m, xs[-1] + r + gp
+    height = -win_bot + m
+    key_a = (ring_l + ring_r) / 2                     # Halter in der Öse
+    slot_l = win_r + m                                # Langloch für den zweiten Halter
+    key_b = max(slot_l + hole_w / 2, spec.length - m - hole_w / 2 - travel)
+    key_y = (ring_top + ring_bot) / 2
+    return dict(r=r, pitch=pitch, R=R, travel=travel, hole_w=hole_w, hole_h=hole_h, ring_l=ring_l, ring_r=ring_r,
+                ring_top=ring_top, ring_bot=ring_bot, y_s=y_s, ytop=ytop, ybot=ybot, xs=xs, win_l=win_l,
+                win_r=win_r, win_top=win_top, win_bot=win_bot, height=height, key_a=key_a, key_b=key_b, key_y=key_y,
+                min_length=slot_l + hole_w + travel + m)
+
+
+def slider_spring_line(spec: SliderLatchSpec, step_deg: float = 15.0) -> np.ndarray:
+    """Mittellinie der Feder: von der Öse waagerecht, Viertelbogen, dann Schenkel mit Halbkreis-Wendungen;
+    der letzte Schenkel endet unten am Fensterrand."""
+    d = slider_dims(spec)
+    R, xs = d["R"], d["xs"]
+    m = max(2, int(math.ceil(180 / step_deg)))
+    pts = [(d["ring_r"], d["y_s"])]
+    pts += [(xs[0] - R + R * math.cos(a), d["ytop"] + R * math.sin(a)) for a in np.linspace(math.pi / 2, 0, m // 2 + 1)]
+    for i in range(len(xs)):
+        if i == len(xs) - 1:
+            pts.append((xs[i], d["win_bot"]))
+            break
+        cx = (xs[i] + xs[i + 1]) / 2
+        if i % 2 == 0:
+            pts += [(cx + R * math.cos(a), d["ybot"] + R * math.sin(a)) for a in np.linspace(math.pi, 2 * math.pi, m + 1)]
+        else:
+            pts += [(cx + R * math.cos(a), d["ytop"] + R * math.sin(a)) for a in np.linspace(math.pi, 0, m + 1)]
+    return np.array(pts, float)
+
+
+def slider_plate(spec: SliderLatchSpec) -> tuple[list[np.ndarray], list[float]]:
+    """Riegel als Ringe (Außenkontur mit Haken, Fenster mit Feder und Öse, Loch der Öse, Langloch).
+
+    Gibt außerdem die x-Positionen der Hakenschäfte (linke Kante) zurück."""
+    d = slider_dims(spec)
+    c, L, ws, n = spec.clearance, spec.length, spec.hook_width, spec.catch
+    k = max(1, spec.hooks)
+    inset = spec.margin + 2
+    span = L - 2 * inset - ws - n
+    hx = [inset + span * (i / (k - 1) if k > 1 else 0.5) for i in range(k)]
+    y1 = spec.lid + c                                  # Unterseite der Nase liegt auf dem Deckel
+    top = y1 + spec.head
+    outer = [(0.0, -d["height"]), (L, -d["height"])]
+    for x in reversed(hx):                             # Oberkante von rechts nach links
+        outer += [(x + ws, 0.0), (x + ws, y1), (x + ws + n, y1), (x + ws + n, y1 + min(1.0, spec.head / 3)),
+                  (x + 0.4 * ws, top), (x, top), (x, 0.0)]
+    outer = [(0.0, -d["height"]), (L, -d["height"]), (L, 0.0)] + outer[2:] + [(0.0, 0.0)]
+    # Fenster: rechts vom letzten Schenkel um das Fenster herum, an der Feder entlang zur Öse, um die Öse, zurück
+    line = slider_spring_line(spec)
+    lo = _offset_polyline(line, -spec.bar / 2)        # untere/linke Seite
+    hi = _offset_polyline(line, +spec.bar / 2)
+    xs = d["xs"]
+    r = d["r"]
+    win = ([(xs[-1] + r, d["win_bot"]), (d["win_r"], d["win_bot"]), (d["win_r"], d["win_top"]),
+            (d["win_l"], d["win_top"]), (d["win_l"], d["win_bot"]), (xs[-1] - r, d["win_bot"])]
+           + [tuple(p) for p in lo[::-1][1:]]
+           + [(d["ring_r"], d["ring_bot"]), (d["ring_l"], d["ring_bot"]), (d["ring_l"], d["ring_top"])]
+           + [tuple(p) for p in hi[:-1]])
+    hw, hh = d["hole_w"] / 2, d["hole_h"] / 2
+    ka, kb, ky = d["key_a"], d["key_b"], d["key_y"]
+    hole = [(ka - hw, ky - hh), (ka + hw, ky - hh), (ka + hw, ky + hh), (ka - hw, ky + hh)]
+    slot = [(kb - hw, ky - hh), (kb + hw + d["travel"], ky - hh), (kb + hw + d["travel"], ky + hh), (kb - hw, ky + hh)]
+    rings = [np.array(p, float) for p in (outer, win, hole, slot)]
+    return [_cleanup(r_) for r_ in rings], hx
+
+
+def slider_key(spec: SliderLatchSpec) -> np.ndarray:
+    """T-förmiger Halter: Schaft durch Wand und Riegel, Kopf hält den Riegel an der Wand."""
+    ls = spec.wall + spec.thickness + spec.clearance
+    h, e = spec.key, 2.0
+    return np.array([(0, 0), (ls, 0), (ls, -e), (ls + 3, -e), (ls + 3, h + e), (ls, h + e), (ls, h), (0, h)], float)
+
+
+def slider_latch(rings_lid, rings_wall, spec: SliderLatchSpec, tol: float = 0.5):
+    """Federriegel an der gemeinsamen Kante von Deckel und Vorderwand (wie bei geschlossenem Deckel Kante an
+    Kante gelegt). Gibt (Schlitze im Deckel, Schlitze in der Wand, Riegel-Ringe in Weltlage, Halter, Maße)
+    zurück; der Riegel liegt dabei noch auf der Wand und muss neben die Teile verschoben werden."""
+    if spec.legs < 1 or spec.legs % 2 == 0:
+        raise ValueError("Die Feder braucht eine ungerade Anzahl Schenkel (1, 3, 5, 7 …).")
+    if min(spec.thickness, spec.lid, spec.hook_width, spec.catch, spec.head, spec.bar, spec.gap, spec.key,
+           spec.margin) <= 0:
+        raise ValueError("Alle Maße müssen größer als 0 sein.")
+    if spec.clearance >= spec.catch:
+        raise ValueError("Das Spiel muss kleiner sein als der Hakenüberstand, sonst rastet nichts ein.")
+    d = slider_dims(spec)
+    if spec.length < d["min_length"]:
+        raise ValueError(f"Der Riegel ist zu kurz für Feder und Langloch – mindestens {d['min_length']:.0f} mm oder "
+                         "weniger Schenkel.")
+    k = max(1, spec.hooks)
+    if k * (spec.hook_width + spec.catch + 3) > spec.length - 2 * spec.margin:
+        raise ValueError("Die Haken passen nicht auf den Riegel – weniger oder schmalere Haken wählen.")
+    rl = [np.asarray(r, float) for r in rings_lid]
+    rw = [np.asarray(r, float) for r in rings_wall]
+    edges = find_shared_edges(rl, rw, tol=tol, min_len=spec.length + 2)
+    if not edges:
+        raise ValueError(f"Keine gemeinsame Kante gefunden, die lang genug für den Riegel ist ({spec.length:.0f} mm). "
+                         "Deckel und Vorderwand Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen) "
+                         "oder den Riegel kürzer machen.")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    nl = _material_normal(rl, e.p0, e.p1)              # in den Deckel
+    nw = _material_normal(rw, e.p0, e.p1)              # in die Wand
+    s0 = (e.length - spec.length) / 2
+    c, t, ws, n = spec.clearance, spec.thickness, spec.hook_width, spec.catch
+    plate, hx = slider_plate(spec)
+
+    def on_wall(pts):                                  # Riegelkoordinaten -> Welt (Riegel liegt auf der Wand)
+        return np.array([e.p0 + u * (s0 + x) - nw * y for x, y in pts])
+    lid_slots = []
+    for x in hx:
+        xa, xb = s0 + x - n - 1.5 * c, s0 + x + ws + c / 2
+        ya, yb = spec.wall - c / 2, spec.wall + t + c / 2
+        lid_slots.append(np.array([e.p0 + u * xx + nl * yy for xx, yy in ((xa, ya), (xb, ya), (xb, yb), (xa, yb))]))
+    hw, hh = d["hole_w"] / 2, d["hole_h"] / 2
+    wall_slots = [on_wall([(kx - hw, d["key_y"] - hh), (kx + hw, d["key_y"] - hh), (kx + hw, d["key_y"] + hh),
+                           (kx - hw, d["key_y"] + hh)]) for kx in (d["key_a"], d["key_b"])]
+    for s_ in lid_slots:
+        if not inside(s_, rl).all():
+            raise ValueError("Die Schlitze für die Haken passen nicht in den Deckel – Wandstärke prüfen.")
+    for s_ in wall_slots:
+        if not inside(s_, rw).all():
+            raise ValueError("Die Schlitze für die Halter passen nicht in die Vorderwand – die Wand ist zu niedrig.")
+    plate_world = [on_wall(r_) for r_ in plate]
+    keys = [slider_key(spec), slider_key(spec)]
+    return lid_slots, wall_slots, plate_world, keys, d

@@ -38,6 +38,7 @@ PARAM_DIALOGS = {"Biegescharnier": "muster", "Lochmuster": "muster", "Gravurmust
                  "Schablonen-Stege": "zahnrad-puzzle",
                  "Zahnrad": "zahnrad-puzzle", "Puzzle": "zahnrad-puzzle",
                  "Knöchelscharnier an Kante": "knoechelscharnier", "Federverschluss an Kante": "federverschluss",
+                 "Federriegel mit Haken": "federriegel",
                  "Biegescharnier zwischen zwei Kanten": "biegezone", "Teile nummerieren": "nummerieren"}
 # Hauptmenüs (deutscher Titel) -> Abschnitt der Referenz
 MENUS = {"&Datei": "menu-datei", "&Bearbeiten": "menu-bearbeiten", "&Anordnen": "menu-anordnen",
@@ -53,6 +54,7 @@ ACTIONS = {
     "QR-Code / Barcode einfügen…": "variabler-text", "Variable Texte…": "variabler-text",
     "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle",
     "Knöchelscharnier an Kante…": "knoechelscharnier", "Federverschluss an Kante…": "federverschluss",
+    "Federriegel mit Haken…": "federriegel",
     "Biegescharnier zwischen zwei Kanten…": "biegezone", "Teile nummerieren…": "nummerieren",
     "Biegescharnier…": "muster", "Lochmuster / Lüftungsgitter…": "muster", "Gravurmuster…": "muster",
     "Fingerzinken an Kante…": "fingerzinken", "Puzzle-Verbindung an Kante…": "puzzle-verbindung",

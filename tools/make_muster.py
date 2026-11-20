@@ -19,7 +19,8 @@ from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
 from tilaser.core.joints import (HammerSpec, KnuckleSpec, LatchSpec, SnapSpec, finger_joint,  # noqa: E402
-                                 hammer_joint, spring_latch,
+                                 hammer_joint, spring_latch, SliderLatchSpec, slider_latch, slider_plate,
+                                 slider_key,
                                  hammer_tenon_profile, knuckle_hinge, knuckle_hole, knuckle_plate, puzzle_joint,
                                  snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
@@ -106,6 +107,7 @@ def main():
     hammer_types()
     knuckle_types()
     latch_types()
+    slider_types()
     bend_example()
     numbering_example()
     print("Bilder in", OUT)
@@ -296,6 +298,61 @@ def latch_types():
         im.paste(sub, box[:2])
         d.text(((box[0] + box[2]) / 2, 405), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "federverschluss.png"), optimize=True)
+
+
+def slider_types():
+    """Federriegel: Deckel + Wand mit Schlitzen, Riegel und Halter, Schnitt durch die geschlossene Box."""
+    spec = SliderLatchSpec()
+    L = [np.array([[0, 0], [110, 0], [110, 45], [0, 45.]])]
+    W = [np.array([[110, 0], [0, 0], [0, -35], [110, -35.]])]
+    lid_slots, wall_slots, _, _, dims = slider_latch(L, W, spec)
+    plate, _ = slider_plate(spec)
+    im = Image.new("RGB", (1100, 470), "white")
+    d = ImageDraw.Draw(im)
+    blue, dark = (150, 190, 230), (190, 160, 110)
+    sc, ox, oy = 2.6, 20, 160
+
+    def P(r, s=sc, x0=ox, y0=oy):
+        return [(x0 + x * s, y0 - y * s) for x, y in r]
+    d.polygon(P(L[0]), fill=blue, outline=TEXT)
+    d.polygon(P(W[0]), fill=HOLZ, outline=TEXT)
+    for r in lid_slots + wall_slots:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    d.text((ox + 4, oy - 40 * sc), _t("Deckel"), fill=TEXT, font=_font(15), anchor="lm")
+    d.text((ox + 4, oy + 30 * sc), _t("Vorderwand"), fill=TEXT, font=_font(15), anchor="lm")
+    d.text((ox + 55 * sc, 445), _t("Deckel und Vorderwand"), fill=TEXT, font=_font(18), anchor="mm")
+    # Riegel und Halter
+    s2, x2, y2 = 5.0, 330, 90
+    d.polygon(P(plate[0], s2, x2, y2), fill=HOLZ, outline=TEXT)
+    for r in plate[1:]:
+        d.polygon(P(r, s2, x2, y2), fill="white", outline=TEXT)
+    k = slider_key(spec)
+    for i in range(2):
+        d.polygon(P(k, s2, x2 + 40 + i * 90, y2 + 200), fill=HOLZ, outline=TEXT)
+    d.text((x2 + 40 * s2, 445), _t("Riegel und Halter"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt quer zur Wand: Wand links (z 0..t), Riegel dahinter, Deckel oben, Halter durch Wand und Riegel
+    s3, x3, y3 = 6.0, 820, 150
+    t = spec.thickness
+    lid_c, wall_c = (100, 140, 190), dark
+
+    def Q(pts):
+        return [(x3 + z * s3, y3 - y * s3) for z, y in pts]
+    d.polygon(Q([(0, -35), (t, -35), (t, 0), (0, 0)]), fill=wall_c, outline=TEXT)
+    d.polygon(Q([(t, -dims["height"]), (2 * t, -dims["height"]), (2 * t, 0), (t, 0)]), fill=HOLZ, outline=TEXT)
+    top = spec.lid + spec.clearance + spec.head
+    d.polygon(Q([(t, 0), (2 * t, 0), (2 * t, top), (t, top)]), fill=HOLZ, outline=TEXT)
+    d.polygon(Q([(0, 0), (t - 0.08, 0), (t - 0.08, spec.lid), (0, spec.lid)]), fill=lid_c, outline=TEXT)
+    d.polygon(Q([(2 * t + 0.08, 0), (34, 0), (34, spec.lid), (2 * t + 0.08, spec.lid)]), fill=lid_c, outline=TEXT)
+    ky, kh = dims["key_y"], spec.key
+    ls = spec.wall + t + spec.clearance
+    d.polygon(Q([(0, ky - kh / 2), (ls, ky - kh / 2), (ls, ky - kh / 2 - 2), (ls + 3, ky - kh / 2 - 2),
+                 (ls + 3, ky + kh / 2 + 2), (ls, ky + kh / 2 + 2), (ls, ky + kh / 2), (0, ky + kh / 2)]),
+              fill=(200, 160, 110), outline=TEXT)
+    d.text((x3 - 8, y3 + 20 * s3), _t("Wand"), fill=TEXT, font=_font(15), anchor="rm")
+    d.text((x3 + 36 * s3, y3 - 2 * s3), _t("Deckel"), fill=TEXT, font=_font(15), anchor="lm")
+    d.text((x3 + 4 * t * s3 + 30, y3 + ky * -s3), _t("Halter"), fill=TEXT, font=_font(15), anchor="lm")
+    d.text((x3 + 90, 445), _t("Schnitt"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "federriegel.png"), optimize=True)
 
 
 def bend_example():

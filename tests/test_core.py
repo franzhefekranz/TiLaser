@@ -2390,6 +2390,35 @@ def test_spring_latch():
         except ValueError:
             pass
 
+
+def test_slider_latch():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import SliderLatchSpec, slider_latch, slider_plate, slider_spring_line
+    L = [np.array([[0, 0], [120, 0], [120, 70], [0, 70]], float)]               # Deckel
+    W = [np.array([[120, 0], [0, 0], [0, -40], [120, -40]], float)]             # Vorderwand
+    spec = SliderLatchSpec()
+    lid_slots, wall_slots, plate, keys, d = slider_latch(L, W, spec)
+    assert len(lid_slots) == 2 and len(wall_slots) == 2 and len(plate) == 4 and len(keys) == 2
+    # Hakenschlitze eine Wandstärke hinter der Deckelkante, Halterschlitze in der Wand auf Höhe der Öse
+    assert all(abs(r[:, 1].min() - (spec.wall - spec.clearance / 2)) < 1e-9 for r in lid_slots)
+    assert all(abs(r[:, 1].mean() - d["key_y"]) < 1e-9 for r in wall_slots)
+    # Riegel: Haken oben, Fenster, Öse und Langloch liegen im Riegel; Halter sitzt in der Öse
+    pl, hx = slider_plate(spec)
+    assert pl[0][:, 1].max() > spec.lid + spec.clearance and len(hx) == 2
+    for r in pl[1:]:
+        assert inside(r, [pl[0]]).all()
+    assert inside(np.array([[d["key_a"], d["key_y"]]]), [pl[2]])[0]
+    line = slider_spring_line(spec)
+    assert abs(line[-1, 1] - d["win_bot"]) < 1e-9 and abs(line[0, 0] - d["ring_r"]) < 1e-9
+    # Langloch erlaubt genau den Federweg
+    assert abs(np.ptp(pl[3][:, 0]) - (d["hole_w"] + d["travel"])) < 1e-9
+    for bad in (SliderLatchSpec(legs=4), SliderLatchSpec(length=40)):
+        try:
+            slider_latch(L, W, bad)
+            raise AssertionError("ValueError erwartet")
+        except ValueError:
+            pass
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

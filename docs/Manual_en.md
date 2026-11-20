@@ -791,6 +791,8 @@ it rests on the bar – the force does not go through the spring.
    [Placing edges together](#placing-edges-together), Alt+K).
 2. Select both → *Tools → Spring latch on edge…*, choose which part gets the spring and tongue.
 
+If the lid rests on top of the wall instead, use the [Spring bolt with hooks](#spring-bolt-with-hooks).
+
 ![Spring latch: window with S spring and tongue, recess with shoulder; variants with more legs](screenshots/en/federverschluss.png)
 
 | Setting | Effect |
@@ -809,6 +811,50 @@ it rests on the bar – the force does not go through the spring.
 | Room for pushing | Free space next to the button for a finger or pen |
 | Bar between window and edge | Bar of material at the edge on which the button rests |
 | Clearance | Play in the opening, in the recess and under the shoulder |
+| Tolerance | How far apart the edges may be and still count as "touching" |
+
+<!-- hilfe: federriegel -->
+### Spring bolt with hooks
+
+*Tools → Spring bolt with hooks…* is the second kind of spring latch – for a **lid that rests on top of the
+front wall** (e.g. a box with a living hinge). A **bolt** sits on the inside **behind the front wall**: a
+narrow plate whose **hooks** reach up through slots in the lid. Two **T-shaped holders** go through the bolt
+and into slots in the wall. One sits in an **eye at the end of a long meander spring**, the other in an
+**elongated hole** – so the bolt can slide sideways and the spring pushes it back.
+
+When closing, the edges of the slots in the lid push the bevels of the hooks aside; the bolt gives way, snaps
+back, and the noses of the hooks rest on the lid. **To open**, push the hook heads that stick out of the lid
+aside and lift the lid.
+
+1. Lay the lid and the front wall so that the **front edge of the lid touches the top edge of the wall** –
+   edge to edge (easiest with [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Spring bolt with hooks…*, choose which part is the lid.
+
+TiLaser cuts the hook slots into the lid (one wall thickness behind its edge) and the slots for the holders
+into the wall. The bolt (*Bolt* + name of the wall) and the two holders are placed to the right of the parts.
+
+![Spring bolt: lid and wall with slots, bolt with meander spring, eye and elongated hole, holders; section](screenshots/en/federriegel.png)
+
+**Assembly:** Place the bolt on the inside of the front wall, top edge flush with the wall, with the noses of the
+hooks pointing to the short side of the lid slots. Push the holders from the inside through the eye and the
+elongated hole into the wall slots (head on the inside) and glue them in the wall – do not glue the bolt.
+
+| Setting | Effect |
+|---|---|
+| Lid is | Which of the two parts is the lid; the other is the front wall |
+| Material thickness | Thickness of the bolt and the holders (width of the slots) |
+| Lid thickness | The hook shank is lid thickness + clearance long, so the nose rests on the lid |
+| Wall thickness | The hook slots lie this far behind the lid edge (the bolt sits directly behind the wall) |
+| Length of the bolt | The bolt is centred on the edge |
+| Number of hooks | Evenly spread on the bolt |
+| Hook shank width | Width of the hooks in the lid slot |
+| Hook overhang | How far the nose reaches over the lid – and how far the bolt has to give way when snapping in |
+| Hook head above the lid | How far the head sticks out; push it to open |
+| Spring legs | Odd number; more legs = softer spring, longer bolt needed |
+| Spring bar width / slot | Width of the spring bar and distance between the legs |
+| Holder height | Height of the holders and thus of the eye and the bolt |
+| Bolt margin | Material around the window and the elongated hole |
+| Clearance | Play in the slots, in the eye and the elongated hole |
 | Tolerance | How far apart the edges may be and still count as "touching" |
 
 <!-- hilfe: nummerieren -->
@@ -1554,6 +1600,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
 | Spring latch on edge… | | Snap latch for a lid: tongue on a meander spring, recess with shoulder ([Spring latch on edge](#spring-latch-on-edge)) |
+| Spring bolt with hooks… | | Bolt behind the front wall, hooks through the lid, meander spring ([Spring bolt with hooks](#spring-bolt-with-hooks)) |
 | Number parts… | | Number the parts and engrave the number, identical parts same number ([Numbering parts](#numbering-parts)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 
