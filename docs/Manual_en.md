@@ -839,6 +839,12 @@ into the wall. The bolt (*Bolt* + name of the wall) and the two holders are plac
 hooks pointing to the short side of the lid slots. Push the holders from the inside through the eye and the
 elongated hole into the wall slots (head on the inside) and glue them in the wall – do not glue the bolt.
 
+**With a second layer** (as in many templates): the bolt lies between the front wall and an **inner layer** of the
+same size – guided on both sides, nothing needs gluing. The inner layer gets longer slots for the wider head of
+the holders, in which it sits flush (head length = thickness of the inner layer). Either select the inner layer
+as a third part, or tick *Create inner layer as a copy of the wall* – TiLaser then places a copy of the wall
+(*name* + "inner") with the head slots below the parts.
+
 | Setting | Effect |
 |---|---|
 | Lid is | Which of the two parts is the lid; the other is the front wall |
@@ -853,6 +859,8 @@ elongated hole into the wall slots (head on the inside) and glue them in the wal
 | Spring legs | Odd number; more legs = softer spring, longer bolt needed |
 | Spring bar width / slot | Width of the spring bar and distance between the legs |
 | Holder height | Height of the holders and thus of the eye and the bolt |
+| Inner layer | Bolt between the wall and an inner layer; the inner layer gets longer slots for the heads of the holders. If a third part is selected, it is the inner layer (same size as the wall, measured from the top left), otherwise a copy of the wall is created |
+| Inner layer thickness | Length of the holder head |
 | Bolt margin | Material around the window and the elongated hole |
 | Clearance | Play in the slots, in the eye and the elongated hole |
 | Tolerance | How far apart the edges may be and still count as "touching" |

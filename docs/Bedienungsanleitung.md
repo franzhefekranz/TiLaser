@@ -853,6 +853,12 @@ die Halter in die Wand. Riegel (*Riegel* + Name der Wand) und die beiden Halter 
 der Nase zur kurzen Seite der Deckelschlitze. Die Halter von innen durch Öse bzw. Langloch in die
 Wandschlitze stecken (Kopf innen) und in der Wand verleimen – der Riegel darf nicht mit verleimt werden.
 
+**Mit zweiter Lage** (wie in vielen Vorlagen): Der Riegel liegt zwischen der Vorderwand und einer gleich großen
+**inneren Lage** – geführt auf beiden Seiten, nichts muss geleimt werden. Die innere Lage bekommt für den
+breiteren Kopf der Halter längere Schlitze, in denen er bündig steckt (Kopflänge = Stärke der inneren Lage).
+Entweder die innere Lage als drittes Teil mit auswählen, oder *Innere Lage als Kopie der Wand erzeugen*
+ankreuzen – dann legt TiLaser eine Kopie der Wand (*Name* + „innen“) mit den Kopfschlitzen unter die Teile.
+
 | Einstellung | Wirkung |
 |---|---|
 | Deckel ist | Welches der beiden Teile der Deckel ist; das andere ist die Vorderwand |
@@ -867,6 +873,8 @@ Wandschlitze stecken (Kopf innen) und in der Wand verleimen – der Riegel darf 
 | Schenkel der Feder | Ungerade Anzahl; mehr Schenkel = weichere Feder, längerer Riegel nötig |
 | Stegbreite der Feder / Schlitz | Breite des Federstegs und Abstand der Schenkel |
 | Höhe der Halter | Höhe der Halter und damit der Öse und des Riegels |
+| Innere Lage | Riegel zwischen Wand und innerer Lage; die innere Lage bekommt längere Schlitze für die Köpfe der Halter. Ist ein drittes Teil ausgewählt, ist das die innere Lage (gleiche Größe wie die Wand, gemessen von links oben), sonst wird eine Kopie der Wand erzeugt |
+| Stärke der inneren Lage | Länge des Halterkopfs |
 | Rand des Riegels | Material um Fenster und Langloch |
 | Spiel | Luft in den Schlitzen, in Öse und Langloch |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |

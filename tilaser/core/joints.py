@@ -874,7 +874,9 @@ def spring_latch(rings_a, rings_b, spec: LatchSpec, tol: float = 0.5):
 # langen Mäanderfeder, der andere in einem Langloch. So kann der Riegel seitlich gleiten und wird von der Feder
 # zurückgeschoben. Beim Schließen drücken die Schlitzkanten des Deckels die Schrägen der Haken zur Seite; der
 # Riegel weicht aus, schnappt zurück und die Haken liegen auf dem Deckel. Zum Öffnen die Hakenköpfe, die oben
-# aus dem Deckel ragen, zur Seite schieben.
+# aus dem Deckel ragen, zur Seite schieben. Wie in der Vorlage kann der Riegel auch zwischen zwei Lagen liegen
+# (Wand und innere Lage, z. B. zwei gleiche Platten); der Kopf der Halter steckt dann bündig in einem längeren
+# Schlitz der inneren Lage.
 
 @dataclass
 class SliderLatchSpec:
@@ -890,6 +892,7 @@ class SliderLatchSpec:
     bar: float = 1.5            # Stegbreite der Feder
     gap: float = 1.2            # Schlitz zwischen den Schenkeln
     key: float = 8.0            # Höhe der Halter
+    inner: float = 0.0          # Stärke einer inneren Lage (zweiter Boden); 0 = keine, Riegel liegt innen frei
     margin: float = 4.0         # Rand des Riegels um Fenster und Langloch
     clearance: float = 0.15     # Spiel
 
@@ -982,11 +985,16 @@ def slider_plate(spec: SliderLatchSpec) -> tuple[list[np.ndarray], list[float]]:
     return [_cleanup(r_) for r_ in rings], hx
 
 
+KEY_HEAD = 2.0                  # so weit ist der Kopf des Halters oben und unten breiter als der Schaft
+
+
 def slider_key(spec: SliderLatchSpec) -> np.ndarray:
-    """T-förmiger Halter: Schaft durch Wand und Riegel, Kopf hält den Riegel an der Wand."""
+    """T-förmiger Halter: Schaft durch Wand und Riegel, Kopf hält den Riegel an der Wand. Mit innerer Lage ist
+    der Kopf so lang wie diese dick ist und steckt bündig in ihrem Schlitz."""
     ls = spec.wall + spec.thickness + spec.clearance
-    h, e = spec.key, 2.0
-    return np.array([(0, 0), (ls, 0), (ls, -e), (ls + 3, -e), (ls + 3, h + e), (ls, h + e), (ls, h), (0, h)], float)
+    h, e = spec.key, KEY_HEAD
+    hl = spec.inner if spec.inner > 0 else 3.0
+    return np.array([(0, 0), (ls, 0), (ls, -e), (ls + hl, -e), (ls + hl, h + e), (ls, h + e), (ls, h), (0, h)], float)
 
 
 def slider_latch(rings_lid, rings_wall, spec: SliderLatchSpec, tol: float = 0.5):
@@ -1040,4 +1048,9 @@ def slider_latch(rings_lid, rings_wall, spec: SliderLatchSpec, tol: float = 0.5)
             raise ValueError("Die Schlitze für die Halter passen nicht in die Vorderwand – die Wand ist zu niedrig.")
     plate_world = [on_wall(r_) for r_ in plate]
     keys = [slider_key(spec), slider_key(spec)]
+    # Schlitze für die Köpfe in der inneren Lage – in Wandkoordinaten (die innere Lage ist so groß wie die Wand)
+    he = KEY_HEAD + spec.clearance / 2
+    d["head_slots"] = [on_wall([(kx - hw, d["key_y"] - hh - he), (kx + hw, d["key_y"] - hh - he),
+                                (kx + hw, d["key_y"] + hh + he), (kx - hw, d["key_y"] + hh + he)])
+                       for kx in (d["key_a"], d["key_b"])] if spec.inner > 0 else []
     return lid_slots, wall_slots, plate_world, keys, d

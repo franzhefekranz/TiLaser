@@ -301,8 +301,9 @@ def latch_types():
 
 
 def slider_types():
-    """Federriegel: Deckel + Wand mit Schlitzen, Riegel und Halter, Schnitt durch die geschlossene Box."""
-    spec = SliderLatchSpec()
+    """Federriegel: Deckel + Wand mit Schlitzen, Riegel und Halter, Schnitt durch die geschlossene Box
+    (Riegel zwischen Wand und innerer Lage)."""
+    spec = SliderLatchSpec(inner=3.0)
     L = [np.array([[0, 0], [110, 0], [110, 45], [0, 45.]])]
     W = [np.array([[110, 0], [0, 0], [0, -35], [110, -35.]])]
     lid_slots, wall_slots, _, _, dims = slider_latch(L, W, spec)
@@ -339,18 +340,17 @@ def slider_types():
         return [(x3 + z * s3, y3 - y * s3) for z, y in pts]
     d.polygon(Q([(0, -35), (t, -35), (t, 0), (0, 0)]), fill=wall_c, outline=TEXT)
     d.polygon(Q([(t, -dims["height"]), (2 * t, -dims["height"]), (2 * t, 0), (t, 0)]), fill=HOLZ, outline=TEXT)
+    d.polygon(Q([(2 * t, -35), (3 * t, -35), (3 * t, 0), (2 * t, 0)]), fill=wall_c, outline=TEXT)
     top = spec.lid + spec.clearance + spec.head
     d.polygon(Q([(t, 0), (2 * t, 0), (2 * t, top), (t, top)]), fill=HOLZ, outline=TEXT)
     d.polygon(Q([(0, 0), (t - 0.08, 0), (t - 0.08, spec.lid), (0, spec.lid)]), fill=lid_c, outline=TEXT)
     d.polygon(Q([(2 * t + 0.08, 0), (34, 0), (34, spec.lid), (2 * t + 0.08, spec.lid)]), fill=lid_c, outline=TEXT)
+    d.text((x3 + 3 * t * s3 + 8, y3 + 28 * s3), _t("innere Lage"), fill=TEXT, font=_font(15), anchor="lm")
     ky, kh = dims["key_y"], spec.key
-    ls = spec.wall + t + spec.clearance
-    d.polygon(Q([(0, ky - kh / 2), (ls, ky - kh / 2), (ls, ky - kh / 2 - 2), (ls + 3, ky - kh / 2 - 2),
-                 (ls + 3, ky + kh / 2 + 2), (ls, ky + kh / 2 + 2), (ls, ky + kh / 2), (0, ky + kh / 2)]),
-              fill=(200, 160, 110), outline=TEXT)
+    d.polygon(Q([(z, -y) for z, y in slider_key(spec) + [0, -ky - kh / 2]]), fill=(200, 160, 110), outline=TEXT)
     d.text((x3 - 8, y3 + 20 * s3), _t("Wand"), fill=TEXT, font=_font(15), anchor="rm")
     d.text((x3 + 36 * s3, y3 - 2 * s3), _t("Deckel"), fill=TEXT, font=_font(15), anchor="lm")
-    d.text((x3 + 4 * t * s3 + 30, y3 + ky * -s3), _t("Halter"), fill=TEXT, font=_font(15), anchor="lm")
+    d.text((x3 + 3 * t * s3 + 8, y3 + ky * -s3), _t("Halter"), fill=TEXT, font=_font(15), anchor="lm")
     d.text((x3 + 90, 445), _t("Schnitt"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "federriegel.png"), optimize=True)
 

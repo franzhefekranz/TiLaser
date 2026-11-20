@@ -2075,14 +2075,23 @@ class MainWindow(QMainWindow):
     def slider_latch_tool(self):
         from ..core.joints import SliderLatchSpec, sides, slider_latch
         title = "Federriegel mit Haken"
-        items = self._vector_selection()
-        if len(items) != 2:
-            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen: den Deckel und die Vorderwand der "
-                                                 "Box, Kante an Kante gelegt.")
+        sel = self._vector_selection()
+        if len(sel) not in (2, 3):
+            QMessageBox.information(self, title, "Bitte den Deckel und die Vorderwand der Box auswählen, Kante an Kante "
+                                                 "gelegt – optional dazu die innere Lage (zweiter Boden, so groß wie "
+                                                 "die Wand), zwischen der und der Wand der Riegel liegt.")
             return
+        inner_item = None
+        items, pos = sel[:2], None
+        for i, j in ((0, 1), (0, 2), (1, 2)) if len(sel) == 3 else ((0, 1),):
+            ri = [p.pts for p in sel[i].world_paths() if p.closed]
+            rj = [p.pts for p in sel[j].world_paths() if p.closed]
+            pos = sides(ri, rj, tol=2.0)
+            if pos is not None:
+                items = [sel[i], sel[j]]
+                inner_item = next((it for it in sel if it not in items), None)
+                break
         worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
-        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
-        pos = sides(rings[0], rings[1], tol=2.0)
         if pos is None:
             QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Deckel und Vorderwand so hinlegen, "
                                                  "dass die Vorderkante des Deckels an der Oberkante der Wand liegt "
@@ -2105,6 +2114,9 @@ class MainWindow(QMainWindow):
                   ("bar", "Stegbreite der Feder", "f", d.bar, (0.5, 10, 2, 0.1, " mm")),
                   ("gap", "Schlitz zwischen den Schenkeln", "f", d.gap, (0.3, 10, 2, 0.1, " mm")),
                   ("key", "Höhe der Halter", "f", d.key, (3, 40, 1, 0.5, " mm")),
+                  ("inner_copy", "Innere Lage als Kopie der Wand erzeugen" if inner_item is None else
+                   "Drittes ausgewähltes Teil als innere Lage verwenden", "b", inner_item is not None, None),
+                  ("inner", "Stärke der inneren Lage", "f", d.wall, (0.5, 50, 2, 0.5, " mm")),
                   ("margin", "Rand des Riegels", "f", d.margin, (1.5, 20, 1, 0.5, " mm")),
                   ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
                   ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
@@ -2121,7 +2133,7 @@ class MainWindow(QMainWindow):
         spec = SliderLatchSpec(thickness=v["thickness"], lid=v["lid"], wall=v["wall"], length=v["length"],
                                hooks=int(v["hooks"]), hook_width=v["hook_width"], catch=v["catch"], head=v["head"],
                                legs=int(v["legs"]), bar=v["bar"], gap=v["gap"], key=v["key"], margin=v["margin"],
-                               clearance=v["clearance"])
+                               clearance=v["clearance"], inner=v["inner"] if v["inner_copy"] else 0.0)
         first = 1 if str(v["lid_is"]) == "1" else 0
         lid, wall = items[first], items[1 - first]
         wl, ww = worlds[first], worlds[1 - first]
@@ -2147,6 +2159,25 @@ class MainWindow(QMainWindow):
             key_world.append((g.Polyline(r + [kx, ky], True), lid_w))
             kx += float(np.ptp(r[:, 0])) + 4
         ids.append(self._add_generated(f"Halter ({len(keys)})", key_world, False).id)
+        if spec.inner > 0:
+            bw = g.bbox_of([p for p, _ in ww])
+            if inner_item is not None:
+                wi = [(p, vp.layer_id) for p, vp in zip(inner_item.world_paths(), inner_item.paths)]
+                bi = g.bbox_of([p for p, _ in wi])
+                if abs((bi[2] - bi[0]) - (bw[2] - bw[0])) > 0.5 or abs((bi[3] - bi[1]) - (bw[3] - bw[1])) > 0.5:
+                    QMessageBox.information(self, title, "Die innere Lage ist nicht so groß wie die Vorderwand – die "
+                                                         "Schlitze für die Köpfe der Halter wurden trotzdem an "
+                                                         "derselben Stelle (von links oben gemessen) geschnitten.")
+                off = np.array([bi[0] - bw[0], bi[3] - bw[3]])
+                lid_i = next((l for p, l in wi if p.closed), lid_w)
+                ids.append(self._replace_item(inner_item, wi + [(g.Polyline(r + off, True), lid_i)
+                                                                for r in dims["head_slots"]]).id)
+            else:                                     # Kopie der Wand ohne deren Halterschlitze, unter alles gelegt
+                bb_all = g.bbox_of([p for p, _ in wl + ww])
+                off = np.array([0.0, bb_all[1] - 10.0 - bw[3]])
+                copy = [(g.Polyline(p.pts + off, p.closed), l) for p, l in ww]
+                copy += [(g.Polyline(r + off, True), lid_w) for r in dims["head_slots"]]
+                ids.append(self._add_generated(f"{wall.name} innen", copy, False).id)
         self.canvas.select_only(ids)
         self.statusBar().showMessage(
             f"Federriegel: {spec.hooks} Haken durch {lid.name}, Halter in {wall.name}. Riegel {spec.length:g} × "

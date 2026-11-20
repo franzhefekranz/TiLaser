@@ -2412,6 +2412,14 @@ def test_slider_latch():
     assert abs(line[-1, 1] - d["win_bot"]) < 1e-9 and abs(line[0, 0] - d["ring_r"]) < 1e-9
     # Langloch erlaubt genau den Federweg
     assert abs(np.ptp(pl[3][:, 0]) - (d["hole_w"] + d["travel"])) < 1e-9
+    assert d["head_slots"] == [] and abs(np.ptp(keys[0][:, 0]) - (spec.wall + spec.thickness + spec.clearance + 3)) < 1e-9
+    # mit innerer Lage: Kopf so lang wie die Lage dick, Kopfschlitze höher als die Halterschlitze, gleiche Mitte
+    sp2 = SliderLatchSpec(inner=4.0)
+    _, ws2, _, k2, d2 = slider_latch(L, W, sp2)
+    assert abs(np.ptp(k2[0][:, 0]) - (sp2.wall + sp2.thickness + sp2.clearance + 4)) < 1e-9
+    assert len(d2["head_slots"]) == 2
+    for hs, s_ in zip(d2["head_slots"], ws2):
+        assert np.ptp(hs[:, 1]) > np.ptp(s_[:, 1]) + 3.9 and np.allclose(hs.mean(0), s_.mean(0))
     for bad in (SliderLatchSpec(legs=4), SliderLatchSpec(length=40)):
         try:
             slider_latch(L, W, bad)

@@ -1535,5 +1535,11 @@
  "Vorderwand": "Front wall",
  "Riegel und Halter": "Bolt and holders",
  "Deckel und Vorderwand": "Lid and front wall",
- "Schnitt": "Section"
+ "Schnitt": "Section",
+ "Bitte den Deckel und die Vorderwand der Box auswählen, Kante an Kante gelegt – optional dazu die innere Lage (zweiter Boden, so groß wie die Wand), zwischen der und der Wand der Riegel liegt.": "Please select the lid and the front wall of the box, placed edge to edge – optionally also the inner layer (second floor, same size as the wall) between which and the wall the bolt lies.",
+ "Stärke der inneren Lage": "Inner layer thickness",
+ "Innere Lage als Kopie der Wand erzeugen": "Create inner layer as a copy of the wall",
+ "Drittes ausgewähltes Teil als innere Lage verwenden": "Use the third selected part as the inner layer",
+ "Die innere Lage ist nicht so groß wie die Vorderwand – die Schlitze für die Köpfe der Halter wurden trotzdem an derselben Stelle (von links oben gemessen) geschnitten.": "The inner layer is not the same size as the front wall – the slots for the holder heads were still cut at the same position (measured from the top left).",
+ "innere Lage": "inner layer"
 }
