@@ -11,6 +11,8 @@ the GitHub release.
   beiden Teilen einstellbar.
 - **Snap-Lock an Kante** (*Werkzeuge*): federnde Rastlaschen mit Haken an einem Teil und passende Schlitze im
   anderen – Steckverbindung im rechten Winkel ohne Leim.
+- **Hammerverbindung an Kante** (*Werkzeuge*): Zapfen mit Keilschlitz, Zapfenlöcher und passende Keile – der
+  eingeschlagene Keil spreizt den Zapfen im Loch (ohne Schrauben und Leim).
 
 ## 0.9.1
 

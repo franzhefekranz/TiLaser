@@ -640,6 +640,48 @@ tabs away a little so that nothing overlaps (the status bar shows the distance).
 sample first. For acrylic choose small hooks (0.3–0.5 mm) and a wider spring slit. If the slots do not fit
 into the other part (too narrow or too close to the edge), TiLaser reports this and changes nothing.
 
+<!-- hilfe: hammerverbindung -->
+### Hammer joint on edge
+
+Tenon joint **at a right angle without screws or glue** that is fixed with a wedge (after the idea of the
+“hammer joint” by Snijlab/Lasersheets): one part gets tenons with a wedge-shaped slot, the other matching
+mortises. TiLaser also cuts a wedge for every tenon.
+
+**Assembly:** push the tenon through the hole, put the wedge into the slot narrow end first and drive it in
+flush with a hammer. The wedge is slightly wider than the slot and pushes the two halves of the tenon apart
+inside the hole – the joint clamps. It cannot be taken apart again without damage. The tenon protrudes
+slightly and can be sanded flush.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K).
+2. Select both parts → *Tools → Hammer joint on edge…*
+3. Under **Tenons on**, choose which part gets the tenons.
+
+TiLaser places the tenons on the edge, cuts the mortises into the other part, puts the wedges next to the
+part with the tenons and moves that part away a little so that nothing overlaps.
+
+![Hammer joint: parts as created and with the wedge driven in, in section](screenshots/en/hammerverbindung.png)
+
+| Setting | Effect |
+|---|---|
+| Tenons on | Part that gets the tenons; the other gets the mortises |
+| Material thickness | Thickness of the material (both parts); the tenons are that long plus *protrusion*, the mortises that wide |
+| Tenon width | Width of one tenon (proven: about 20 mm) |
+| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed |
+| Wedge slot top / bottom | Width of the slot at the tip of the tenon and at its (round) bottom. The slot tapers evenly; the wedge has the same slope |
+| Slot depth into the part | How far the wedge slot reaches below the edge. Longer tenon halves spring more softly |
+| Spread by the wedge | The wedge is this much wider than the slot – the tenon halves are pushed apart by this amount in total. More = tighter, but a higher risk of breaking |
+| Relief slits | Narrow slits left and right of the tenon, ¾ as deep as the wedge slot. They make the tenon halves flexible. 0 = none |
+| Tenon protrusion | The tenon is this much longer than the material is thick (for sanding flush) |
+| Clearance in the mortise | Play around the tenon |
+| Distance of the mortises from the edge | How far the mortises are from the edge of the other part – the part with the tenons will stand there |
+| Tolerance, All shared edges | As with the other joints |
+
+**Tips:** Birch plywood and solid wood from 6 mm work best, MDF works too. Brittle or very smooth materials
+(acrylic, bamboo across the grain, POM) are unsuitable. The clamping force depends strongly on material,
+kerf and beam taper – always test with a sample first and then adjust *spread* or *clearance*. Lay the joint
+flat on the table when hammering so that the tenon does not tilt.
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
 
@@ -1364,6 +1406,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
 | Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
+| Hammer joint on edge… | | Tenons with wedge slot, mortises and wedges ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

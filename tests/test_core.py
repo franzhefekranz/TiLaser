@@ -2205,6 +2205,38 @@ def test_snap_lock():
             pass
 
 
+def test_hammer_joint():
+    from tilaser.core.joints import HammerSpec, hammer_joint, hammer_wedge
+
+    def area(r):
+        return abs(0.5 * float(np.sum(r[:, 0] * np.roll(r[:, 1], -1) - np.roll(r[:, 0], -1) * r[:, 1])))
+    a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40]], float)]
+    b = [np.array([[80, 40], [0, 40], [0, 80], [80, 80]], float)]
+    spec = HammerSpec()
+    ra, rb, wedges, n, shift = hammer_joint(a, b, spec)
+    L = spec.thickness + spec.protrude
+    assert n == 1 and len(rb) == 2 and len(wedges) == 1 and np.allclose(shift, [0, -(L + spec.gap)])
+    assert abs(ra[0][:, 1].max() - shift[1] - (40 + L)) < 1e-9                      # Zapfenlänge
+    hole = rb[1]
+    assert abs(np.ptp(hole[:, 0]) - (spec.width + spec.clearance)) < 1e-9
+    # Keil: breiter als der Schlitz an der Spitze (Spreizung), schmal genug, um anzusetzen
+    wd = hammer_wedge(spec)
+    assert abs(np.ptp(wd[:, 0]) - (spec.slot_top + spec.spread)) < 1e-9 and wd[0, 0] * -2 < spec.slot_top
+    assert abs(area(wedges[0]) - area(wd)) < 1e-9
+    # Keile und Teile überlappen sich nicht
+    from tilaser.core.clip import inside
+    assert not inside(wedges[0], ra).any() and not inside(wedges[0], rb[:1]).any()
+    # Zapfen + Schlitze ändern die Fläche von A: Zapfen kommt hinzu, Schlitze fallen weg
+    assert area(ra[0]) > 80 * 40
+    for bad in (HammerSpec(slot_top=1.0, slot_bottom=1.5), HammerSpec(spread=3.0), HammerSpec(depth=45),
+                HammerSpec(inset=60)):
+        try:
+            hammer_joint(a, b, bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

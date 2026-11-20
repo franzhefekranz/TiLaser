@@ -34,7 +34,7 @@ DIALOGS = {
 # ParamDialog nach (deutschem) Titel
 PARAM_DIALOGS = {"Biegescharnier": "muster", "Lochmuster": "muster", "Gravurmuster": "muster",
                  "Fingerzinken an Kante": "fingerzinken", "Puzzle-Verbindung an Kante": "puzzle-verbindung",
-                 "Snap-Lock an Kante": "snap-lock",
+                 "Snap-Lock an Kante": "snap-lock", "Hammerverbindung an Kante": "hammerverbindung",
                  "Schablonen-Stege": "zahnrad-puzzle",
                  "Zahnrad": "zahnrad-puzzle", "Puzzle": "zahnrad-puzzle"}
 # Hauptmenüs (deutscher Titel) -> Abschnitt der Referenz
@@ -52,7 +52,7 @@ ACTIONS = {
     "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle",
     "Biegescharnier…": "muster", "Lochmuster / Lüftungsgitter…": "muster", "Gravurmuster…": "muster",
     "Fingerzinken an Kante…": "fingerzinken", "Puzzle-Verbindung an Kante…": "puzzle-verbindung",
-    "Snap-Lock an Kante…": "snap-lock",
+    "Snap-Lock an Kante…": "snap-lock", "Hammerverbindung an Kante…": "hammerverbindung",
     "Schablonen-Stege…": "zahnrad-puzzle",
     "Fokustest…": "fokustest", "Zeilenabstandstest…": "zeilenabstandstest",
     "Werkzeugweg-Vorschau": "vorschau", "Am Raster fangen": "anordnen",

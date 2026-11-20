@@ -442,3 +442,131 @@ def snap_lock(rings_a, rings_b, spec: SnapSpec, tol: float = 0.5, all_edges: boo
     shift = -jobs[0][3] * (snap_height(spec) + spec.gap)
     ra = [r + shift for r in ra]
     return ra, rb + slots, len(jobs), shift
+
+
+# ---------------------------------------------------------------- Hammerverbindung (Keilzapfen)
+
+@dataclass
+class HammerSpec:
+    thickness: float = 6.0      # Materialstärke beider Teile
+    width: float = 20.0         # Zapfenbreite
+    count: int = 0              # 0 = automatisch
+    slot_top: float = 4.0       # Breite des Keilschlitzes an der Zapfenspitze
+    slot_bottom: float = 1.5    # Breite am Grund des Schlitzes
+    depth: float = 12.0         # wie weit der Schlitz unter die Kante in Teil A reicht (Federweg der Hälften)
+    spread: float = 0.5         # um so viel ist der Keil breiter als der Schlitz (Spreizung, gesamt)
+    protrude: float = 0.2       # Zapfen steht so weit über (zum Bündigschleifen)
+    clearance: float = 0.1      # Spiel im Zapfenloch
+    inset: float = 6.0          # Abstand der Zapfenlöcher in Teil B von dessen Kante
+    relief: float = 1.0         # Breite der Entlastungsschlitze neben dem Zapfen (0 = keine)
+    gap: float = 3.0            # Abstand, um den Teil A nach dem Erzeugen weggeschoben wird
+
+
+def hammer_tenon_profile(sc: float, spec: HammerSpec, step_deg: float = 15.0) -> list[tuple[float, float]]:
+    """Zapfen mit keilförmigem Schlitz (s entlang der Kante, t > 0 = aus Teil A heraus).
+
+    Neben dem Zapfen reichen schmale Entlastungsschlitze in Teil A hinein; dadurch werden die beiden
+    Zapfenhälften zu federnden Zungen, die der Keil im Loch auseinanderdrückt."""
+    w2 = spec.width / 2
+    L = spec.thickness + spec.protrude                      # Zapfenlänge
+    a, b = spec.slot_top / 2, spec.slot_bottom / 2
+    r = spec.relief
+    dr = 0.75 * spec.depth                                  # Tiefe der Entlastungsschlitze
+
+    def round_end(cx, half, depth):                         # runder Grund eines Schlitzes (links -> rechts)
+        return [(cx + half * math.cos(ang), -depth + half * math.sin(ang))
+                for ang in np.radians(np.arange(180 + step_deg, 360 - 1e-9, step_deg))]
+    pts: list[tuple[float, float]] = []
+    if r > 0:
+        pts += [(sc - w2 - r, 0.0), (sc - w2 - r, -dr)] + round_end(sc - w2 - r / 2, r / 2, dr) + [(sc - w2, -dr)]
+    else:
+        pts.append((sc - w2, 0.0))
+    pts += [(sc - w2, L), (sc - a, L), (sc - b, -spec.depth)] + round_end(sc, b, spec.depth)
+    pts += [(sc + b, -spec.depth), (sc + a, L), (sc + w2, L)]
+    if r > 0:
+        pts += [(sc + w2, -dr)] + round_end(sc + w2 + r / 2, r / 2, dr) + [(sc + w2 + r, -dr), (sc + w2 + r, 0.0)]
+    else:
+        pts.append((sc + w2, 0.0))
+    return pts
+
+
+def hammer_wedge(spec: HammerSpec) -> np.ndarray:
+    """Keil (lokal: Spitze unten bei t=0, Kopf oben), so breit wie der Schlitz plus Spreizung."""
+    L = spec.thickness + spec.protrude
+    total = L + spec.depth
+    taper = (spec.slot_top - spec.slot_bottom) / total
+    lw = 0.7 * total                                      # Keillänge
+    top = spec.slot_top + spec.spread
+    bot = spec.slot_top - taper * lw + spec.spread
+    return np.array([[-bot / 2, 0.0], [bot / 2, 0.0], [top / 2, lw], [-top / 2, lw]])
+
+
+def hammer_joint(rings_a, rings_b, spec: HammerSpec, tol: float = 0.5, all_edges: bool = False):
+    """Keilzapfen an Teil A, passende Zapfenlöcher in Teil B, dazu je Zapfen ein Keil.
+
+    Zusammenbau: Zapfen durch das Loch stecken, Keil in den Schlitz setzen und mit dem Hammer
+    einschlagen – er spreizt die beiden Zapfenhälften im Loch auseinander (Klemmverbindung).
+    Die Teile liegen beim Aufruf Kante an Kante. Danach wird Teil A um Zapfenlänge + gap von B
+    weggeschoben. Gibt (Ringe A, Ringe B inkl. Löcher, Keile, Anzahl Kanten, Verschiebung von A) zurück;
+    die Keile liegen in einer Reihe neben Teil A."""
+    t, w = spec.thickness, spec.width
+    if t <= 0 or w <= 0:
+        raise ValueError("Materialstärke und Zapfenbreite müssen größer als 0 sein.")
+    if not 0 < spec.slot_bottom < spec.slot_top < w - 4:
+        raise ValueError("Der Keilschlitz muss oben breiter als unten sein und jede Zapfenhälfte mindestens "
+                         "2 mm breit lassen.")
+    total = t + spec.protrude + spec.depth
+    taper = (spec.slot_top - spec.slot_bottom) / total
+    if taper * 0.7 * total < spec.spread + 0.3:
+        raise ValueError("Der Keil würde nicht in den Schlitz passen – Spreizung verkleinern oder den Schlitz "
+                         "stärker verjüngen (oben breiter, unten schmaler).")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=w + 4)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Zapfen ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    if not all_edges:
+        edges = edges[:1]
+    jobs, holes = [], []
+    for e in edges:
+        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (3 * w))))
+        if n * (w + 2 * spec.relief + 4) > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Zapfen mit {w:g} mm – "
+                             "weniger oder schmalere Zapfen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)
+        for sc in centers:
+            # der Schlitz darf Teil A nicht durchtrennen
+            probe = e.p0 + u * sc - v * (spec.depth + spec.slot_bottom / 2 + 1.0)
+            if not inside(probe[None], ra)[0]:
+                raise ValueError("Teil A ist an der Kante zu schmal für die Schlitztiefe – Schlitztiefe verkleinern.")
+            hw, c = (w + spec.clearance) / 2, spec.clearance / 2
+            box = [(sc - hw, spec.inset - c), (sc + hw, spec.inset - c), (sc + hw, spec.inset + t + c),
+                   (sc - hw, spec.inset + t + c)]
+            ring = np.array([e.p0 + u * s + v * tt for s, tt in box])
+            if not inside(ring, rb).all():
+                raise ValueError("Die Zapfenlöcher passen nicht in Teil B – Abstand zur Kante oder Zapfenbreite "
+                                 "verkleinern.")
+            holes.append(ring)
+        jobs.append((e, centers, u, v))
+    for e, centers, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        pts = [(0.0, 0.0)]
+        for sc in centers:
+            pts += hammer_tenon_profile(sc, spec)
+        pts.append((e.length, 0.0))
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array([e.p0 + u * s + v * tt for s, tt in pts]))
+    shift = -jobs[0][3] * (t + spec.protrude + spec.gap)
+    ra = [r + shift for r in ra]
+    # Keile in einer Reihe hinter dem Ende der ersten Kante, quer zur Kante ausgerichtet
+    e, _, u, v = jobs[0]
+    wedge = hammer_wedge(spec)
+    wedges = []
+    k = 0
+    for _, centers, _, _ in jobs:
+        for _ in centers:
+            base = e.p1 + shift + u * (8 + k * (spec.slot_top + spec.spread + 3)) - v * (wedge[:, 1].max() + 2)
+            wedges.append(np.array([base + u * x + v * y for x, y in wedge]))
+            k += 1
+    return ra, rb + holes, wedges, len(jobs), shift

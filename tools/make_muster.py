@@ -18,7 +18,8 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import SnapSpec, finger_joint, puzzle_joint, snap_lock, snap_tab_profile  # noqa: E402
+from tilaser.core.joints import (HammerSpec, SnapSpec, finger_joint, hammer_joint, hammer_tenon_profile,  # noqa: E402
+                                 hammer_wedge, puzzle_joint, snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -100,6 +101,7 @@ def main():
     hinge_types()
     puzzle_types()
     snap_types()
+    hammer_types()
     print("Bilder in", OUT)
 
 
@@ -165,6 +167,41 @@ def snap_types():
                 outline=TEXT)
     d.text((cx, 395), _t("Eingerastet (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "snap_lock.png"), optimize=True)
+
+
+def hammer_types():
+    """Hammerverbindung: links die Teile wie erzeugt (mit Keil), rechts eingeschlagen im Schnitt."""
+    a = [np.array([[0, 0], [70, 0], [70, 34], [0, 34.]])]
+    b = [np.array([[0, 34], [70, 34], [70, 62], [0, 62.]])]
+    spec = HammerSpec()
+    ra, rb, wedges, _, _ = hammer_joint(a, b, spec)
+    im = Image.new("RGB", (900, 440), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 3.6, 40, 380
+
+    def P(r):
+        return [(x * sc + ox, oy - (y + 10) * sc) for x, y in r]
+    d.polygon(P(ra[0]), fill=HOLZ, outline=TEXT)
+    d.polygon(P(rb[0]), fill=(150, 190, 230), outline=TEXT)
+    for r in rb[1:]:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    for r in wedges:
+        d.polygon(P(r), fill=(200, 160, 110), outline=TEXT)
+    d.text((ox + 40 * sc, 415), _t("Teile wie erzeugt (mit Keil)"), fill=TEXT, font=_font(18), anchor="mm")
+    sc2, cx, base = 7.5, 690, 250
+    tab = [(cx + s * sc2, base - t * sc2) for s, t in hammer_tenon_profile(0.0, spec)]
+    body = [(cx - 19 * sc2, base)] + tab + [(cx + 19 * sc2, base), (cx + 19 * sc2, base + 20 * sc2),
+                                           (cx - 19 * sc2, base + 20 * sc2)]
+    d.polygon(body, fill=HOLZ, outline=TEXT)
+    t, hw = spec.thickness, (spec.width + spec.clearance) / 2
+    for x0, x1 in ((-30, -hw), (hw, 30)):
+        d.rectangle([cx + x0 * sc2, base - t * sc2, cx + x1 * sc2, base], fill=(150, 190, 230), outline=TEXT)
+    L = spec.thickness + spec.protrude
+    wd = hammer_wedge(spec)
+    lw = wd[:, 1].max()
+    d.polygon([(cx + x * sc2, base - (L - lw + y) * sc2) for x, y in wd], fill=(200, 160, 110), outline=TEXT)
+    d.text((cx, 415), _t("Keil eingeschlagen (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "hammerverbindung.png"), optimize=True)
 
 
 def hinge_types():
