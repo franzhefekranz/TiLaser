@@ -1468,11 +1468,9 @@
  "Nummern": "Numbers",
  "Lasertests": "Laser tests",
  "Knöchelscharnier: {0} × {1} Knöchel. Ungerade Knöchel gehören zu {2}, gerade zu {3}.": "Knuckle hinge: {0} × {1} knuckles. Odd knuckles belong to {2}, even ones to {3}.",
- " Der Vierkantstift sitzt in den {0} jedes Scharniers fest (Vierkant {1} mm) und dreht sich in den übrigen (Ø {2} mm).": " The square pin sits firmly in the {0} of each hinge (square {1} mm) and turns in the others (Ø {2} mm).",
- "beiden äußeren Knöcheln": "two outer knuckles",
- "ersten Knöchel": "first knuckle",
  " Loch Ø {0} mm.": " Hole Ø {0} mm.",
  "außen": "outer",
  "innen": "inner",
- "Knöchel {0} ({1})": "Knuckles {0} ({1})"
+ "Knöchel {0} ({1})": "Knuckles {0} ({1})",
+ " Der Vierkantstift sitzt im ersten und letzten Knöchel von {0} fest (Vierkant {1} mm) und dreht sich in den übrigen (Ø {2} mm).": " The square pin sits firmly in the first and last knuckle of {0} (square {1} mm) and turns in the others (Ø {2} mm)."
 }

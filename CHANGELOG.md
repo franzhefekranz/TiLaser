@@ -6,8 +6,8 @@ the GitHub release.
 
 ## Unveröffentlicht
 
-- Knöchelscharnier: Beim mitgelaserten Vierkantstift haben die beiden äußeren Knöchel ein Vierkantloch – der Stift
-  sitzt dort fest und dreht sich nur in den übrigen Knöcheln; die Knöchel werden je Teil getrennt abgelegt.
+- Knöchelscharnier: Beim mitgelaserten Vierkantstift haben der erste und der letzte Knöchel des ersten
+  Teils ein Vierkantloch (bei ungerader Anzahl die beiden äußeren) – der Stift sitzt dort fest und dreht sich nur in den übrigen Knöcheln; die Knöchel werden je Teil getrennt abgelegt.
 - Materialtest, Fokustest und Zeilenabstandstest stehen gemeinsam unter *Werkzeuge → Lasertests*.
 - **Teile nummerieren** (*Werkzeuge*): Teile in Lesereihenfolge durchnummerieren und die Nummer an der Stelle
   mit dem meisten Platz eingravieren; gleiche Teile (auch gedreht, wahlweise gespiegelt) bekommen dieselbe

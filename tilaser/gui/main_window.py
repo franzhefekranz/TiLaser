@@ -2074,8 +2074,7 @@ class MainWindow(QMainWindow):
         msg = (f"Knöchelscharnier: {spec.hinges} × {spec.knuckles} Knöchel. Ungerade Knöchel gehören zu {a.name}, "
                f"gerade zu {b.name}.")
         if spec.pin <= 0:
-            outer = "beiden äußeren Knöcheln" if spec.knuckles % 2 else "ersten Knöchel"
-            msg += (f" Der Vierkantstift sitzt in den {outer} jedes Scharniers fest (Vierkant "
+            msg += (f" Der Vierkantstift sitzt im ersten und letzten Knöchel von {a.name} fest (Vierkant "
                     f"{knuckle_square(spec):.2f} mm) und dreht sich in den übrigen (Ø {knuckle_hole(spec):.2f} mm).")
         else:
             msg += f" Loch Ø {knuckle_hole(spec):.2f} mm."

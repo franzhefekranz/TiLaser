@@ -2251,8 +2251,10 @@ def test_knuckle_hinge():
     assert [p for p, _ in plates].count("A") == 6
     assert [len(rr[1]) for _, rr in plates[:5]] == [4, 36, 36, 36, 4]
     assert abs(np.ptp(plates[0][1][1][:, 0]) - (3 + 0.1)) < 1e-9
-    even = knuckle_hinge(A, B, KnuckleSpec(knuckles=4, hinges=1))[2]             # gerade Anzahl: nur der erste
-    assert [len(rr[1]) for _, rr in even] == [4, 36, 36, 36]
+    even = knuckle_hinge(A, B, KnuckleSpec(knuckles=4, hinges=1))[2]             # gerade: erster und letzter von A
+    assert [len(rr[1]) for _, rr in even] == [4, 36, 4, 36]
+    two = knuckle_hinge(A, B, KnuckleSpec(knuckles=2, hinges=1))[2]
+    assert [len(rr[1]) for _, rr in two] == [4, 36]
     assert len(sa) == 2 * 3 * 2 and len(sb) == 2 * 2 * 2                         # 2 Zinken je Knöchel
     assert all(r[:, 1].max() <= 50 + 1e-9 for r in sa) and all(r[:, 1].min() >= 50 - 1e-9 for r in sb)
     xs = sorted({round(float(r[:, 0].min()), 3) for r in sa + sb})
