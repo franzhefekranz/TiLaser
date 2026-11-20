@@ -356,6 +356,9 @@ class MainWindow(QMainWindow):
         wz.addAction(self._act("Knöchelscharnier an Kante…", self.knuckle_hinge_tool, None,
                                "Scharnier zwischen zwei Boxteilen (z. B. Rückwand Box und Deckel): Knöchel mit je zwei "
                                "Fingerzinken, Schlitze in den Wänden, Stift"))
+        wz.addAction(self._act("Teile nummerieren…", self.number_parts_tool, None,
+                               "Teile durchnummerieren und die Nummer eingravieren; gleiche Teile bekommen dieselbe "
+                               "Nummer"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -2076,6 +2079,69 @@ class MainWindow(QMainWindow):
         self.canvas.add_item(n)
         self._invalidate()
         return n
+
+    def number_parts_tool(self):
+        from ..core.numbering import group_parts, number_paths, reading_order
+        from ..core.text_import import default_font
+        title = "Teile nummerieren"
+        items = [it for it in self._vector_selection() if any(p.closed for p in it.world_paths())]
+        if not items:
+            items = [it for it in self.project.items
+                     if it.kind == "vector" and any(p.closed for p in it.world_paths())]
+        if not items:
+            QMessageBox.information(self, title, "Es gibt keine Teile mit geschlossenen Konturen.")
+            return
+        font = default_font()
+        if not font:
+            QMessageBox.information(self, title, "Keine Schrift gefunden – die Nummern können nicht erzeugt werden.")
+            return
+        pref = next((l.id for l in self.project.layers if l.mode == "fill" and l.name == i18n_tr("Nummern")),
+                    ParamDialog.NEW_FILL)
+        fields = [("prefix", "Vorsatz (z. B. „T“ oder leer)", "s", "", 8),
+                  ("start", "Erste Nummer", "i", 1, (0, 99999)),
+                  ("same", "Gleiche Teile bekommen dieselbe Nummer", "b", True, None),
+                  ("mirror", "Gespiegelte Teile gelten als gleich", "b", False, None),
+                  ("tol", "Toleranz beim Vergleich", "f", 0.2, (0.01, 5, 2, 0.05, " mm")),
+                  ("height", "Schrifthöhe (höchstens)", "f", 5.0, (0.5, 100, 1, 0.5, " mm")),
+                  ("min_height", "Schrifthöhe (mindestens)", "f", 1.5, (0.3, 50, 1, 0.1, " mm")),
+                  ("margin", "Abstand zum Rand", "f", 0.8, (0, 20, 1, 0.1, " mm")),
+                  ("replace", "Vorhandene Nummern auf dieser Ebene ersetzen", "b", True, None),
+                  ("layer", "Ebene", "layer", None, (("fill",), pref))]
+        scope = i18n_tr("(Auswahl)") if self._vector_selection() else i18n_tr("(alle Teile)")
+        info = (f"{len(items)} Teil(e) {scope}. Nummeriert "
+                "wird in Lesereihenfolge – Zeilen von oben nach unten, darin von links nach rechts. Gleiche Teile "
+                "werden auch gedreht erkannt. Die Nummer kommt an die Stelle mit dem meisten Platz und wird so "
+                "verkleinert, dass sie mit dem Randabstand ins Teil passt; ist selbst die Mindesthöhe zu groß, "
+                "bleibt das Teil ohne Nummer. Mit „ersetzen“ werden alte Nummern auf der gewählten Ebene in diesen "
+                "Teilen vorher entfernt.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        order = reading_order(rings)
+        groups = group_parts([rings[i] for i in order], v["tol"], v["mirror"]) if v["same"] else list(
+            range(len(order)))
+        self._checkpoint(title)
+        layer = self._target_layer(v["layer"], "fill", i18n_tr("Nummern"))
+        prefix = v["prefix"].strip()
+        too_small, ids = [], []
+        for k, i in enumerate(order):
+            label = f"{prefix}{v['start'] + groups[k]}"
+            polys, _ = number_paths(label, rings[i], font, v["height"], v["min_height"], v["margin"])
+            world = [(p, lid) for p, lid in worlds[i] if not (v["replace"] and lid == layer.id)]
+            if not polys:
+                too_small.append(items[i].name)
+            world += [(p, layer.id) for p in polys]
+            ids.append(self._replace_item(items[i], world).id)
+        self.layers.set_project(self.project)
+        self.canvas.select_only(ids)
+        n_numbers = len(set(groups))
+        msg = f"{len(order)} Teil(e) nummeriert, {n_numbers} verschiedene Nummer(n)."
+        if too_small:
+            msg += f" Zu klein für eine Nummer: {', '.join(too_small[:5])}{' …' if len(too_small) > 5 else ''}."
+        self.statusBar().showMessage(msg, 12000)
 
     def stencil_tool(self):
         from ..core.shapes_gen import stencil_bridges

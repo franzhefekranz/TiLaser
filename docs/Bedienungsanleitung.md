@@ -782,6 +782,38 @@ Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden
 | Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 
+<!-- hilfe: nummerieren -->
+### Teile nummerieren
+
+*Werkzeuge → Teile nummerieren…* nummeriert die ausgewählten Teile – ohne Auswahl alle – und **graviert die
+Nummer ein**. **Gleiche Teile bekommen dieselbe Nummer**, auch wenn sie gedreht liegen; so lassen sich Bausätze
+mit vielen gleichen Teilen leicht sortieren und zusammenbauen.
+
+![Teile nummerieren: gleiche Teile tragen dieselbe Nummer](screenshots/teile_nummerieren.png)
+
+- **Reihenfolge:** wie beim Lesen – Zeilen von oben nach unten, darin von links nach rechts. Die erste
+  Nummer bekommt das Teil oben links, jede neue Teileform die nächste Nummer.
+- **Platz:** Die Nummer kommt an die Stelle mit dem meisten freien Material (bei mehreren gleich guten
+  Stellen die mittigste) und wird so weit verkleinert, dass sie mit dem *Abstand zum Rand* vollständig ins
+  Teil passt – auch in L-Formen und neben Löchern. Passt selbst die *Mindesthöhe* nicht, bleibt das Teil ohne
+  Nummer; die Statusleiste nennt diese Teile.
+- **Ebene:** Die Nummern landen standardmäßig auf einer neuen Füll-Ebene *Nummern* (gravieren). Sie
+  gehören zum jeweiligen Teil und wandern beim Verschieben mit.
+- **Erneut nummerieren:** Mit *Vorhandene Nummern auf dieser Ebene ersetzen* werden die alten Nummern
+  vorher entfernt – dabei werden **alle** Pfade dieser Ebene in den gewählten Teilen gelöscht, also nur
+  mit der Nummern-Ebene verwenden.
+
+| Einstellung | Wirkung |
+|---|---|
+| Vorsatz | Text vor der Zahl, z. B. „T“ für T1, T2 … (leer = nur die Zahl) |
+| Erste Nummer | Mit dieser Zahl beginnt die Zählung |
+| Gleiche Teile bekommen dieselbe Nummer | Aus: jedes Teil bekommt eine eigene Nummer |
+| Gespiegelte Teile gelten als gleich | Bei Teilen, die man umdrehen kann. Aus: linke und rechte Variante bekommen verschiedene Nummern |
+| Toleranz beim Vergleich | So weit dürfen die Konturen zweier „gleicher“ Teile voneinander abweichen |
+| Schrifthöhe (höchstens / mindestens) | Größte Schrifthöhe; kleiner wird nur, wenn der Platz nicht reicht – aber nie unter die Mindesthöhe |
+| Abstand zum Rand | Freier Abstand zwischen Nummer und Kanten des Teils |
+| Ebene | Ebene für die Nummern (Füllen) |
+
 ---
 
 <!-- hilfe: nesting -->
@@ -1499,6 +1531,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
 | Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
 | Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
+| Teile nummerieren… | | Teile durchnummerieren und Nummer eingravieren, gleiche Teile gleiche Nummer ([Teile nummerieren](#teile-nummerieren)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

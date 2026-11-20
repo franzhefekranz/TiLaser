@@ -770,6 +770,37 @@ material thickness on both sides; a drop of glue at the ends holds it.
 | Clearance | Play in the hole around the pin and in the slots around the tabs |
 | Tolerance | How far apart the edges may be and still count as “touching” |
 
+<!-- hilfe: nummerieren -->
+### Numbering parts
+
+*Tools → Number parts…* numbers the selected parts – without a selection all parts – and **engraves the
+number**. **Identical parts get the same number**, even if they are rotated; this makes kits with many
+identical parts easy to sort and assemble.
+
+![Numbering parts: identical parts carry the same number](screenshots/en/teile_nummerieren.png)
+
+- **Order:** as when reading – rows from top to bottom, within them from left to right. The part at the top
+  left gets the first number, every new part shape the next number.
+- **Space:** the number is placed where there is the most free material (among several equally good spots,
+  the most central one) and is reduced so that it fits completely into the part with the *distance to the
+  edge* – also in L shapes and next to holes. If not even the *minimum height* fits, the part stays without a
+  number; the status bar names these parts.
+- **Layer:** by default the numbers go to a new fill layer *Numbers* (engraving). They belong to their part
+  and move with it.
+- **Numbering again:** with *Replace existing numbers on this layer* the old numbers are removed first –
+  this deletes **all** paths of this layer in the chosen parts, so only use it with the numbers layer.
+
+| Setting | Effect |
+|---|---|
+| Prefix | Text before the number, e.g. “T” for T1, T2 … (empty = just the number) |
+| First number | Counting starts with this number |
+| Identical parts get the same number | Off: every part gets its own number |
+| Mirrored parts count as identical | For parts that can be turned over. Off: left and right variants get different numbers |
+| Comparison tolerance | How far the contours of two “identical” parts may deviate |
+| Text height (maximum / minimum) | Largest text height; it only gets smaller if there is not enough room – but never below the minimum height |
+| Distance to the edge | Free distance between the number and the edges of the part |
+| Layer | Layer for the numbers (fill) |
+
 ---
 
 <!-- hilfe: nesting -->
@@ -1479,6 +1510,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
 | Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
+| Number parts… | | Number the parts and engrave the number, identical parts same number ([Numbering parts](#numbering-parts)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

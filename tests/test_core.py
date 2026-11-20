@@ -2302,6 +2302,34 @@ def test_bend_between_edges():
     assert abs(bend_length(0, 180, 4) - np.pi * 2) < 1e-9
 
 
+def test_numbering():
+    from tilaser.core.clip import distance_to_edges, inside
+    from tilaser.core.numbering import group_parts, label_spot, number_paths, reading_order
+    from tilaser.core.text_import import default_font
+
+    def tf(rings, ang, dx, dy, flip=False):
+        m = g.translate(dx, dy) @ g.rotate(ang) @ (g.scale(-1, 1) if flip else np.eye(3))
+        return [g.apply_matrix(m, r) for r in rings]
+    L = [np.array([[0, 0], [40, 0], [40, 10], [10, 10], [10, 30], [0, 30]], float)]
+    sq = [np.array([[0, 0], [20, 0], [20, 20], [0, 20]], float), g.circle_points(10, 10, 4)]
+    sq2 = [np.array([[0, 0], [20, 0], [20, 20], [0, 20]], float), g.circle_points(6, 6, 4)]   # Loch woanders
+    rect = [np.array([[0, 0], [40, 0], [40, 10], [0, 10]], float)]
+    parts = [L, tf(L, 37, 100, 50), tf(L, 200, -30, 80, True), sq, tf(sq, 33, 60, -40), sq2, rect, tf(rect, 90, 0, 0)]
+    assert group_parts(parts) == [0, 0, 1, 2, 2, 3, 4, 4]                      # gespiegelt = anders
+    assert group_parts(parts, mirror=True) == [0, 0, 0, 1, 1, 2, 3, 3]
+    grid = [tf(rect, 0, x, y) for y in (0, 50) for x in (100, 0, 50)]
+    assert reading_order(grid) == [4, 5, 3, 1, 2, 0]                            # oben links zuerst
+    spot, room = label_spot(rect)
+    assert abs(room - 5) < 0.1 and abs(spot[0] - 20) < 1.5                      # mittig im Rechteck
+    font = default_font()
+    if font:
+        polys, h = number_paths("12", sq, font, 5.0)
+        pts = np.vstack([p.pts for p in polys])
+        assert polys and 1.5 <= h <= 5.0 and inside(pts, sq).all()
+        assert distance_to_edges(pts, sq).min() >= 0.8 - 1e-6                     # Randabstand
+        assert number_paths("12345", [np.array([[0, 0], [4, 0], [4, 2], [0, 2]], float)], font)[0] == []
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

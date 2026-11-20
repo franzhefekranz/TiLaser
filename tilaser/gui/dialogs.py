@@ -1479,6 +1479,10 @@ class ParamDialog(QDialog):
                 w = QCheckBox(label)
                 w.setChecked(bool(val))
                 label = ""
+            elif kind == "s":
+                w = QLineEdit(str(val))
+                if extra:
+                    w.setMaxLength(int(extra))
             elif kind == "layer":
                 modes, pref = extra
                 w = QComboBox()
@@ -1516,6 +1520,8 @@ class ParamDialog(QDialog):
                 out[k] = w.currentData()
             elif kind == "b":
                 out[k] = bool(w.isChecked())
+            elif kind == "s":
+                out[k] = w.text()
         return out
 
     def _ok(self):

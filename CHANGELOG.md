@@ -6,6 +6,9 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- **Teile nummerieren** (*Werkzeuge*): Teile in Lesereihenfolge durchnummerieren und die Nummer an der Stelle
+  mit dem meisten Platz eingravieren; gleiche Teile (auch gedreht, wahlweise gespiegelt) bekommen dieselbe
+  Nummer.
 - **Biegescharnier zwischen zwei Kanten** (*Werkzeuge*): zwei Kanten anklicken, Radius und Winkel eingeben –
   TiLaser legt die Teile im Abstand der Biegelänge aneinander, verbindet sie zu einem Teil und versieht die
   Biegezone mit dem Biegescharnier-Muster.
