@@ -105,6 +105,7 @@ def main():
     hammer_types()
     knuckle_types()
     bend_example()
+    numbering_example()
     print("Bilder in", OUT)
 
 
@@ -289,6 +290,40 @@ def bend_example():
         d.line(P(q.pts, ox2), fill=(200, 40, 40), width=1)
     d.text((ox2 + 35 * sc, 440), _t("Nachher: ein Teil mit Biegezone"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "biegezone_kanten.png"), optimize=True)
+
+
+def numbering_example():
+    """Teile nummerieren: gleiche Teile (auch gedreht) mit gleicher Nummer."""
+    from tilaser.core.numbering import group_parts, number_paths, reading_order
+    from tilaser.core.text_import import default_font
+    L = np.array([[0, 0], [40, 0], [40, 12], [12, 12], [12, 30], [0, 30.]])
+    sq = np.array([[0, 0], [28, 0], [28, 28], [0, 28.]])
+    hole = g.circle_points(14, 14, 5)
+    plate = np.array([[0, 0], [60, 0], [60, 22], [0, 22.]])
+
+    def tf(rs, ang, dx, dy):
+        m = g.translate(dx, dy) @ g.rotate(ang)
+        return [g.apply_matrix(m, r) for r in rs]
+    parts = [tf([L], 0, 0, 60), tf([sq, hole], 0, 60, 60), tf([L], 90, 150, 60), tf([plate], 0, 165, 66),
+             tf([sq, hole], 25, 15, 5), tf([plate], 0, 60, 8), tf([L], 180, 175, 38)]
+    order = reading_order(parts)
+    groups = group_parts([parts[i] for i in order])
+    font = default_font()
+    im = Image.new("RGB", (900, 380), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 3.4, 30, 340
+
+    def P(r):
+        return [(ox + x * sc, oy - y * sc) for x, y in r]
+    for k, i in enumerate(order):
+        rs = parts[i]
+        d.polygon(P(rs[0]), fill=HOLZ, outline=TEXT)
+        for r in rs[1:]:
+            d.polygon(P(r), fill="white", outline=TEXT)
+        polys, _ = number_paths(str(groups[k] + 1), rs, font, 7.0) if font else ([], 0)
+        for q in polys:
+            d.polygon(P(q.pts), fill=(120, 70, 30))
+    im.save(os.path.join(OUT, "teile_nummerieren.png"), optimize=True)
 
 
 def hinge_types():
