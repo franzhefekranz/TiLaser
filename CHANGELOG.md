@@ -6,6 +6,7 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Feineres Verschieben mit den Pfeiltasten: Strg = 0,1 mm (weiterhin 1 mm, Shift = 10 mm).
 - Neu: *Werkzeuge → Federriegel mit Haken…* – Riegel hinter der Vorderwand, dessen Haken durch Schlitze im Deckel
   greifen; T-Halter in Öse (am Ende einer langen Mäanderfeder) und Langloch, Öffnen durch Schieben der Hakenköpfe. Hakennase mit
   steiler, einstellbarer Schräge (Standard 60°) und verrundeter Spitze. Optional

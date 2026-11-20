@@ -198,7 +198,7 @@ Esc schaltet jederzeit zurück zu *Auswählen*.
 | Hoch/runter scrollen | Strg+Mausrad |
 | Kontextmenü | Rechte Maustaste **klicken** |
 | Auswählen | Klicken; mehrere mit Strg+Klick oder Rahmen aufziehen: **nach rechts** gezogen (von oben links) werden nur Objekte ausgewählt, die ganz im Rahmen liegen, **nach links** gezogen (von unten rechts) alle, die der Rahmen berührt. Mit Strg oder Shift kommt die Rahmenauswahl zur bestehenden Auswahl hinzu |
-| Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm) |
+| Verschieben | Ziehen, oder Pfeiltasten (1 mm, mit Shift 10 mm, mit Strg 0,1 mm) |
 | Alles zeigen | Strg+0 |
 | Löschen | Entf |
 
@@ -1422,7 +1422,7 @@ Für zylindrische Werkstücke mit einer **Rollen-Rotationsachse**, die anstelle 
 | Strg+Shift+S | Speichern unter | | Strg+D | Duplizieren |
 | Strg+I | Importieren | | Strg+A | Alles auswählen |
 | Strg+T | Text einfügen | | Entf | Löschen |
-| Strg+E | G-Code exportieren | | Pfeiltasten | 1 mm verschieben (Shift: 10 mm) |
+| Strg+E | G-Code exportieren | | Pfeiltasten | 1 mm verschieben (Shift: 10 mm, Strg: 0,1 mm) |
 | Strg+P | Werkzeugweg-Vorschau | | Strg+G / Strg+Shift+G | Gruppieren / aufheben |
 | Strg+0 | Alles zeigen | | Strg+L / Strg+R | 90° links / rechts drehen |
 | Strg+Shift+F | Am Raster fangen | | Strg+Shift+A | Array |

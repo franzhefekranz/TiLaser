@@ -198,7 +198,7 @@ Esc always switches back to *Select*.
 | Scroll up/down | Ctrl+mouse wheel |
 | Context menu | **Click** the right mouse button |
 | Select | Click; several with Ctrl+click or by dragging a rubber band: dragged **to the right** (from top left) only objects lying completely inside the frame are selected, dragged **to the left** (from bottom right) all objects the frame touches. With Ctrl or Shift the frame selection is added to the existing selection |
-| Move | Drag, or arrow keys (1 mm, with Shift 10 mm) |
+| Move | Drag, or arrow keys (1 mm, with Shift 10 mm, with Ctrl 0.1 mm) |
 | Show all | Ctrl+0 |
 | Delete | Del |
 
@@ -1395,7 +1395,7 @@ For cylindrical workpieces with a **roller rotary axis** that is connected inste
 | Ctrl+Shift+S | Save as | | Ctrl+D | Duplicate |
 | Ctrl+I | Import | | Ctrl+A | Select all |
 | Ctrl+T | Insert text | | Del | Delete |
-| Ctrl+E | Export G-code | | Arrow keys | Move 1 mm (Shift: 10 mm) |
+| Ctrl+E | Export G-code | | Arrow keys | Move 1 mm (Shift: 10 mm, Ctrl: 0.1 mm) |
 | Ctrl+P | Toolpath preview | | Ctrl+G / Ctrl+Shift+G | Group / ungroup |
 | Ctrl+0 | Show all | | Ctrl+L / Ctrl+R | Rotate 90° left / right |
 | Ctrl+Shift+F | Snap to grid | | Ctrl+Shift+A | Array |

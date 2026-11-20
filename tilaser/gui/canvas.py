@@ -1376,7 +1376,12 @@ class LaserCanvas(QGraphicsView):
             if e.key() in keys and not (e.modifiers() & Qt.KeyboardModifier.ControlModifier):
                 self.node_command(keys[e.key()])
                 return
-        step = 10.0 if e.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1.0
+        mods = e.modifiers()
+        step = 1.0                                     # Pfeiltasten: 1 mm, Shift 10 mm, Strg 0,1 mm
+        if mods & Qt.KeyboardModifier.ControlModifier:  # (Strg+Shift+Pfeil ist „Ausrichten“)
+            step = 0.1
+        elif mods & Qt.KeyboardModifier.ShiftModifier:
+            step = 10.0
         moves = {Qt.Key.Key_Left: (-step, 0), Qt.Key.Key_Right: (step, 0),
                  Qt.Key.Key_Up: (0, step), Qt.Key.Key_Down: (0, -step)}
         if e.key() in moves and self.selected_ids():
