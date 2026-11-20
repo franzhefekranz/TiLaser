@@ -800,7 +800,7 @@ class MainWindow(QMainWindow):
     def _on_selection(self, ids):
         if self.machine.only_sel.isChecked():
             self._update_rubber()
-        items = [self.project.item(i) for i in ids]
+        items = [it for it in (self.project.item(i) for i in ids) if it is not None]   # nur Objekte des Projekts
         self.objects.set_item(items[0] if len(items) == 1 else None)
         if len(items) > 1:
             self.objects.title.setText(f"{len(items)} Objekte ausgewählt")
@@ -1375,9 +1375,9 @@ class MainWindow(QMainWindow):
     def _restore(self, project: Project):
         sel = self.canvas.selected_ids()
         self.project = project
-        self.canvas.set_project(project)
-        self.layers.set_project(project)
+        self.layers.set_project(project)            # Bedienfelder zuerst, dann die Zeichenfläche
         self.objects.set_project(project)
+        self.canvas.set_project(project)
         self.canvas.select_only([i for i in sel if project.item(i)])
         self._update_undo_actions()
         self._invalidate()

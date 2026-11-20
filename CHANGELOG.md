@@ -6,6 +6,10 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- **Behoben:** *Rückgängig* nach Werkzeugen, die Objekte ersetzen (Fingerzinken, Puzzle-, Snap-Lock-,
+  Hammerverbindung, Knöchelscharnier u. a.), meldete einen Fehler bzw. beendete das Programm. Ursache: Beim
+  Neuaufbau der Zeichenfläche wurde die Auswahl mit Objekten gemeldet, die es im wiederhergestellten Projekt
+  nicht mehr gab.
 - **Puzzle-Verbindung an Kante** (*Werkzeuge*): verbindet zwei flach Kante an Kante liegende Teile mit
   runden Puzzle-Nasen (schmaler Hals, formschlüssig); Nasengröße, Anzahl, Spiel und Nasen abwechselnd an
   beiden Teilen einstellbar.
