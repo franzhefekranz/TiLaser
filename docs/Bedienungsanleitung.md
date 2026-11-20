@@ -766,7 +766,8 @@ Statusleiste nennt die Zuordnung.
 
 **Zusammenbau:** Die Knöchel in die Schlitze stecken (gerne verleimen), Box und Deckel zusammenstellen, so
 dass die Knöchel abwechselnd stehen und die Augen fluchten, dann den Stift durchschieben. Der mitgelaserte
-Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden hält ihn.
+Vierkantstift steht beidseitig eine Materialstärke über und klemmt in den Vierkantlöchern der äußeren
+Knöchel; die Knöchel liegen für jedes Teil getrennt neben den Teilen (*Knöchel* + Teilname).
 
 | Einstellung | Wirkung |
 |---|---|
@@ -777,7 +778,7 @@ Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden
 | Knöchellänge | Wie weit der Knöchel ab der Kante auf der Wand liegt |
 | Höhe am abgeschrägten Ende | Der Knöchel fällt vom Auge bis hierhin ab |
 | Länge der Fingerzinken | Länge der beiden Zinken (und Schlitze) entlang der Wand; einer sitzt gleich hinter dem Auge, einer kurz vor dem Ende |
-| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke); er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs oder Drahts |
+| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke). Die **beiden äußeren Knöchel** jedes Scharniers haben ein Vierkantloch (Materialstärke + halbes Spiel), in dem der Stift fest sitzt – so kann er nicht herausrutschen und braucht keinen Leim. In allen anderen Knöcheln dreht er sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Bei gerader Knöchelzahl haben der erste und der letzte Knöchel des ersten Teils ein Vierkantloch (die beiden äußeren gehören dann zu verschiedenen Teilen). Sonst der Durchmesser eines Rundstabs oder Drahts – dann haben alle Knöchel runde Löcher |
 | Wandstärke um das Loch | Material zwischen Loch und Außenrand des Auges |
 | Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
@@ -957,7 +958,7 @@ Der Tooltip eines Presets zeigt Material und Herkunft der Werte. Eigene Presets 
 
 ![Materialtest](screenshots/26_materialtest.png)
 
-*Werkzeuge → Materialtest* lasert ein beschriftetes Raster: in den **Spalten** steigt die Leistung, in den
+*Werkzeuge → Lasertests → Materialtest…* lasert ein beschriftetes Raster: in den **Spalten** steigt die Leistung, in den
 **Zeilen** die Geschwindigkeit. So findet man in einem Durchgang die passenden Werte für ein neues Material.
 
 | Einstellung | Beschreibung |
@@ -975,7 +976,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 <!-- hilfe: fokustest -->
 ### Fokustest
 
-*Werkzeuge → Fokustest…* findet den besten Abstand zwischen Laser und Material:
+*Werkzeuge → Lasertests → Fokustest…* findet den besten Abstand zwischen Laser und Material:
 
 - **Ohne Z-Achse – Rampe** (für den AlgoLaser und die meisten Diodenlaser): TiLaser lasert eine lange Linie
   mit Skala. Dafür ein Brett so schräg legen, dass ein Ende etwa 10 mm höher liegt, und auf die Mitte
@@ -987,7 +988,7 @@ Schaltflächen: **Vorschau** (Werkzeugweg auf der Arbeitsfläche), **Exportieren
 <!-- hilfe: zeilenabstandstest -->
 ### Zeilenabstandstest
 
-*Werkzeuge → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
+*Werkzeuge → Lasertests → Zeilenabstandstest…* graviert gefüllte Quadrate mit steigendem Zeilenabstand (z. B. 0,05–0,30 mm)
 und schreibt den Wert darunter. Das Feld, in dem die Linien gerade zu einer gleichmäßigen Fläche verschmelzen,
 ist der passende Zeilenabstand für dieses Material und diesen Fokus – kleiner bringt nur mehr Laufzeit.
 
@@ -1515,7 +1516,9 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Menüpunkt | Taste | Funktion |
 |---|---|---|
 | Bild nachzeichnen… | Alt+T | Bild in Vektorkonturen umwandeln ([Bild nachzeichnen](#bild-nachzeichnen)) |
-| Materialtest… | | Testraster Leistung × Geschwindigkeit ([Materialtest](#materialtest)) |
+| Lasertests → Materialtest… | | Testraster Leistung × Geschwindigkeit ([Materialtest](#materialtest)) |
+| Lasertests → Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
+| Lasertests → Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |
 | Text auf Pfad… | | Text entlang einer Kontur ([Text auf Pfad](#text-auf-pfad)) |
 | QR-Code / Barcode einfügen… | Strg+Umschalt+Q | QR-Code oder Code 128 als Gravur ([Variabler Text, QR-Code und Barcode](#variabler-text-qr-code-und-barcode)) |
 | Variable Texte… | | Startnummer und CSV-Datei für Platzhalter |
@@ -1533,8 +1536,6 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
 | Teile nummerieren… | | Teile durchnummerieren und Nummer eingravieren, gleiche Teile gleiche Nummer ([Teile nummerieren](#teile-nummerieren)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
-| Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
-| Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |
 
 <!-- hilfe: menu-ansicht -->
 ### Menü Ansicht

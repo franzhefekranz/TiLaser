@@ -2247,6 +2247,14 @@ def test_knuckle_hinge():
     B = [np.array([[100, 50], [0, 50], [0, 80], [100, 80]], float)]             # Rückwand Deckel (gegenläufig)
     sa, sb, plates, pins, L = knuckle_hinge(A, B, spec)
     assert L == 100 and len(plates) == 10 and len(pins) == 2
+    # Vierkantstift: nur die beiden äußeren Knöchel (1 und 5, beide an A) mit Vierkantloch, sonst rund
+    assert [p for p, _ in plates].count("A") == 6
+    assert [len(rr[1]) for _, rr in plates[:5]] == [4, 36, 36, 36, 4]
+    assert abs(np.ptp(plates[0][1][1][:, 0]) - (3 + 0.1)) < 1e-9
+    even = knuckle_hinge(A, B, KnuckleSpec(knuckles=4, hinges=1))[2]             # gerade: erster und letzter von A
+    assert [len(rr[1]) for _, rr in even] == [4, 36, 4, 36]
+    two = knuckle_hinge(A, B, KnuckleSpec(knuckles=2, hinges=1))[2]
+    assert [len(rr[1]) for _, rr in two] == [4, 36]
     assert len(sa) == 2 * 3 * 2 and len(sb) == 2 * 2 * 2                         # 2 Zinken je Knöchel
     assert all(r[:, 1].max() <= 50 + 1e-9 for r in sa) and all(r[:, 1].min() >= 50 - 1e-9 for r in sb)
     xs = sorted({round(float(r[:, 0].min()), 3) for r in sa + sb})
@@ -2260,7 +2268,7 @@ def test_knuckle_hinge():
     assert abs(end[:, 1].max() - spec.end_height) < 1e-9                         # abgeschrägt
     assert abs(np.ptp(hole[:, 0]) - knuckle_hole(spec)) < 0.01
     one = knuckle_hinge(A, B, KnuckleSpec(hinges=1, pin=2.0))
-    assert len(one[2]) == 5 and one[3] == []
+    assert len(one[2]) == 5 and one[3] == [] and all(len(rr[1]) == 36 for _, rr in one[2])   # Rundstab: rund
     three = knuckle_hinge(A, B, KnuckleSpec(hinges=3))                          # breite Teile: mehrere Scharniere
     starts = sorted({round(float(r[:, 0].min()) + 0.1, 3) for r in three[0]})
     assert len(three[2]) == 15 and len(three[3]) == 3
