@@ -578,8 +578,8 @@ def hammer_joint(rings_a, rings_b, spec: HammerSpec, tol: float = 0.5, all_edges
 class KnuckleSpec:
     thickness: float = 3.0      # Materialstärke (Wände und Knöchel)
     knuckles: int = 5           # Knöchel je Scharnier (ungerade: außen beide an Teil A)
-    hinges: int = 2             # Scharniere entlang der Kante (1 = mittig, 2 = nahe den Enden)
-    inset: float = 10.0         # bei 2 Scharnieren: Abstand vom Ende der Kante
+    hinges: int = 2             # Scharniere entlang der Kante (1 = mittig, ab 2: äußere nahe den Enden, Rest dazwischen)
+    inset: float = 10.0         # ab 2 Scharnieren: Abstand der äußeren vom Ende der Kante
     pin: float = 0.0            # Stiftdurchmesser; 0 = Vierkantstift mitlasern
     clearance: float = 0.2      # Spiel: Loch um den Stift, Schlitze um die Zinken
     wall: float = 2.0           # Wandstärke um das Loch
@@ -654,10 +654,12 @@ def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
     nb = _material_normal(rb, e.p0, e.p1)                  # in Teil B hinein
     span = n * t
     if spec.hinges >= 2:
-        starts = [spec.inset, e.length - spec.inset - span]
-        if starts[1] < starts[0] + span + 2:
-            raise ValueError("Die Kante ist zu kurz für zwei Scharniere – Abstand vom Rand verkleinern oder ein "
-                             "Scharnier wählen.")
+        k = spec.hinges
+        first, last = spec.inset, e.length - spec.inset - span
+        starts = [first + (last - first) * j / (k - 1) for j in range(k)]   # gleichmäßig verteilt
+        if last - first < (k - 1) * (span + 2):
+            raise ValueError(f"Die Kante ist zu kurz für {k} Scharniere – weniger Scharniere oder Knöchel wählen "
+                             "oder den Abstand vom Rand verkleinern.")
     else:
         starts = [(e.length - span) / 2]
     if starts[0] < 0:

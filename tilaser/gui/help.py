@@ -37,7 +37,8 @@ PARAM_DIALOGS = {"Biegescharnier": "muster", "Lochmuster": "muster", "Gravurmust
                  "Snap-Lock an Kante": "snap-lock", "Hammerverbindung an Kante": "hammerverbindung",
                  "Schablonen-Stege": "zahnrad-puzzle",
                  "Zahnrad": "zahnrad-puzzle", "Puzzle": "zahnrad-puzzle",
-                 "Knöchelscharnier an Kante": "knoechelscharnier"}
+                 "Knöchelscharnier an Kante": "knoechelscharnier",
+                 "Biegescharnier zwischen zwei Kanten": "biegezone"}
 # Hauptmenüs (deutscher Titel) -> Abschnitt der Referenz
 MENUS = {"&Datei": "menu-datei", "&Bearbeiten": "menu-bearbeiten", "&Anordnen": "menu-anordnen",
          "&Formen": "menu-formen", "&Werkzeuge": "menu-werkzeuge", "&Ansicht": "menu-ansicht",
@@ -52,6 +53,7 @@ ACTIONS = {
     "QR-Code / Barcode einfügen…": "variabler-text", "Variable Texte…": "variabler-text",
     "Box-Generator…": "box", "Zahnrad…": "zahnrad-puzzle", "Puzzle…": "zahnrad-puzzle",
     "Knöchelscharnier an Kante…": "knoechelscharnier",
+    "Biegescharnier zwischen zwei Kanten…": "biegezone",
     "Biegescharnier…": "muster", "Lochmuster / Lüftungsgitter…": "muster", "Gravurmuster…": "muster",
     "Fingerzinken an Kante…": "fingerzinken", "Puzzle-Verbindung an Kante…": "puzzle-verbindung",
     "Snap-Lock an Kante…": "snap-lock", "Hammerverbindung an Kante…": "hammerverbindung",

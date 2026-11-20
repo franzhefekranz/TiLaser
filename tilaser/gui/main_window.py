@@ -267,7 +267,7 @@ class MainWindow(QMainWindow):
         ar.addAction(self._act("Horizontal verteilen (gleiche Abstände)", lambda: self.distribute_selected("x")))
         ar.addAction(self._act("Vertikal verteilen (gleiche Abstände)", lambda: self.distribute_selected("y")))
         ar.addSeparator()
-        self.a_edge_align = self._act("Kanten aneinanderlegen", lambda: self.canvas.set_tool("edge"), "Alt+K",
+        self.a_edge_align = self._act("Kanten aneinanderlegen", self._edge_align_start, "Alt+K",
                                       "Erst eine Kante des Teils anklicken, das bewegt wird, dann die Zielkante am "
                                       "anderen Teil: das erste Teil wird gedreht und bündig angelegt")
         ar.addAction(self.a_edge_align)
@@ -336,6 +336,9 @@ class MainWindow(QMainWindow):
         mu = wz.addMenu("Muster in Fläche")
         mu.addAction(self._act("Biegescharnier…", lambda: self.pattern_tool("hinge"), None,
                                "Schnittmuster, mit dem sich Holz in der ausgewählten Fläche biegen lässt"))
+        wz.addAction(self._act("Biegescharnier zwischen zwei Kanten…", self.bend_between_edges, None,
+                               "Zwei Kanten anklicken, Radius und Winkel eingeben: die Teile werden mit einer "
+                               "passend langen Biegezone zu einem Teil verbunden"))
         mu.addAction(self._act("Lochmuster / Lüftungsgitter…", lambda: self.pattern_tool("holes"), None,
                                "Löcher oder Langlöcher in der ausgewählten Fläche verteilen"))
         mu.addAction(self._act("Gravurmuster…", lambda: self.pattern_tool("engrave"), None,
@@ -2004,8 +2007,8 @@ class MainWindow(QMainWindow):
             return
         d = KnuckleSpec()
         fields = [("thickness", "Materialstärke", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
-                  ("hinges", "Scharniere", "c", 2, {1: "Eines in der Mitte", 2: "Zwei, nahe den Enden"}),
-                  ("inset", "Abstand vom Ende der Kante (bei zwei)", "f", d.inset, (0, 500, 1, 1, " mm")),
+                  ("hinges", "Anzahl Scharniere (1 = mittig)", "i", 2, (1, 50)),
+                  ("inset", "Abstand der äußeren Scharniere vom Ende der Kante", "f", d.inset, (0, 500, 1, 1, " mm")),
                   ("knuckles", "Knöchel je Scharnier", "i", d.knuckles, (2, 99)),
                   ("length", "Knöchellänge", "f", d.length, (8, 200, 1, 1, " mm")),
                   ("end_height", "Höhe am abgeschrägten Ende", "f", d.end_height, (0.5, 50, 1, 0.5, " mm")),
@@ -2319,7 +2322,23 @@ class MainWindow(QMainWindow):
         self.lbl_sim.setText(f"{fmt_time(t)} / {fmt_time(self.result.time_s)}")
 
     # ------------------------------------------------------------ Kanten aneinanderlegen
+    def _edge_align_start(self):
+        self._edge_purpose = "align"
+        self.canvas.set_tool("edge")
+
+    def bend_between_edges(self):
+        self._edge_purpose = "bend"
+        self.canvas.set_tool("edge")
+
     def _edge_step(self, step):
+        if getattr(self, "_edge_purpose", "align") == "bend":
+            if step == 0:
+                self.statusBar().showMessage("Biegescharnier: Kante des ersten Teils anklicken (dieses Teil wird "
+                                             "gedreht und verschoben; Esc = abbrechen)")
+            else:
+                self.statusBar().showMessage("Jetzt die Kante des zweiten Teils anklicken, mit der es über die "
+                                             "Biegezone verbunden werden soll")
+            return
         if step == 0:
             self.statusBar().showMessage("Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll "
                                          "(Esc = abbrechen)")
@@ -2328,6 +2347,11 @@ class MainWindow(QMainWindow):
                                          "Umschalt: links bzw. unten bündig, mit Strg: rechts bzw. oben bündig")
 
     def _edges_picked(self, moving, target, mods):
+        if getattr(self, "_edge_purpose", "align") == "bend":
+            self._edge_purpose = "align"
+            self.canvas.set_tool("select")
+            self._bend_connect(moving, target)
+            return
         from ..core.edgealign import align_matrix, rotation_deg
         it = self.project.item(moving.item_id)
         if it is None:
@@ -2348,6 +2372,57 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → "
                                      "Fingerzinken an Kante… oder Puzzle-Verbindung an Kante… verbindet sie.", 8000)
 
+    def _bend_connect(self, moving, target):
+        """Biegezone zwischen zwei Kanten: Teil B so drehen/verschieben, dass seine Kante im Abstand der
+        Biegelänge gegenüber der Kante von Teil A liegt, beide mit einem Streifen zu einem Teil vereinigen und
+        den Streifen mit einem Biegescharnier-Muster versehen."""
+        from ..core import patterns as pt
+        title = "Biegescharnier zwischen zwei Kanten"
+        b, a = self.project.item(moving.item_id), self.project.item(target.item_id)
+        if a is None or b is None or a is b:
+            QMessageBox.information(self, title, "Bitte zwei Kanten an zwei verschiedenen Teilen anklicken.")
+            return
+        fields = [("radius", "Biegeradius (innen)", "f", 10.0, (0, 1000, 1, 1, " mm")),
+                  ("angle", "Biegewinkel", "f", 90.0, (1, 360, 0, 5, " °")),
+                  ("thickness", "Materialstärke", "f", 3.0, (0.5, 30, 2, 0.5, " mm")),
+                  ("style", "Art", "c", "straight", pt.HINGE_STYLES),
+                  ("slit", "Schlitzlänge", "f", 20.0, (2, 500, 1, 1, " mm")),
+                  ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
+                  ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
+                  ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm"))]
+        info = (f"„{b.name}“ wird so gedreht und verschoben, dass seine Kante der Kante von „{a.name}“ im Abstand der "
+                "Biegelänge gegenüberliegt. Beide werden mit der Biegezone zu einem Teil verbunden; die Biegezone "
+                "bekommt das Schnittmuster. Biegelänge = Winkel × (Radius + halbe Materialstärke), z. B. 90° bei "
+                "10 mm Radius und 3 mm Material: 18,1 mm. Der Abstand zum Rand gilt für die Enden der Schlitze.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        wa = [(p, vp.layer_id) for p, vp in zip(a.world_paths(), a.paths)]
+        try:
+            m, merged, slits, L, width = pt.bend_between(
+                [p for p, _ in wa if p.closed], [p for p in b.world_paths() if p.closed], moving, target,
+                v["radius"], v["angle"], v["thickness"], v["slit"], v["bridge"], v["spacing"], v["margin"],
+                v["style"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        wb = [(p.transformed(m), vp.layer_id) for p, vp in zip(b.world_paths(), b.paths)]
+        self._checkpoint(title)
+        lid = next((lid for p, lid in wa if p.closed), wa[0][1] if wa else self._drawing_layer().id)
+        world = [(p, lid) for p in merged]
+        world += [(p, l_) for p, l_ in wa + wb if not p.closed]            # Gravuren u. Ä. bleiben erhalten
+        world += [(p, lid) for p in slits]
+        name = f"{a.name} + {b.name}"
+        self.project.remove_item(b.id)
+        self.canvas.remove_item(b.id)
+        n = self._replace_item(a, world)
+        n.name = name
+        self.layers.set_project(self.project)
+        self.canvas.select_only([n.id])
+        self.statusBar().showMessage(f"Biegezone {L:.1f} mm lang ({v['angle']:g}° bei {v['radius']:g} mm Radius), "
+                                     f"{width:.1f} mm breit, {len(slits)} Schlitze.", 10000)
+
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):
         a = self.tool_actions.get(tool)
@@ -2355,6 +2430,7 @@ class MainWindow(QMainWindow):
             a.setChecked(True)
         if tool == "edge":                       # Hinweis kommt über edgeStep
             return
+        self._edge_purpose = "align"             # Werkzeug gewechselt: Biegescharnier-Auswahl beenden
         names = {"select": "", "edge": "", "rect": "Rechteck: ziehen", "ellipse": "Ellipse: ziehen",
                  "polygon": "Polygon: ziehen", "line": "Linie: klicken, Doppelklick/Enter = fertig, Esc = abbrechen",
                  "node": "Knoten: ziehen = verschieben, Anfasser ziehen = Kurve formen (Alt: einzeln), "

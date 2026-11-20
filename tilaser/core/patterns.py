@@ -307,3 +307,38 @@ def engrave_pattern(region, kind: str = "houndstooth", size: float = 8.0, gap: f
     tiles = _tiles(kind, x0 + JITTER[0], y0 + JITTER[1], x1, y1, size, gap)
     res = boolean(rr, tiles, "intersection")
     return _rot(res, angle, cx, cy)
+
+
+# ---------------------------------------------------------------- Biegezone zwischen zwei Kanten
+
+def bend_between(closed_a, closed_b, moving, target, radius: float, angle_deg: float, thickness: float,
+                 slit: float = 20.0, bridge: float = 3.0, spacing: float = 1.5, margin: float = 3.0,
+                 style: str = "straight"):
+    """Zwei Teile über eine Biegezone verbinden.
+
+    ``moving``/``target`` sind Kanten (edgealign.Edge) von Teil B bzw. A. Teil B wird so gedreht und
+    verschoben, dass seine Kante der Kante von A im Abstand der Biegelänge gegenüberliegt; A, der Streifen
+    dazwischen und B werden vereinigt, der Streifen bekommt das Biegescharnier-Muster.
+    Rückgabe: (Matrix für B, vereinigte Ringe, Schlitze, Biegelänge, Breite der Biegezone)."""
+    from .clip import boolean
+    from .edgealign import align_matrix, bend_length, strip_between, tidy_ring
+    L = bend_length(radius, angle_deg, thickness)
+    if L < 2 * spacing:
+        raise ValueError(f"Die Biegezone wäre nur {L:.1f} mm lang – Radius oder Winkel vergrößern bzw. den "
+                         "Reihenabstand verkleinern.")
+    m = align_matrix(moving, target, "center", gap=L)
+    ma, mb = g.apply_matrix(m, np.array([moving.a, moving.b]))
+    # minimal schmaler und etwas überlappend: deckungsgleiche Kanten bringen das Vereinigen durcheinander
+    strip, width = strip_between(target, ma, mb, L, extend=0.02, inset=0.005)
+    if strip is None or width < max(5.0, 2 * margin + 1):
+        raise ValueError("Die beiden Kanten überdecken sich nach dem Ausrichten nicht ausreichend.")
+    rb = [g.Polyline(g.apply_matrix(m, np.asarray(getattr(p, "pts", p), float)), True) for p in closed_b]
+    ra = [g.Polyline(np.asarray(getattr(p, "pts", p), float), True) for p in closed_a]
+    merged = boolean(boolean(ra, [g.Polyline(strip, True)], "union"), rb, "union")
+    if not merged:
+        raise ValueError("Die Teile ließen sich nicht verbinden.")
+    merged = [g.Polyline(tidy_ring(p.pts), True) for p in merged]
+    region, _ = strip_between(target, ma, mb, L, extend=margin - spacing / 2)
+    ang = float(np.degrees(np.arctan2(*(target.b - target.a)[::-1])))
+    slits = living_hinge([g.Polyline(region, True)], slit, bridge, spacing, margin, ang, style)
+    return m, merged, slits, L, width
