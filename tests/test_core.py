@@ -2338,6 +2338,27 @@ def test_numbering():
         assert number_paths("12345", [np.array([[0, 0], [4, 0], [4, 2], [0, 2]], float)], font)[0] == []
 
 
+
+def test_group_parts_nested_and_fast():
+    import time
+    from tilaser.core import geometry as g
+
+    def sq(x, y, w):
+        return g.Polyline(np.array([[x, y], [x + w, y], [x + w, y + w], [x, y + w]], float), True)
+    # Platte mit Loch, darin eine Insel mit eigenem Loch, dazu eine offene Linie
+    polys = [sq(0, 0, 100), sq(10, 10, 50), sq(20, 20, 30), sq(30, 30, 10), sq(70, 70, 10),
+             g.Polyline(np.array([[200, 0], [210, 0]], float), False)]
+    assert g.group_parts(polys) == [[0, 1, 4], [2, 3], [5]]
+    # viele Teile mit je zwei Löchern: früher quadratisch in Python, jetzt vorgefiltert
+    many = []
+    for i in range(30):
+        for j in range(30):
+            many += [sq(i * 12, j * 12, 10), sq(i * 12 + 1, j * 12 + 1, 3), sq(i * 12 + 6, j * 12 + 6, 3)]
+    t0 = time.time()
+    parts = g.group_parts(many)
+    assert len(parts) == 900 and all(len(p) == 3 and p[0] % 3 == 0 for p in parts)
+    assert time.time() - t0 < 5
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

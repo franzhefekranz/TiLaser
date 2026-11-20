@@ -6,6 +6,8 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Gruppieren und Gruppierung aufheben sind bei vielen Teilen deutlich schneller (Zuordnung der Löcher zu ihren
+  Außenkonturen vorgefiltert, Auswahl-Aktualisierung nur noch einmal am Ende statt für jedes Teil).
 - Knöchelscharnier: Beim mitgelaserten Vierkantstift haben der erste und der letzte Knöchel des ersten
   Teils ein Vierkantloch (bei ungerader Anzahl die beiden äußeren) – der Stift sitzt dort fest und dreht sich nur in den übrigen Knöcheln; die Knöchel werden je Teil getrennt abgelegt.
 - Materialtest, Fokustest und Zeilenabstandstest stehen gemeinsam unter *Werkzeuge → Lasertests*.

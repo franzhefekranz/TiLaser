@@ -871,12 +871,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Zum Gruppieren mindestens zwei Vektorobjekte auswählen.", 4000)
             return
         self._checkpoint("Gruppieren")
-        for it in items:
-            if it.kind == "vector":
-                self.canvas.remove_item(it.id)
-        g_item = self.project.group(items)
-        self.canvas.add_item(g_item)
-        self.canvas.select_only([g_item.id] + [it.id for it in items if it.kind == "raster"])
+        with self.canvas.batch():
+            for it in items:
+                if it.kind == "vector":
+                    self.canvas.remove_item(it.id)
+            g_item = self.project.group(items)
+            self.canvas.add_item(g_item)
+            self.canvas.select_only([g_item.id] + [it.id for it in items if it.kind == "raster"])
         self._invalidate()
 
     def ungroup_selected(self):
@@ -885,22 +886,24 @@ class MainWindow(QMainWindow):
             return
         self._checkpoint("Gruppierung aufheben")
         new_ids = []
-        for it in items:
-            n = len(g.group_parts([vp.poly for vp in it.paths]))
-            if n > 300 and QMessageBox.question(
-                    self, "Gruppierung aufheben", f"„{it.name}“ zerfällt in {n} Teile. Fortfahren?") \
-                    != QMessageBox.StandardButton.Yes:
-                new_ids.append(it.id)
-                continue
-            parts = self.project.ungroup(it)
-            if len(parts) == 1 and parts[0] is it:
-                new_ids.append(it.id)
-                continue
-            self.canvas.remove_item(it.id)
-            for p in parts:
-                self.canvas.add_item(p)
-                new_ids.append(p.id)
-        self.canvas.select_only(new_ids)
+        with self.canvas.batch():
+            for it in items:
+                # Teile vorab nur zählen, wenn es überhaupt mehr als 300 werden können
+                n = len(g.group_parts([vp.poly for vp in it.paths])) if len(it.paths) > 300 else 0
+                if n > 300 and QMessageBox.question(
+                        self, "Gruppierung aufheben", f"„{it.name}“ zerfällt in {n} Teile. Fortfahren?") \
+                        != QMessageBox.StandardButton.Yes:
+                    new_ids.append(it.id)
+                    continue
+                parts = self.project.ungroup(it)
+                if len(parts) == 1 and parts[0] is it:
+                    new_ids.append(it.id)
+                    continue
+                self.canvas.remove_item(it.id)
+                for p in parts:
+                    self.canvas.add_item(p)
+                    new_ids.append(p.id)
+            self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"{len(new_ids)} Objekte", 3000)
         self._invalidate()
 

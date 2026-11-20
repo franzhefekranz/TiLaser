@@ -4,6 +4,8 @@ Szenenkoordinaten = mm, Y nach unten (Qt). Modell: Y nach oben -> y_scene = -y_m
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen,
@@ -256,6 +258,7 @@ class LaserCanvas(QGraphicsView):
         self.setAcceptDrops(True)
         self.project: Project | None = None
         self.graphics: dict[str, ItemGraphic] = {}
+        self._batch = 0                                   # > 0: Sammeländerung, Auswahl-Signal erst am Ende
         self.bed_items = []
         self.toolpath_items = []
         self._pan_start = None
@@ -404,8 +407,27 @@ class LaserCanvas(QGraphicsView):
         gi.setSelected(select)
         return gi
 
+    @contextmanager
+    def batch(self):
+        """Viele Objekte auf einmal hinzufügen/entfernen/auswählen: Die Szene meldet sonst jede einzelne
+        Auswahländerung, und jede Meldung baut Auswahlrahmen und Bedienfelder neu auf (bei hunderten Teilen
+        quadratischer Aufwand). Am Ende wird einmal aktualisiert."""
+        self._batch += 1
+        self.scene_.blockSignals(True)
+        try:
+            yield
+        finally:
+            self._batch -= 1
+            if self._batch == 0:
+                self.scene_.blockSignals(False)
+                self.update_scene_rect()
+                self._on_selection()
+
     def remove_item(self, item_id: str):
         gi = self.graphics.pop(item_id, None)
+        if gi and self._batch:
+            self.scene_.removeItem(gi)
+            return
         if gi:
             was_selected = gi.isSelected()
             self.scene_.blockSignals(True)               # Auswahl-Signal erst, wenn alles konsistent ist
@@ -433,10 +455,11 @@ class LaserCanvas(QGraphicsView):
         return [gi.item.id for gi in self.graphics.values() if gi.isSelected()]
 
     def select_only(self, ids):
-        self.scene_.clearSelection()
-        for i in ids:
-            if i in self.graphics:
-                self.graphics[i].setSelected(True)
+        with self.batch():
+            self.scene_.clearSelection()
+            for i in ids:
+                if i in self.graphics:
+                    self.graphics[i].setSelected(True)
 
     def _on_selection(self):
         try:
