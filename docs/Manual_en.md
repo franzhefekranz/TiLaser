@@ -703,6 +703,36 @@ then cut out the puzzle.
 inner parts as in O, A, B or 8 would fall out. Select a text or shape; TiLaser lays a bridge (vertical or
 horizontal) of the set width through each inner part.
 
+<!-- hilfe: knoechelscharnier -->
+### Knuckle hinge
+
+*Tools → Generators → Knuckle hinge…* creates a **hinge made only of laser-cut parts**, e.g. for box lids.
+The knuckles are flat discs with a round eye and an arm. They stand close together across the axis of
+rotation – alternately on **hinge leaf A** (knuckles 1, 3, 5 …) and **hinge leaf B** (knuckles 2, 4 …).
+Each disc sits with a tab in a slot of its leaf. The **pin** goes through all eyes; the two leaves rotate
+around it.
+
+![Knuckle hinge: parts, across the axis and from above](screenshots/en/knoechelscharnier.png)
+
+**Assembly:** put the odd-numbered knuckles into the slots of leaf A and the even-numbered ones into leaf B
+(preferably glue them). Slide both leaves together so that the knuckles alternate and the eyes line up, then
+push the pin through. The leaves are glued onto lid and body or are part of the box themselves. The hinge is
+*number of knuckles × material thickness* long.
+
+| Setting | Effect |
+|---|---|
+| Material thickness | Thickness of the material; determines the width of each knuckle and of the slots |
+| Number of knuckles | More knuckles = longer and sturdier hinge. With an odd number, both outer knuckles belong to leaf A |
+| Pin diameter | 0 = a **square pin** is cut as well (edge length = material thickness). It turns in the round hole, whose diameter matches the diagonal. Otherwise the diameter of a round rod, toothpick or wire |
+| Clearance | Play in the hole around the pin and in the slots around the tabs |
+| Wall thickness around the hole | Material between the hole and the outer edge of the eye |
+| Arm length | Distance from the axis to the end of the arm; the tab sits centred below it |
+| Width of the hinge leaves | Width of the leaves across the axis. 0 = no leaves: the knuckles are created without a tab and glued directly onto lid and body |
+| Layer | Layer for the parts |
+
+The laser-cut pin protrudes by one material thickness on both sides; a drop of glue at the ends keeps it
+from sliding out. The parts are created side by side as separate objects.
+
 ---
 
 <!-- hilfe: nesting -->
@@ -1403,6 +1433,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Generators → Box generator… | Ctrl+Shift+B | Box with finger joints ([Box generator](#box-generator)) |
 | Generators → Gear… | | Involute gear, optionally with a mating gear |
 | Generators → Puzzle… | | Puzzle with frame |
+| Generators → Knuckle hinge… | | Hinge made of knuckle discs, leaves and pin ([Knuckle hinge](#knuckle-hinge)) |
 | Patterns in area → Living hinge… | | Cut pattern for bending ([Patterns in an area](#patterns-in-an-area)) |
 | Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |

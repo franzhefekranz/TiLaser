@@ -714,6 +714,36 @@ Platte ausgeschnitten werden: Innenteile wie im O, A, B oder 8 würden herausfal
 auswählen; TiLaser legt durch jedes Innenteil einen Steg (senkrecht oder waagerecht) der eingestellten
 Breite.
 
+<!-- hilfe: knoechelscharnier -->
+### Knöchelscharnier
+
+*Werkzeuge → Generatoren → Knöchelscharnier…* erzeugt ein **Scharnier nur aus Laserteilen**, z. B. für
+Boxdeckel. Die Knöchel sind flache Scheiben mit einem runden Auge und einem Arm. Sie stehen quer zur
+Drehachse dicht nebeneinander – abwechselnd an **Scharnierblatt A** (Knöchel 1, 3, 5 …) und
+**Scharnierblatt B** (Knöchel 2, 4 …). Jede Scheibe steckt mit einer Lasche in einem Schlitz ihres Blatts.
+Durch alle Augen geht der **Stift**, um den sich die beiden Blätter drehen.
+
+![Knöchelscharnier: Teile, quer zur Achse und von oben](screenshots/knoechelscharnier.png)
+
+**Zusammenbau:** Die Knöchel mit ungerader Nummer in die Schlitze von Blatt A stecken, die mit gerader in
+Blatt B (am besten verleimen). Beide Blätter so zusammenschieben, dass die Knöchel abwechselnd stehen und die
+Augen fluchten, dann den Stift durchschieben. Die Blätter werden auf Deckel und Korpus geleimt oder sind
+selbst Teil der Box. Das Scharnier ist *Anzahl Knöchel × Materialstärke* lang.
+
+| Einstellung | Wirkung |
+|---|---|
+| Materialstärke | Dicke des Materials; bestimmt die Breite jedes Knöchels und der Schlitze |
+| Anzahl Knöchel | Mehr Knöchel = längeres und stabileres Scharnier. Bei ungerader Anzahl sitzen außen beide Knöchel an Blatt A |
+| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke). Er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs, Zahnstochers oder Drahts |
+| Spiel | Luft im Loch um den Stift und in den Schlitzen um die Laschen |
+| Wandstärke um das Loch | Material zwischen Loch und Außenrand des Auges |
+| Armlänge | Abstand von der Drehachse bis zum Ende des Arms; die Lasche sitzt mittig darunter |
+| Breite der Scharnierblätter | Breite der Blätter quer zur Achse. 0 = keine Blätter: die Knöchel werden ohne Lasche erzeugt und direkt auf Deckel und Korpus geleimt |
+| Ebene | Ebene für die Teile |
+
+Der mitgelaserte Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden verhindert,
+dass er herausrutscht. Die Teile werden nebeneinander als einzelne Objekte erzeugt.
+
 ---
 
 <!-- hilfe: nesting -->
@@ -1422,6 +1452,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Generatoren → Box-Generator… | Strg+Umschalt+B | Kasten mit Fingerzinken ([Box-Generator](#box-generator)) |
 | Generatoren → Zahnrad… | | Evolventen-Zahnrad, optional mit Gegenrad |
 | Generatoren → Puzzle… | | Puzzle mit Rahmen |
+| Generatoren → Knöchelscharnier… | | Scharnier aus Knöchelscheiben, Blättern und Stift ([Knöchelscharnier](#knöchelscharnier)) |
 | Muster in Fläche → Biegescharnier… | | Schnittmuster zum Biegen ([Muster in einer Fläche](#muster-in-einer-fläche)) |
 | Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |

@@ -2240,6 +2240,36 @@ def test_hammer_joint():
             pass
 
 
+def test_knuckle_hinge():
+    from tilaser.core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_tab
+    spec = KnuckleSpec(thickness=3, knuckles=7)
+    parts = dict(knuckle_hinge(spec))
+    assert sum(k.startswith("Knöchel") for k in parts) == 7 and "Stift" in parts
+    assert abs(knuckle_hole(spec) - (3 * np.sqrt(2) + 0.2)) < 1e-9                  # Vierkantstift dreht sich
+    pin = parts["Stift"][0]
+    assert abs(np.ptp(pin[:, 1]) - 3) < 1e-9 and abs(np.ptp(pin[:, 0]) - 9 * 3) < 1e-9
+    a, b = parts["Scharnierblatt A"], parts["Scharnierblatt B"]
+    assert len(a) == 1 + 4 and len(b) == 1 + 3                                       # Schlitze 1,3,5,7 bzw. 2,4,6
+    x0, tw = knuckle_tab(spec)
+    for slot in a[1:] + b[1:]:
+        assert abs(np.ptp(slot[:, 0]) - 3.2) < 1e-9 and abs(np.ptp(slot[:, 1]) - (tw + 0.2)) < 1e-9
+    # Schlitze von A und B liegen abwechselnd (verschoben um eine Materialstärke)
+    xa = sorted(r[:, 0].min() for r in a[1:])
+    xb = sorted(r[:, 0].min() for r in b[1:])
+    assert np.allclose(np.diff(xa), 6) and np.allclose(np.array(xb) - np.array(xa[:3]) - (xb[0] - xa[0]), 0)
+    # Knöchel: Loch im Auge, Lasche so tief wie das Material
+    k1 = parts["Knöchel 1"]
+    assert len(k1) == 2 and abs(np.ptp(k1[0][:, 1]) - (knuckle_hole(spec) / 2 + spec.wall) * 2 - 3) < 1e-9
+    ohne = dict(knuckle_hinge(KnuckleSpec(leaf_width=0, pin=2.0)))
+    assert "Stift" not in ohne and "Scharnierblatt A" not in ohne
+    for bad in (KnuckleSpec(arm=5), KnuckleSpec(leaf_width=10), KnuckleSpec(knuckles=1)):
+        try:
+            knuckle_hinge(bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

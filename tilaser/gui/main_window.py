@@ -333,6 +333,8 @@ class MainWindow(QMainWindow):
         gen.addAction(self._act("Zahnrad…", self.gear_generator, None,
                                 "Stirnrad mit Evolventenverzahnung, optional mit passendem Gegenrad"))
         gen.addAction(self._act("Puzzle…", self.puzzle_generator, None, "Puzzle mit zufälligen Nasen"))
+        gen.addAction(self._act("Knöchelscharnier…", self.knuckle_hinge_generator, None,
+                                "Scharnier nur aus Laserteilen: Knöchelscheiben, Scharnierblätter und Stift"))
         mu = wz.addMenu("Muster in Fläche")
         mu.addAction(self._act("Biegescharnier…", lambda: self.pattern_tool("hinge"), None,
                                "Schnittmuster, mit dem sich Holz in der ausgewählten Fläche biegen lässt"))
@@ -2065,6 +2067,47 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(ids)
         self.statusBar().showMessage(f"Teilkreis Ø {inf['pitch_d']:g} mm, Kopfkreis Ø {inf['outer_d']:g} mm"
                                      + (f", Achsabstand {dist:g} mm" if b else ""), 10000)
+
+    def knuckle_hinge_generator(self):
+        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole
+        title = "Knöchelscharnier"
+        d = KnuckleSpec()
+        fields = [("thickness", "Materialstärke", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
+                  ("knuckles", "Anzahl Knöchel", "i", 7, (2, 99)),
+                  ("pin", "Stiftdurchmesser (0 = Vierkantstift mitlasern)", "f", d.pin, (0, 20, 2, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("wall", "Wandstärke um das Loch", "f", d.wall, (0.8, 20, 1, 0.5, " mm")),
+                  ("arm", "Armlänge (Achse bis Armende)", "f", d.arm, (5, 100, 1, 1, " mm")),
+                  ("leaf_width", "Breite der Scharnierblätter (0 = keine, Knöchel ankleben)", "f", d.leaf_width,
+                   (0, 200, 1, 1, " mm")),
+                  ("layer", "Ebene", "layer", None, (("cut",), ParamDialog.NEW_CUT))]
+        info = ("Die Knöchel sind Scheiben mit Auge und Arm, die quer zur Drehachse nebeneinander stehen – abwechselnd "
+                "an Scharnierblatt A (Knöchel 1, 3, 5 …) und B (2, 4 …). Jede Scheibe steckt mit ihrer Lasche in "
+                "einem Schlitz ihres Blatts (verleimen). Der Stift geht durch alle Augen: entweder ein mitgelaserter "
+                "Vierkantstift (Kantenlänge = Materialstärke, dreht sich im runden Loch) oder ein Rundstab bzw. Draht "
+                "mit dem angegebenen Durchmesser. Die Scharnierlänge ist Anzahl Knöchel × Materialstärke.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = KnuckleSpec(v["thickness"], v["knuckles"], v["pin"], v["clearance"], v["wall"], v["arm"],
+                           v["leaf_width"])
+        try:
+            parts = knuckle_hinge(spec)
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        layer = self._target_layer(v["layer"], "cut", "Scharnier")
+        polys = [g.Polyline(r, True) for _, rings in parts for r in rings]
+        placed = self._place_at(polys)
+        ids, k = [], 0
+        for name, rings in parts:
+            ids.append(self._add_generated(name, [(p, layer.id) for p in placed[k:k + len(rings)]], False).id)
+            k += len(rings)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(f"Knöchelscharnier: {spec.knuckles} Knöchel, {spec.knuckles * spec.thickness:g} mm "
+                                     f"lang, Loch Ø {knuckle_hole(spec):.2f} mm.", 10000)
 
     def puzzle_generator(self):
         import random

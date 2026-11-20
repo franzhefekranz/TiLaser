@@ -18,8 +18,9 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import (HammerSpec, SnapSpec, finger_joint, hammer_joint, hammer_tenon_profile,  # noqa: E402
-                                 puzzle_joint, snap_lock, snap_tab_profile)
+from tilaser.core.joints import (HammerSpec, KnuckleSpec, SnapSpec, finger_joint, hammer_joint,  # noqa: E402
+                                 hammer_tenon_profile, knuckle_hinge, knuckle_hole, knuckle_plate, puzzle_joint,
+                                 snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -102,6 +103,7 @@ def main():
     puzzle_types()
     snap_types()
     hammer_types()
+    knuckle_types()
     print("Bilder in", OUT)
 
 
@@ -217,6 +219,55 @@ def hammer_types():
     d.polygon([(cx2 + s * sc2, base - y * sc2) for s, y in wedge], fill=(200, 160, 110), outline=TEXT)
     d.text((cx2, 430), _t("Keil eingeschlagen (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "hammerverbindung.png"), optimize=True)
+
+
+def knuckle_types():
+    """Knöchelscharnier: links die Teile, Mitte quer zur Achse gesehen, rechts von oben (zusammengesteckt)."""
+    spec = KnuckleSpec(knuckles=7)
+    parts = knuckle_hinge(spec)
+    im = Image.new("RGB", (1100, 430), "white")
+    d = ImageDraw.Draw(im)
+    allp = np.vstack([r for _, rs in parts for r in rs])
+    x0, y1 = allp[:, 0].min(), allp[:, 1].max()
+    sc = min(330 / np.ptp(allp[:, 0]), 330 / np.ptp(allp[:, 1]))
+    for _, rs in parts:
+        d.polygon([(20 + (x - x0) * sc, 30 + (y1 - y) * sc) for x, y in rs[0]], fill=HOLZ, outline=TEXT)
+        for r in rs[1:]:
+            d.polygon([(20 + (x - x0) * sc, 30 + (y1 - y) * sc) for x, y in r], fill="white", outline=TEXT)
+    d.text((190, 400), _t("Teile"), fill=TEXT, font=_font(18), anchor="mm")
+    # quer zur Achse: Blatt A links, Blatt B rechts, je eine Scheibe, Stift im Auge
+    t = spec.thickness
+    R = knuckle_hole(spec) / 2 + spec.wall
+    s2, cx, cy = 9.0, 560, 190
+    plate, hole = knuckle_plate(spec)
+
+    def Q(pts, mirror=False):
+        return [(cx + (-x if mirror else x) * s2, cy - y * s2) for x, y in pts]
+    for mir, col in ((True, (150, 190, 230)), (False, HOLZ)):
+        lw = spec.leaf_width
+        leaf = [(-lw, -R), (-0.5, -R), (-0.5, -R - t), (-lw, -R - t)]
+        d.polygon(Q(leaf, mir), fill=col, outline=TEXT)
+        d.polygon(Q(plate, mir), fill=col, outline=TEXT)
+    d.polygon(Q(hole), fill="white", outline=TEXT)
+    q = t / 2
+    d.polygon(Q([(-q, -q), (q, -q), (q, q), (-q, q)]), fill=(200, 160, 110), outline=TEXT)
+    d.text((cx, 400), _t("Quer zur Achse"), fill=TEXT, font=_font(18), anchor="mm")
+    # von oben: Scheiben abwechselnd an A (Holz) und B (blau), Achse waagerecht
+    s3, ox, ay = 5.0, 830, 200
+    n = spec.knuckles
+    xl, xr = ox - spec.margin * s3, ox + (n * t + spec.margin) * s3
+    d.rectangle([xl, ay + 0.5 * s3, xr, ay + spec.leaf_width * s3], fill=HOLZ, outline=TEXT)          # Blatt A
+    d.rectangle([xl, ay - spec.leaf_width * s3, xr, ay - 0.5 * s3], fill=(150, 190, 230), outline=TEXT)  # Blatt B
+    for i in range(n):
+        x = ox + i * t * s3
+        if i % 2 == 0:
+            d.rectangle([x, ay - R * s3, x + t * s3, ay + spec.arm * s3], fill=HOLZ, outline=TEXT)
+        else:
+            d.rectangle([x, ay - spec.arm * s3, x + t * s3, ay + R * s3], fill=(150, 190, 230), outline=TEXT)
+    d.rectangle([ox - t * s3, ay - t / 2 * s3, ox + (n + 1) * t * s3, ay + t / 2 * s3],
+                fill=(200, 160, 110), outline=TEXT)
+    d.text((ox + n * t * s3 / 2, 400), _t("Von oben"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
 
 
 def hinge_types():
