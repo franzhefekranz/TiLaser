@@ -582,6 +582,119 @@ eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
 nutzen ([Kerf ermitteln](#kerf-ermitteln)).
 
+<!-- hilfe: puzzle-verbindung -->
+### Puzzle-Verbindung an Kante
+
+Verbindet zwei Teile, die **flach Kante an Kante** liegen, mit runden Nasen wie bei Puzzleteilen – z. B. um
+eine Platte, die größer als die Arbeitsfläche ist, aus zwei Teilen zusammenzusetzen, oder für Schilder und
+Spiele. Der Hals jeder Nase ist schmaler als ihr Kopf, deshalb lassen sich die Teile in der Ebene nicht
+auseinanderziehen.
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
+   [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
+2. Beide Teile auswählen → *Werkzeuge → Puzzle-Verbindung an Kante…*
+3. Unter **Nasen an** wählen, welches Teil die Nasen bekommt; das andere bekommt genau passende Aussparungen.
+
+![Puzzle-Verbindung: Nasen an einem Teil und abwechselnd](screenshots/puzzle_verbindung.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase) |
+| Nasengröße (Kopfdurchmesser) | Durchmesser des runden Kopfes. Der Hals ist 60 % so breit, die Nase ragt etwa 1,15 × Kopfdurchmesser über die Kante – so tief muss auch das andere Teil mindestens sein |
+| Anzahl je Kante | 0 = automatisch: etwa alle 2,5 Kopfdurchmesser eine Nase, gleichmäßig verteilt |
+| Nasen abwechselnd an beiden Teilen | Die Nasen sitzen abwechselnd am einen und am anderen Teil (Bild rechts) – hält auch bei Zug in beide Richtungen quer zur Kante gleich gut |
+| Spiel | Abstand zwischen Nase und Aussparung (je zur Hälfte an beiden Teilen). Positiv = lockerer, negativ = strammer. Der Laser schneidet selbst schon etwas Material weg (Kerf); bei Sperrholz passt meist 0 oder ein leicht negativer Wert, siehe [Kerf ermitteln](#kerf-ermitteln) |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+
+Ist ein Teil an der Kante zu schmal für die Nasen oder passen nicht so viele Nasen auf die Kante, meldet
+TiLaser das und ändert nichts. Kurven der Teile werden in feine Linienzüge umgewandelt. Für die Puzzle-Teile
+eines ganzen Bildes gibt es den [Puzzle-Generator](#zahnrad-puzzle-und-schablonen-stege).
+
+<!-- hilfe: snap-lock -->
+### Snap-Lock an Kante
+
+Steckverbindung **im rechten Winkel ohne Leim und Schrauben**: Das eine Teil bekommt Laschen aus zwei
+federnden Zungen mit kleinen Haken, das andere passende rechteckige Schlitze. Beim Durchstecken werden die
+Zungen zusammengedrückt, auf der Rückseite rasten die Haken ein. Zum Lösen die Zungen mit den Fingern
+zusammendrücken. Typisch für Gehäuse, Boxen und Halterungen.
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
+   [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K). Die Kante des einen Teils wird später an die
+   Fläche des anderen gesteckt.
+2. Beide Teile auswählen → *Werkzeuge → Snap-Lock an Kante…*
+3. Unter **Laschen an** wählen, welches Teil die Laschen bekommt.
+
+TiLaser setzt die Laschen an die Kante, schneidet die Schlitze in das andere Teil und schiebt das Teil mit
+den Laschen anschließend etwas weg, damit sich nichts überlappt (die Statusleiste nennt den Weg).
+
+![Snap-Lock: Teile wie erzeugt und eingerastet im Schnitt](screenshots/snap_lock.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Laschen an | Teil, das die Laschen bekommt; das andere bekommt die Schlitze |
+| Materialstärke | Dicke des Materials (beide Teile). Die Haken sitzen knapp darüber, die Schlitze sind so breit |
+| Laschenbreite | Breite einer Lasche (beide Zungen und der Federschlitz zusammen) |
+| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt |
+| Haken (seitlicher Überstand) | Wie weit jeder Haken seitlich übersteht. Mehr = hält fester, lässt sich schwerer stecken. Muss zusammen kleiner sein als Federschlitz + Spiel, sonst kommen die Zungen nicht durch |
+| Federschlitz | Breite des Schlitzes zwischen den beiden Zungen. Er reicht etwas in das Teil hinein, damit die Zungen länger und weicher federn |
+| Spiel | Luft im Schlitz und unter den Haken |
+| Abstand der Schlitze zur Kante | Wie weit die Schlitze vom Rand des anderen Teils entfernt sind – das Teil mit den Laschen steht später genau dort |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+
+**Tipps:** Die Federwirkung hängt stark vom Material ab – Sperrholz und Acryl (spröde!) vorher mit einem
+Probestück testen. Bei Acryl kleine Haken (0,3–0,5 mm) und einen breiteren Federschlitz wählen. Passen die
+Schlitze nicht in das andere Teil (zu schmal oder zu nah am Rand), meldet TiLaser das und ändert nichts.
+
+<!-- hilfe: hammerverbindung -->
+### Hammerverbindung an Kante
+
+Zapfenverbindung **im rechten Winkel ohne Schrauben und Leim** nach der „Hammer Joint“-Zeichnung von
+Jiskar Schmitz (Lasersheets, frei verwendbar): Das eine Teil bekommt Zapfen mit einem sich verjüngenden
+Schlitz, das andere passende Zapfenlöcher. Der **Keil wird direkt im Schlitz mitgelasert** und hängt nur an
+zwei kurzen Stegen; er steht über den Zapfen hinaus.
+
+**Zusammenbau:** Zapfen durch das Loch stecken und den Keil mit dem Hammer einschlagen. Die Stege brechen,
+der Keil rutscht in den engen Teil des Schlitzes und drückt die beiden Zapfenhälften im Loch auseinander –
+die Verbindung klemmt. Danach ist der Keil bündig mit dem Zapfen, der seinerseits minimal übersteht
+(*Überstand des Zapfens*) und bündig geschliffen werden kann. Die Verbindung lässt sich nicht mehr
+zerstörungsfrei lösen.
+
+1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
+   [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
+2. Beide Teile auswählen → *Werkzeuge → Hammerverbindung an Kante…*
+3. Unter **Zapfen an** wählen, welches Teil die Zapfen bekommt.
+
+TiLaser setzt Zapfen samt Keil an die Kante, schneidet die Löcher in das andere Teil und schiebt das Teil mit
+den Zapfen etwas weg, damit sich nichts überlappt.
+
+![Hammerverbindung: Teile wie erzeugt, Zapfen mit Keil und Stegen, eingeschlagen im Schnitt](screenshots/hammerverbindung.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Zapfen an | Teil, das die Zapfen bekommt; das andere bekommt die Zapfenlöcher |
+| Materialstärke | Dicke des Materials (beide Teile); das Zapfenloch ist so breit plus *Spiel*, der Zapfen so lang plus *Überstand* |
+| Zapfenbreite | Länge des Zapfenlochs (bewährt: 20 mm). Der Zapfen selbst ist um das *Übermaß* breiter |
+| Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt |
+| Überstand des Zapfens | So weit steht der Zapfen über das Gegenstück hinaus (zum Bündigschleifen) |
+| Keilüberstand vor dem Einschlagen | So weit ragt der Keil über den Zapfen – das ist auch der Weg, den er beim Einschlagen in den Schlitz rutscht. Die Originalzeichnung verwendet für alle Stärken 10 mm |
+| Spreizung durch den Keil | Um so viel ist der Keil oben breiter als der Schlitz an der Zapfenspitze (gesamt). Mehr = fester, aber höhere Bruchgefahr |
+| Länge der Haltestege | Die zwei Stege links und rechts, an denen der Keil hängt (5 mm unter der Zapfenspitze). Zu lang = lässt sich schwer einschlagen, zu kurz = Keil fällt beim Lasern heraus |
+| Schlitztiefe in das Teil | Wie tief Keilschlitz und Entlastungsschlitze unter die Kante reichen (Original: 20 mm) |
+| Entlastungsschlitze | Keilförmige Schlitze links und rechts neben dem Zapfen (oben so breit, unten spitz). Sie machen die Zapfenhälften beweglich. 0 = keine |
+| Übermaß des Zapfens (Breite) | So viel ist der Zapfen breiter als das Loch lang (Original: 0,15 mm) – klemmt zusätzlich quer |
+| Spiel im Zapfenloch | So viel ist das Loch breiter als das Material dick (Original: 0,075 mm) |
+| Abstand der Zapfenlöcher zur Kante | Wie weit die Löcher vom Rand des anderen Teils entfernt sind – dort steht später das Teil mit den Zapfen |
+| Toleranz, Alle gemeinsamen Kanten | Wie bei den anderen Verbindungen |
+
+Die Voreinstellungen entsprechen der Originalzeichnung (für 3 bis 12 mm gleich aufgebaut; nur Zapfenlänge
+und Lochbreite wachsen mit der Materialstärke). **Tipps:** Am besten geeignet sind Birken-Sperrholz und
+Massivholz ab 6 mm, MDF geht auch. Spröde oder sehr glatte Materialien (Acryl, Bambus quer zur Faser, POM)
+sind ungeeignet. Die Klemmkraft hängt stark von Material, Kerf und Strahlkegel ab – unbedingt vorher an
+einem Probestück testen. Beim Einschlagen die Verbindung flach auf den Tisch legen, damit sich der Zapfen
+nicht schräg stellt.
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
 
@@ -600,6 +713,44 @@ gravieren, dann das Puzzle ausschneiden.
 Platte ausgeschnitten werden: Innenteile wie im O, A, B oder 8 würden herausfallen. Text oder Form
 auswählen; TiLaser legt durch jedes Innenteil einen Steg (senkrecht oder waagerecht) der eingestellten
 Breite.
+
+<!-- hilfe: knoechelscharnier -->
+### Knöchelscharnier an Kante
+
+*Werkzeuge → Knöchelscharnier an Kante…* baut ein **Scharnier nur aus Laserteilen** zwischen zwei Teilen
+einer Box – typisch die **Rückwand der Box und die Rückwand des Deckels**. Die Knöchel sind Scheiben aus dem
+Material, die senkrecht außen auf den Wänden stehen, abwechselnd an beiden Teilen. Jeder Knöchel steckt mit
+**zwei kleinen Fingerzinken** in Schlitzen seiner Wand. Das Auge mit dem Loch sitzt genau über der
+gemeinsamen Kante, zum Ende hin ist der Knöchel **abgeschrägt**. Durch alle Augen geht der **Stift**, um den
+sich der Deckel dreht.
+
+1. Die beiden Rückwände so hinlegen, wie sie bei geschlossener Box aneinanderstoßen: **Kante an Kante**
+   (am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen), Alt+K).
+2. Beide auswählen → *Werkzeuge → Knöchelscharnier an Kante…*
+
+TiLaser schneidet die Schlitze in beide Rückwände und legt die Knöchel (und die Stifte) rechts neben die
+Teile. Knöchel 1, 3, 5 … jedes Scharniers gehören zu dem zuerst ausgewählten Teil, 2, 4 … zum anderen – die
+Statusleiste nennt die Zuordnung.
+
+![Knöchelscharnier: Rückwände mit Schlitzen, Schnitt quer zur Achse, einzelner Knöchel](screenshots/knoechelscharnier.png)
+
+**Zusammenbau:** Die Knöchel in die Schlitze stecken (gerne verleimen), Box und Deckel zusammenstellen, so
+dass die Knöchel abwechselnd stehen und die Augen fluchten, dann den Stift durchschieben. Der mitgelaserte
+Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden hält ihn.
+
+| Einstellung | Wirkung |
+|---|---|
+| Materialstärke | Dicke des Materials – Breite jedes Knöchels, Tiefe der Fingerzinken |
+| Scharniere | *Eines in der Mitte* oder *Zwei, nahe den Enden* der Kante |
+| Abstand vom Ende der Kante | Bei zwei Scharnieren: wie weit sie von den Enden der Kante entfernt sind |
+| Knöchel je Scharnier | Ein Scharnier ist *Knöchel × Materialstärke* lang. Bei ungerader Anzahl sitzen außen beide Knöchel am ersten Teil |
+| Knöchellänge | Wie weit der Knöchel ab der Kante auf der Wand liegt |
+| Höhe am abgeschrägten Ende | Der Knöchel fällt vom Auge bis hierhin ab |
+| Länge der Fingerzinken | Länge der beiden Zinken (und Schlitze) entlang der Wand; einer sitzt gleich hinter dem Auge, einer kurz vor dem Ende |
+| Stiftdurchmesser | 0 = ein **Vierkantstift** wird mitgelasert (Kantenlänge = Materialstärke); er dreht sich im runden Loch, dessen Durchmesser der Diagonale entspricht. Sonst der Durchmesser eines Rundstabs oder Drahts |
+| Wandstärke um das Loch | Material zwischen Loch und Außenrand des Auges |
+| Spiel | Luft im Loch um den Stift und in den Schlitzen um die Zinken |
+| Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
 
 ---
 
@@ -1313,6 +1464,10 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
 | Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
+| Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
+| Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
+| Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
+| Knöchelscharnier an Kante… | | Scharnier zwischen zwei Boxteilen: Knöchel mit Fingerzinken, Schlitze, Stift ([Knöchelscharnier an Kante](#knöchelscharnier-an-kante)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

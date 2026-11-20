@@ -2149,6 +2149,126 @@ class _MiniMonkeyPatch:
         self._undo.clear()
 
 
+def test_puzzle_joint():
+    from tilaser.core.joints import puzzle_height, puzzle_joint
+
+    def area(r):
+        return abs(0.5 * float(np.sum(r[:, 0] * np.roll(r[:, 1], -1) - np.roll(r[:, 0], -1) * r[:, 1])))
+    a = [np.array([[0, 0], [60, 0], [60, 30], [0, 30]], float)]
+    b = [np.array([[60, 30], [0, 30], [0, 60], [60, 60]], float)]               # Kante gegenläufig
+    for alt in (False, True):
+        ra, rb, n = puzzle_joint(a, b, 10, 0, 0.0, alt)
+        assert n == 1 and abs(area(ra[0]) + area(rb[0]) - 3600) < 1e-6          # lückenlos ineinander
+        top, bottom = ra[0][:, 1].max(), ra[0][:, 1].min()
+        assert top > 30 + 0.95 * puzzle_height(10)                              # Nase von A ragt nach B
+        if alt:
+            assert rb[0][:, 1].min() < 30 - 0.95 * puzzle_height(10)            # und eine von B nach A
+        else:
+            assert abs(area(ra[0]) - 1800) > 50 and bottom == 0
+            knob = ra[0][(ra[0][:, 1] > 30.01) & (ra[0][:, 0] < 30)]                # erste Nase
+            head = knob[knob[:, 1] > 30 + 0.6 * puzzle_height(10)]
+            neck = knob[(knob[:, 1] > 31.19) & (knob[:, 1] < 32.51)]
+            assert np.ptp(head[:, 0]) > np.ptp(neck[:, 0]) + 2                  # Kopf breiter als der Hals
+    ra, rb, _ = puzzle_joint(a, b, 10, 2, 0.2, False)                           # Spiel: Fuge bleibt frei
+    assert 3600 - (area(ra[0]) + area(rb[0])) > 0.5
+    for bad in (dict(size=40), dict(size=10, count=8)):
+        try:
+            puzzle_joint(a, b, bad["size"], bad.get("count", 0))
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
+def test_snap_lock():
+    from tilaser.core.joints import SnapSpec, snap_height, snap_lock
+    a = [np.array([[0, 0], [60, 0], [60, 30], [0, 30]], float)]
+    b = [np.array([[0, 30], [60, 30], [60, 60], [0, 60]], float)]
+    spec = SnapSpec()
+    ra, rb, n, shift = snap_lock(a, b, spec)
+    assert n == 1 and len(rb) == 1 + 2 and np.allclose(rb[0], b[0])                    # B unverändert + 2 Schlitze
+    assert np.allclose(shift, [0, -(snap_height(spec) + spec.gap)])
+    slot = rb[1]
+    assert abs(np.ptp(slot[:, 0]) - (spec.width + spec.clearance)) < 1e-9
+    assert abs(np.ptp(slot[:, 1]) - (spec.thickness + spec.clearance)) < 1e-9
+    assert abs(slot[:, 1].min() - (30 + spec.inset - spec.clearance / 2)) < 1e-9
+    top = ra[0][:, 1].max() - shift[1]                                                  # Laschen vor dem Verschieben
+    assert abs(top - (30 + snap_height(spec))) < 1e-9 and ra[0][:, 1].max() < 30 - spec.gap + 1e-9
+    xs = ra[0][:, 0]
+    tab = ra[0][ra[0][:, 1] > 30 + shift[1] + 1e-6]
+    assert np.ptp(tab[:, 0]) > spec.width                                              # Haken stehen über
+    assert abs(np.ptp(slot[:, 0]) - spec.width) < 2 * spec.barb and xs.min() == 0
+    for bad in (SnapSpec(barb=1.0), SnapSpec(slit=7.5), SnapSpec(inset=40)):
+        try:
+            snap_lock(a, b, bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
+def test_hammer_joint():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import HammerSpec, hammer_joint, hammer_tenon_profile
+    a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40]], float)]
+    b = [np.array([[80, 40], [0, 40], [0, 80], [80, 80]], float)]
+    spec = HammerSpec(thickness=10, protrude=0.074)                         # wie die 10-mm-Originalzeichnung
+    ra, rb, n, shift = hammer_joint(a, b, spec)
+    H = 10.074
+    assert n == 1 and len(ra) == 2 and len(rb) == 2
+    assert np.allclose(shift, [0, -(H + spec.wedge_out + spec.gap)])
+    up = ra[0] - shift
+    assert abs(up[:, 1].max() - (40 + H + spec.wedge_out)) < 1e-9              # Keil steht über den Zapfen
+    hole = rb[1]
+    assert abs(np.ptp(hole[:, 0]) - 20.0) < 1e-9 and abs(np.ptp(hole[:, 1]) - 10.075) < 1e-9
+    edge, inner = hammer_tenon_profile(0.0, spec)
+    E, I = np.array(edge), np.array(inner)
+    tip = E[np.isclose(E[:, 1], H)]
+    assert abs(np.ptp(tip[:, 0]) - 20.15) < 1e-6                              # Zapfen 20,15 mm (Übermaß)
+    head = E[E[:, 1] > H + 1e-9]
+    assert abs(head[:, 0].max() - 3.3) < 0.05                                  # Keilkopf wie Original (±3,27)
+    assert abs(I[:, 1].min() + 20) < 1e-9 and abs(I[:, 1].max() - (H - 6)) < 1e-9   # Schlitz bis zum Steg
+    # Stege: zwischen Unterkante des Einzelschnitts und Oberkante der Schlitzkontur 1 mm Material
+    cut_bottom = E[E[:, 1] < H - 1e-9][:, 1]
+    assert abs(cut_bottom[(cut_bottom > 0)].min() - (H - 5)) < 1e-9
+    # der Keil (innerhalb der Kontur von A) ist mit A verbunden: Punkt im Keil liegt im Material von A
+    probe = np.array([[40.0, 40 + H - 1]]) + shift
+    assert inside(probe, ra[:1])[0] and not inside(probe, ra[1:])[0]
+    for bad in (HammerSpec(wedge_out=30), HammerSpec(depth=45), HammerSpec(inset=60), HammerSpec(spread=0)):
+        try:
+            hammer_joint(a, b, bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
+def test_knuckle_hinge():
+    from tilaser.core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, knuckle_plate, knuckle_radius
+    spec = KnuckleSpec(thickness=3, knuckles=5, hinges=2, inset=10)
+    A = [np.array([[0, 0], [100, 0], [100, 50], [0, 50]], float)]               # Rückwand Box
+    B = [np.array([[100, 50], [0, 50], [0, 80], [100, 80]], float)]             # Rückwand Deckel (gegenläufig)
+    sa, sb, plates, pins, L = knuckle_hinge(A, B, spec)
+    assert L == 100 and len(plates) == 10 and len(pins) == 2
+    assert len(sa) == 2 * 3 * 2 and len(sb) == 2 * 2 * 2                         # 2 Zinken je Knöchel
+    assert all(r[:, 1].max() <= 50 + 1e-9 for r in sa) and all(r[:, 1].min() >= 50 - 1e-9 for r in sb)
+    xs = sorted({round(float(r[:, 0].min()), 3) for r in sa + sb})
+    assert abs(xs[0] - (10 - 0.1)) < 1e-9 and abs(xs[-1] - (100 - 10 - 3 - 0.1)) < 1e-9   # Abstand vom Ende
+    assert all(abs(np.ptp(r[:, 0]) - 3.2) < 1e-9 for r in sa + sb)
+    outer, hole = knuckle_plate(spec)
+    R = knuckle_radius(spec)
+    assert abs(outer[:, 1].min() + 3) < 1e-9                                     # Zinken so tief wie die Wand
+    assert abs(outer[:, 1].max() - 2 * R) < 0.05 and abs(outer[:, 0].max() - spec.length) < 1e-9
+    end = outer[np.isclose(outer[:, 0], spec.length)]
+    assert abs(end[:, 1].max() - spec.end_height) < 1e-9                         # abgeschrägt
+    assert abs(np.ptp(hole[:, 0]) - knuckle_hole(spec)) < 0.01
+    one = knuckle_hinge(A, B, KnuckleSpec(hinges=1, pin=2.0))
+    assert len(one[2]) == 5 and one[3] == []
+    for bad in (KnuckleSpec(length=10), KnuckleSpec(knuckles=40), KnuckleSpec(inset=45), KnuckleSpec(length=60)):
+        try:
+            knuckle_hinge(A, B, bad)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

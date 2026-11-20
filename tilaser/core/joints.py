@@ -250,3 +250,435 @@ def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind:
         ra = add_dogbones(ra, dogbone, corners_a)
         rb = add_dogbones(rb, dogbone, corners_b)
     return ra, rb, len(edges)
+
+
+# ---------------------------------------------------------------- Puzzle-Verbindung
+
+def puzzle_profile(centers, signs, size: float, delta: float = 0.0, step_deg: float = 8.0) -> list[tuple[float, float]]:
+    """Punkte (s, t) der Puzzle-Nasen entlang einer Kante (s entlang, t quer, t > 0 = von Teil A nach B).
+
+    size = Durchmesser des Nasenkopfs. Der Hals ist schmaler als der Kopf, so dass die Teile in der
+    Ebene formschlüssig halten. signs: +1 = Nase an Teil A (ragt nach B), -1 = Nase an Teil B.
+    delta verschiebt die Kontur senkrecht nach außen (> 0) bzw. innen (< 0) – für das Spiel."""
+    r, a0, f = size / 2, 0.3 * size, 0.12 * size
+    c = 0.25 * size + math.sqrt(r * r - a0 * a0)          # Mitte des Kopfes über der Kante
+    out: list[tuple[float, float]] = []
+    for sc, sg in zip(centers, signs):
+        a, R = a0 + delta, r + delta
+        t1 = c - math.sqrt(max(R * R - a * a, 1e-12))
+        pts: list[tuple[float, float]] = []
+        for ang in np.radians(np.arange(-90, 0 + 1e-9, step_deg)):          # Ausrundung links
+            pts.append((sc - a - f + f * math.cos(ang), f + f * math.sin(ang)))
+        pts.append((sc - a, t1))
+        th0 = math.atan2(t1 - c, -a) % (2 * math.pi)                         # links unten am Kopf
+        th1 = math.atan2(t1 - c, a)                                          # rechts unten (negativ)
+        n = max(8, int(math.ceil(math.degrees(th0 - th1) / step_deg)))
+        for ang in np.linspace(th0, th1, n + 1)[1:-1]:                       # über den Kopf
+            pts.append((sc + R * math.cos(ang), c + R * math.sin(ang)))
+        pts.append((sc + a, t1))
+        for ang in np.radians(np.arange(180, 270 + 1e-9, step_deg)):         # Ausrundung rechts
+            pts.append((sc + a + f + f * math.cos(ang), f + f * math.sin(ang)))
+        out += [(s, sg * t) for s, t in pts]
+    return out
+
+
+def puzzle_height(size: float) -> float:
+    """Wie weit eine Nase über die Kante ragt."""
+    r, a0 = size / 2, 0.3 * size
+    return 0.25 * size + math.sqrt(r * r - a0 * a0) + r
+
+
+def puzzle_count(length: float, size: float) -> int:
+    """Anzahl Nasen für eine Kante: etwa alle 2,5 Kopfdurchmesser eine."""
+    return max(1, int(length // (2.5 * size)))
+
+
+def _insert_points(ring: np.ndarray, k: int, pts: np.ndarray) -> np.ndarray:
+    """Segment k (Punkt k -> k+1) durch die Weltpunkte pts ersetzen (Richtung wird angepasst)."""
+    a, b = ring[k], ring[(k + 1) % len(ring)]
+    if len(pts) > 1 and (pts[-1] - pts[0]) @ (b - a) < 0:
+        pts = pts[::-1]
+    out = np.vstack([q for q in (ring[: k + 1], pts, ring[k + 1:]) if len(q)])
+    keep = [0] + [i for i in range(1, len(out)) if np.hypot(*(out[i] - out[i - 1])) > 1e-9]
+    out = out[keep]
+    if len(out) > 1 and np.hypot(*(out[0] - out[-1])) <= 1e-9:
+        out = out[:-1]
+    return _cleanup(out)
+
+
+def puzzle_joint(rings_a, rings_b, size: float = 10.0, count: int = 0, clearance: float = 0.0,
+                 alternate: bool = False, tol: float = 0.5, all_edges: bool = False):
+    """Puzzle-Nasen an der längsten gemeinsamen Kante (oder allen) zweier Teile, die Kante an Kante liegen.
+
+    Teil A bekommt die Nasen, Teil B die passenden Aussparungen (bei alternate abwechselnd).
+    clearance = Spiel (gesamt); jede Seite wird um die Hälfte zurückgenommen. Gibt neue Ringe für A, B
+    und die Anzahl der bearbeiteten Kanten zurück."""
+    if size <= 0:
+        raise ValueError("Die Nasengröße muss größer als 0 sein.")
+    if not -0.5 * size < clearance < 0.25 * size:
+        raise ValueError("Das Spiel ist für diese Nasengröße zu groß.")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=1.2 * size)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Nasen ist. Die beiden Teile Kante "
+                         "an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen) oder die Nasen kleiner wählen.")
+    if not all_edges:
+        edges = edges[:1]
+    height = puzzle_height(size)
+    jobs = []
+    for e in edges:
+        n = count if count > 0 else puzzle_count(e.length, size)
+        if n * 1.1 * size > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Nasen mit {size:g} mm – "
+                             "weniger Nasen oder kleinere Nasen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        signs = [(-1 if (alternate and i % 2) else 1) for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)               # von A nach B
+        # die Aussparungen müssen ganz im jeweils anderen Teil liegen
+        for sc, sg in zip(centers, signs):
+            probe = e.p0 + u * sc + v * sg * (height + 0.3)
+            if not inside(probe[None], rb if sg > 0 else ra)[0]:
+                raise ValueError("Ein Teil ist an der Kante zu schmal für die Nasen "
+                                 f"(sie ragen {height:.1f} mm hinein) – kleinere Nasen wählen.")
+        jobs.append((e, centers, signs, u, v))
+
+    def world(e, centers, signs, u, v, grow):
+        # grow < 0: eigene Nasen etwas kleiner, eigene Aussparungen etwas größer (Teil A); grow > 0 für Teil B
+        pts = [(0.0, 0.0)]
+        for sc, sg in zip(centers, signs):
+            pts += puzzle_profile([sc], [sg], size, grow * sg)
+        pts.append((e.length, 0.0))
+        return np.array([e.p0 + u * s + v * t for s, t in pts])
+
+    half = clearance / 2
+    for e, centers, signs, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, world(e, centers, signs, u, v, -half))
+    for e, centers, signs, u, v in sorted(jobs, key=lambda j: -j[0].kb):
+        rb[e.rb] = _insert_points(rb[e.rb], e.kb, world(e, centers, signs, u, v, +half))
+    return ra, rb, len(jobs)
+
+
+# ---------------------------------------------------------------- Snap-Lock (Rastlaschen)
+
+@dataclass
+class SnapSpec:
+    thickness: float = 3.0     # Materialstärke (beide Teile)
+    width: float = 8.0         # Breite einer Lasche
+    count: int = 0             # 0 = automatisch
+    barb: float = 0.5          # wie weit der Haken seitlich übersteht
+    slit: float = 1.5          # Breite des Federschlitzes zwischen den beiden Zungen
+    clearance: float = 0.1     # Spiel im Schlitz und unter dem Haken
+    inset: float = 3.0         # Abstand der Schlitze in Teil B von dessen Kante
+    gap: float = 3.0           # Abstand, um den Teil A nach dem Erzeugen von B weggeschoben wird
+
+
+def snap_tab_profile(sc: float, spec: SnapSpec) -> list[tuple[float, float]]:
+    """Kontur einer Rastlasche (s entlang der Kante, t > 0 = aus Teil A heraus).
+
+    Zwei federnde Zungen mit einem Schlitz dazwischen, der in Teil A hineinreicht. Außen sitzt je ein
+    Haken knapp über der Materialstärke, darüber eine Schräge zum Einführen."""
+    w2, g2, b = spec.width / 2, spec.slit / 2, spec.barb
+    y1 = spec.thickness + spec.clearance                 # Unterkante des Hakens: liegt auf der Gegenseite an
+    top = y1 + max(1.5, 3 * b)                           # Schräge zum Einführen
+    depth = max(2.0, spec.thickness)                     # Schlitz reicht so weit in Teil A
+    return [(sc - w2, 0.0), (sc - w2, y1), (sc - w2 - b, y1), (sc - w2, top), (sc - g2, top), (sc - g2, -depth),
+            (sc + g2, -depth), (sc + g2, top), (sc + w2, top), (sc + w2 + b, y1), (sc + w2, y1), (sc + w2, 0.0)]
+
+
+def snap_height(spec: SnapSpec) -> float:
+    return spec.thickness + spec.clearance + max(1.5, 3 * spec.barb)
+
+
+def snap_lock(rings_a, rings_b, spec: SnapSpec, tol: float = 0.5, all_edges: bool = False):
+    """Rastlaschen an Teil A und passende Schlitze in Teil B (T- oder L-Verbindung im rechten Winkel).
+
+    Die Teile liegen beim Aufruf Kante an Kante (wie bei den Fingerzinken). Teil A bekommt an der Kante
+    federnde Laschen mit Haken, Teil B rechteckige Durchbrüche im Abstand ``inset`` von seiner Kante.
+    Danach wird Teil A um Laschenhöhe + ``gap`` von B weggeschoben, damit sich nichts überlappt.
+    Gibt (Ringe A, Ringe B inkl. neuer Schlitze, Anzahl Kanten, Verschiebung von A) zurück."""
+    t = spec.thickness
+    if t <= 0 or spec.width <= 0:
+        raise ValueError("Materialstärke und Laschenbreite müssen größer als 0 sein.")
+    if spec.slit >= spec.width - 2.0:
+        raise ValueError("Der Federschlitz ist zu breit für die Lasche – jede Zunge braucht mindestens 1 mm.")
+    if 2 * spec.barb > spec.slit + spec.clearance:
+        raise ValueError("Die Haken stehen weiter über, als die Zungen in den Federschlitz ausweichen können "
+                         "(2 × Haken ≤ Schlitzbreite + Spiel).")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=spec.width + 4)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Laschen ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    if not all_edges:
+        edges = edges[:1]
+    jobs, slots = [], []
+    for e in edges:
+        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (4 * spec.width))))
+        if n * (spec.width + 2 * spec.barb + 3) > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Laschen mit {spec.width:g} mm – "
+                             "weniger oder schmalere Laschen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)              # von A nach B
+        for sc in centers:
+            hw, c = (spec.width + spec.clearance) / 2, spec.clearance / 2
+            box = [(sc - hw, spec.inset - c), (sc + hw, spec.inset - c), (sc + hw, spec.inset + t + c),
+                   (sc - hw, spec.inset + t + c)]
+            ring = np.array([e.p0 + u * s + v * tt for s, tt in box])
+            if not inside(ring, rb).all():
+                raise ValueError("Die Schlitze passen nicht in Teil B – Abstand zur Kante oder Laschenbreite "
+                                 "verkleinern.")
+            slots.append(ring)
+        jobs.append((e, centers, u, v))
+    for e, centers, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        pts = [(0.0, 0.0)]
+        for sc in centers:
+            pts += snap_tab_profile(sc, spec)
+        pts.append((e.length, 0.0))
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array([e.p0 + u * s + v * tt for s, tt in pts]))
+    shift = -jobs[0][3] * (snap_height(spec) + spec.gap)
+    ra = [r + shift for r in ra]
+    return ra, rb + slots, len(jobs), shift
+
+
+# ---------------------------------------------------------------- Hammerverbindung (Keilzapfen)
+#
+# Nach der „Hammer Joint“-Zeichnung von Jiskar Schmitz (Lasersheets, frei verwendbar): Der Keil wird direkt
+# im Zapfenschlitz mitgelasert und hängt nur an zwei kurzen Stegen. Er steht über den Zapfen hinaus; beim
+# Einschlagen brechen die Stege, der Keil rutscht in den sich verjüngenden Schlitz und spreizt die beiden
+# Zapfenhälften im Loch. Danach ist er bündig mit dem Zapfen.
+
+@dataclass
+class HammerSpec:
+    thickness: float = 6.0      # Materialstärke beider Teile
+    width: float = 20.0         # Zapfenbreite (Loch); der Zapfen selbst ist um ``press`` breiter
+    count: int = 0              # 0 = automatisch
+    protrude: float = 0.2       # Zapfen steht so weit über das Gegenstück hinaus (zum Bündigschleifen)
+    wedge_out: float = 10.0     # so weit steht der Keil vor dem Einschlagen über den Zapfen hinaus
+    spread: float = 1.2         # Keil oben um so viel breiter als der Schlitz an der Zapfenspitze (gesamt)
+    slot_bottom: float = 3.3    # Breite des Keilschlitzes an seinem runden Grund
+    taper: float = 0.07         # Verjüngung des Schlitzes (Breitenzunahme je mm nach oben)
+    depth: float = 20.0         # Tiefe von Keilschlitz und Entlastungsschlitzen unter der Kante
+    bridge: float = 1.0         # Länge der Haltestege des Keils
+    relief: float = 0.3         # Entlastungsschlitze neben dem Zapfen: Breite an der Kante (keilförmig), 0 = keine
+    press: float = 0.15         # Zapfen ist so viel breiter als das Loch (Klemmung quer)
+    clearance: float = 0.075    # Loch ist so viel länger als die Materialstärke
+    inset: float = 6.0          # Abstand der Zapfenlöcher in Teil B von dessen Kante
+    gap: float = 3.0            # Abstand, um den Teil A nach dem Erzeugen weggeschoben wird
+
+
+_SLIT = 0.01                    # Versatz, damit Hin- und Rückweg eines Einzelschnitts nicht zusammenfallen
+
+
+def _hammer_dims(spec: HammerSpec):
+    H = spec.thickness + spec.protrude                    # Oberkante des Zapfens über der Kante
+    bridge_top = H - 5.0                                  # Stege 5 mm unter der Zapfenspitze (wie im Original)
+    bridge_bot = bridge_top - spec.bridge
+    wedge_bot = -spec.depth + spec.wedge_out + 1.0        # nach dem Einschlagen 1 mm über dem Schlitzgrund
+
+    def half(y):                                          # halbe Schlitzbreite in Höhe y
+        return spec.slot_bottom / 2 + spec.taper / 2 * (y + spec.depth)
+    return H, bridge_top, bridge_bot, wedge_bot, half
+
+
+def hammer_tenon_profile(sc: float, spec: HammerSpec, step_deg: float = 15.0):
+    """Zapfen samt Keil (Außenkontur) und Schlitz unter dem Keil (eigene Kontur) für einen Zapfen.
+
+    Rückgabe: (Punkte der Kante entlang, Punkte der inneren Kontur) – lokal: s entlang der Kante,
+    t > 0 = aus Teil A heraus."""
+    H, bt, bb, wb, half = _hammer_dims(spec)
+    w2 = spec.width / 2 + spec.press / 2
+    r, d, k = spec.relief, spec.depth, _SLIT
+    top = half(H) + spec.spread / 2                       # halbe Keilbreite oben
+    edge: list[tuple[float, float]] = []
+    edge += [(sc - w2 - r, 0.0), (sc - w2, -d)] if r > 0 else [(sc - w2, 0.0)]
+    edge += [(sc - w2, H), (sc - half(H), H), (sc - half(bt), bt), (sc - half(H) - k, H),   # Einzelschnitt bis Steg
+             (sc - top, H + spec.wedge_out), (sc + top, H + spec.wedge_out),                # Keilkopf
+             (sc + half(H) + k, H), (sc + half(bt), bt), (sc + half(H), H), (sc + w2, H)]
+    edge += [(sc + w2, -d), (sc + w2 + r, 0.0)] if r > 0 else [(sc + w2, 0.0)]
+    rb = spec.slot_bottom / 2
+    inner = [(sc - half(bb), bb), (sc - rb, -d + rb)]
+    inner += [(sc + rb * math.cos(a), -d + rb + rb * math.sin(a))
+              for a in np.radians(np.arange(180 + step_deg, 360 - 1e-9, step_deg))]          # runder Grund
+    inner += [(sc + rb, -d + rb), (sc + half(bb), bb), (sc + half(wb) - k, wb), (sc - half(wb) + k, wb)]
+    return edge, inner
+
+
+def hammer_joint(rings_a, rings_b, spec: HammerSpec, tol: float = 0.5, all_edges: bool = False):
+    """Keilzapfen an Teil A (Keil mit Stegen im Schlitz), passende Zapfenlöcher in Teil B.
+
+    Die Teile liegen beim Aufruf Kante an Kante. Danach wird Teil A um Zapfen- und Keilhöhe + gap von B
+    weggeschoben. Gibt (Ringe A inkl. Schlitzkonturen, Ringe B inkl. Löcher, Anzahl Kanten, Verschiebung
+    von A) zurück."""
+    t, w = spec.thickness, spec.width
+    if t <= 0 or w <= 0:
+        raise ValueError("Materialstärke und Zapfenbreite müssen größer als 0 sein.")
+    H, bt, bb, wb, half = _hammer_dims(spec)
+    if not (wb + 1.0 < bb and bt < H and half(H) * 2 + 4 < w):
+        raise ValueError("Die Maße passen nicht zusammen: Keil, Stege und Schlitz brauchen mehr Platz – "
+                         "Schlitztiefe vergrößern, Keilüberstand oder Steglänge verkleinern.")
+    if half(wb) * 2 >= half(H) * 2 + spec.spread or spec.spread <= 0:
+        raise ValueError("Der Keil muss oben breiter sein als der Schlitz (Spreizung größer als 0).")
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=w + 4)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für die Zapfen ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    if not all_edges:
+        edges = edges[:1]
+    jobs, holes, inner_rings = [], [], []
+    for e in edges:
+        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (3 * w))))
+        if n * (w + 2 * spec.relief + 4) > e.length:
+            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Zapfen mit {w:g} mm – "
+                             "weniger oder schmalere Zapfen wählen.")
+        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        u = (e.p1 - e.p0) / e.length
+        v = -_material_normal(ra, e.p0, e.p1)
+        for sc in centers:
+            probe = e.p0 + u * sc - v * (spec.depth + 1.0)
+            if not inside(probe[None], ra)[0]:
+                raise ValueError("Teil A ist an der Kante zu schmal für die Schlitztiefe – Schlitztiefe verkleinern.")
+            hw, c = w / 2, spec.clearance / 2
+            box = [(sc - hw, spec.inset - c), (sc + hw, spec.inset - c), (sc + hw, spec.inset + t + c),
+                   (sc - hw, spec.inset + t + c)]
+            ring = np.array([e.p0 + u * s + v * tt for s, tt in box])
+            if not inside(ring, rb).all():
+                raise ValueError("Die Zapfenlöcher passen nicht in Teil B – Abstand zur Kante oder Zapfenbreite "
+                                 "verkleinern.")
+            holes.append(ring)
+        jobs.append((e, centers, u, v))
+    for e, centers, u, v in sorted(jobs, key=lambda j: -j[0].ka):
+        pts = [(0.0, 0.0)]
+        for sc in centers:
+            edge, inner = hammer_tenon_profile(sc, spec)
+            pts += edge
+            inner_rings.append(np.array([e.p0 + u * s + v * tt for s, tt in inner]))
+        pts.append((e.length, 0.0))
+        ra[e.ra] = _insert_points(ra[e.ra], e.ka, np.array([e.p0 + u * s + v * tt for s, tt in pts]))
+    shift = -jobs[0][3] * (H + spec.wedge_out + spec.gap)
+    ra = [r + shift for r in ra + inner_rings]
+    return ra, rb + holes, len(jobs), shift
+
+
+# ---------------------------------------------------------------- Knöchelscharnier (Knuckle Hinge)
+#
+# Scharnier zwischen zwei Teilen einer Box, z. B. Rückwand der Box und Rückwand des Deckels, die Kante an
+# Kante liegen (so wie sie bei geschlossener Box übereinanderstehen). Die Knöchel sind Scheiben aus dem
+# Material, die senkrecht auf der Außenseite der Wände stehen – abwechselnd an Teil A und Teil B – und je
+# mit zwei kleinen Fingerzinken in Schlitzen der Wand stecken. Das Auge mit dem Loch liegt genau über der
+# gemeinsamen Kante; zum Ende hin ist der Knöchel abgeschrägt. Durch alle Augen geht der Stift: ein
+# mitgelaserter Vierkantstift (dreht sich im runden Loch) oder ein Rundstab/Draht.
+
+@dataclass
+class KnuckleSpec:
+    thickness: float = 3.0      # Materialstärke (Wände und Knöchel)
+    knuckles: int = 5           # Knöchel je Scharnier (ungerade: außen beide an Teil A)
+    hinges: int = 2             # Scharniere entlang der Kante (1 = mittig, 2 = nahe den Enden)
+    inset: float = 10.0         # bei 2 Scharnieren: Abstand vom Ende der Kante
+    pin: float = 0.0            # Stiftdurchmesser; 0 = Vierkantstift mitlasern
+    clearance: float = 0.2      # Spiel: Loch um den Stift, Schlitze um die Zinken
+    wall: float = 2.0           # Wandstärke um das Loch
+    length: float = 25.0        # Knöchellänge ab der Kante (auf der Wand)
+    end_height: float = 3.0     # Höhe des Knöchels am abgeschrägten Ende
+    tab: float = 4.0            # Länge eines Fingerzinkens
+
+
+def knuckle_hole(spec: KnuckleSpec) -> float:
+    """Lochdurchmesser: Rundstab + Spiel, oder Diagonale des Vierkantstifts + Spiel."""
+    d = spec.pin if spec.pin > 0 else spec.thickness * math.sqrt(2)
+    return d + spec.clearance
+
+
+def knuckle_radius(spec: KnuckleSpec) -> float:
+    return knuckle_hole(spec) / 2 + spec.wall
+
+
+def knuckle_tabs(spec: KnuckleSpec) -> list[tuple[float, float]]:
+    """Lage der beiden Fingerzinken entlang der Wand (Abstand von der Kante: von, bis)."""
+    R, L, tw = knuckle_radius(spec), spec.length, spec.tab
+    c1 = R + tw / 2 + 1.0                                  # erster Zinken gleich hinter dem Auge
+    c2 = L - tw / 2 - 1.5                                  # zweiter kurz vor dem Ende
+    return [(c1 - tw / 2, c1 + tw / 2), (c2 - tw / 2, c2 + tw / 2)]
+
+
+def knuckle_plate(spec: KnuckleSpec, step_deg: float = 10.0) -> list[np.ndarray]:
+    """Ein Knöchel im Querschnitt (lokal: u entlang der Wand weg von der Kante, w von der Wandfläche nach
+    außen; Achse bei (0, R)). Unterkante liegt auf der Wand, zwei Zinken reichen um die Materialstärke
+    hinein, die Oberkante fällt vom Auge zum Ende hin ab. Rückgabe: [Außenkontur, Loch]."""
+    R, L, t, he = knuckle_radius(spec), spec.length, spec.thickness, spec.end_height
+    pts = [(0.0, 0.0)]
+    for a, b in knuckle_tabs(spec):
+        pts += [(a, 0.0), (a, -t), (b, -t), (b, 0.0)]
+    pts += [(L, 0.0), (L, he)]
+    # Tangente vom Endpunkt (L, he) an das Auge (Mitte (0, R), Radius R), obere Seite
+    dist = math.hypot(L, he - R)
+    tang = math.atan2(he - R, L) + math.acos(R / dist)      # Winkel des oberen Tangentenpunkts (von der Mitte)
+    a0 = tang % (2 * math.pi)
+    a1 = 1.5 * math.pi                                      # bis ganz unten (0, 0) gegen den Uhrzeigersinn
+    if a1 < a0:
+        a1 += 2 * math.pi
+    n = max(6, int(math.ceil(math.degrees(a1 - a0) / step_deg)))
+    pts += [(R * math.cos(w), R + R * math.sin(w)) for w in np.linspace(a0, a1, n + 1)[:-1]]
+    r = knuckle_hole(spec) / 2
+    hole = np.array([(r * math.cos(w), R + r * math.sin(w)) for w in np.radians(np.arange(0, 360, step_deg))])
+    return [np.array(pts), hole]
+
+
+def knuckle_hinge(rings_a, rings_b, spec: KnuckleSpec, tol: float = 0.5):
+    """Knöchelscharnier an der längsten gemeinsamen Kante von Teil A und B.
+
+    Rückgabe: (Schlitze für A, Schlitze für B, Knöchel-Konturen [Ringe je Knöchel], Stifte, Kantenlänge).
+    Knöchel 1, 3, 5 … jedes Scharniers gehören zu A, 2, 4 … zu B."""
+    t, n = spec.thickness, spec.knuckles
+    if t <= 0 or n < 2:
+        raise ValueError("Materialstärke muss größer als 0 sein und es braucht mindestens 2 Knöchel.")
+    R = knuckle_radius(spec)
+    (a1, b1), (a2, b2) = knuckle_tabs(spec)
+    if not (b1 + 1 < a2 and spec.end_height < 2 * R and spec.end_height > 0):
+        raise ValueError(f"Der Knöchel ist zu kurz für Auge und zwei Zinken – Knöchellänge mindestens "
+                         f"{2 * R + 2 * spec.tab + 5:.0f} mm, Höhe am Ende kleiner als {2 * R:.1f} mm.")
+    ra = [np.asarray(r, float) for r in rings_a]
+    rb = [np.asarray(r, float) for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=n * t + 2)
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden, die lang genug für das Scharnier ist. Die beiden Teile "
+                         "Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen).")
+    e = edges[0]
+    u = (e.p1 - e.p0) / e.length
+    na = _material_normal(ra, e.p0, e.p1)                  # in Teil A hinein
+    nb = _material_normal(rb, e.p0, e.p1)                  # in Teil B hinein
+    span = n * t
+    if spec.hinges >= 2:
+        starts = [spec.inset, e.length - spec.inset - span]
+        if starts[1] < starts[0] + span + 2:
+            raise ValueError("Die Kante ist zu kurz für zwei Scharniere – Abstand vom Rand verkleinern oder ein "
+                             "Scharnier wählen.")
+    else:
+        starts = [(e.length - span) / 2]
+    if starts[0] < 0:
+        raise ValueError("Das Scharnier ist länger als die Kante – weniger Knöchel wählen.")
+    c = spec.clearance
+    slots_a: list[np.ndarray] = []
+    slots_b: list[np.ndarray] = []
+    for x0 in starts:
+        for i in range(n):
+            xa, xb = x0 + i * t - c / 2, x0 + (i + 1) * t + c / 2
+            nrm, out = (na, slots_a) if i % 2 == 0 else (nb, slots_b)
+            for a, b in knuckle_tabs(spec):
+                ya, yb = a - c / 2, b + c / 2
+                out.append(np.array([e.p0 + u * xx + nrm * yy for xx, yy in ((xa, ya), (xb, ya), (xb, yb), (xa, yb))]))
+    for s_ in slots_a:
+        if not inside(s_, ra).all():
+            raise ValueError("Die Schlitze passen nicht in Teil A – Knöchellänge verkleinern.")
+    for s_ in slots_b:
+        if not inside(s_, rb).all():
+            raise ValueError("Die Schlitze passen nicht in Teil B – Knöchellänge verkleinern.")
+    plates = [knuckle_plate(spec) for _ in range(n * len(starts))]
+    pins = [np.array([[0, 0], [span + 2 * t, 0], [span + 2 * t, t], [0, t]], float)
+            for _ in starts] if spec.pin <= 0 else []
+    return slots_a, slots_b, plates, pins, e.length

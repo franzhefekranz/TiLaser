@@ -18,7 +18,9 @@ from tilaser.core import geometry as g                      # noqa: E402
 from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
-from tilaser.core.joints import finger_joint                # noqa: E402
+from tilaser.core.joints import (HammerSpec, KnuckleSpec, SnapSpec, finger_joint, hammer_joint,  # noqa: E402
+                                 hammer_tenon_profile, knuckle_hinge, knuckle_hole, knuckle_plate, puzzle_joint,
+                                 snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -98,6 +100,10 @@ def main():
     sheet([hinge, holes, slots, joint, gears, puzzle, sten], 3, "muster_generatoren.png")
     joint_types()
     hinge_types()
+    puzzle_types()
+    snap_types()
+    hammer_types()
+    knuckle_types()
     print("Bilder in", OUT)
 
 
@@ -116,6 +122,144 @@ def joint_types():
                 d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
         d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "zinken_arten.png"), optimize=True)
+
+
+def puzzle_types():
+    """Puzzle-Verbindung: Nasen an einem Teil und abwechselnd, Teile wie gezeichnet, farbig gefüllt."""
+    a = [np.array([[0, 0], [80, 0], [80, 35], [0, 35.]])]
+    b = [np.array([[0, 35], [80, 35], [80, 70], [0, 70.]])]
+    im = Image.new("RGB", (900, 400), "white")
+    d = ImageDraw.Draw(im)
+    sc = 3.6
+    for i, (alt, label) in enumerate(((False, "Nasen an einem Teil"), (True, "Nasen abwechselnd"))):
+        ra, rb, _ = puzzle_joint(a, b, 12, 0, 0.0, alt)
+        ox = 60 + i * 450
+        for rs, col in ((ra, HOLZ), (rb, (150, 190, 230))):
+            for r in rs:
+                d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
+        d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "puzzle_verbindung.png"), optimize=True)
+
+
+def snap_types():
+    """Snap-Lock: links die Teile wie erzeugt, rechts eine Lasche im Schnitt (eingerastet)."""
+    a = [np.array([[0, 0], [80, 0], [80, 30], [0, 30.]])]
+    b = [np.array([[0, 30], [80, 30], [80, 60], [0, 60.]])]
+    spec = SnapSpec(thickness=4, width=10, barb=0.7, slit=1.6)
+    ra, rb, _, _ = snap_lock(a, b, spec)
+    im = Image.new("RGB", (900, 420), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox = 3.6, 60
+    d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in ra[0]], fill=HOLZ, outline=TEXT)
+    d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in rb[0]], fill=(150, 190, 230), outline=TEXT)
+    for r in rb[1:]:
+        d.polygon([(x * sc + ox, 360 - (y + 12) * sc) for x, y in r], fill="white", outline=TEXT)
+    d.text((ox + 40 * sc, 395), _t("Teile wie erzeugt"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt: Teil A (Lasche) steckt senkrecht durch Teil B
+    sc2, cx, base = 9.0, 690, 300
+    prof = snap_tab_profile(0.0, spec)
+    tab = [(cx + s * sc2, base - t * sc2) for s, t in prof]
+    body = [(cx - 12 * sc2, base)] + tab + [(cx + 12 * sc2, base), (cx + 12 * sc2, base + 8 * sc2),
+                                           (cx - 12 * sc2, base + 8 * sc2)]
+    d.polygon(body, fill=HOLZ, outline=TEXT)
+    t = spec.thickness
+    d.rectangle([cx - 20 * sc2, base - t * sc2, cx - (spec.width + spec.clearance) / 2 * sc2, base], fill=(150, 190, 230),
+                outline=TEXT)
+    d.rectangle([cx + (spec.width + spec.clearance) / 2 * sc2, base - t * sc2, cx + 20 * sc2, base], fill=(150, 190, 230),
+                outline=TEXT)
+    d.text((cx, 395), _t("Eingerastet (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "snap_lock.png"), optimize=True)
+
+
+def hammer_types():
+    """Hammerverbindung: links die Teile wie erzeugt, Mitte der Zapfen vergrößert, rechts eingeschlagen (Schnitt)."""
+    a = [np.array([[0, 0], [70, 0], [70, 34], [0, 34.]])]
+    b = [np.array([[0, 34], [70, 34], [70, 62], [0, 62.]])]
+    spec = HammerSpec()
+    ra, rb, _, shift = hammer_joint(a, b, spec)
+    im = Image.new("RGB", (1000, 460), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 3.4, 30, 330
+
+    def P(r, s=sc, x0=ox, y0=oy, cx=0.0, cy=0.0):
+        return [((x - cx) * s + x0, y0 - (y - cy) * s) for x, y in r]
+    d.polygon(P(ra[0]), fill=HOLZ, outline=TEXT)
+    for r in ra[1:]:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    d.polygon(P(rb[0]), fill=(150, 190, 230), outline=TEXT)
+    for r in rb[1:]:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    d.text((ox + 35 * sc, 430), _t("Teile wie erzeugt"), fill=TEXT, font=_font(18), anchor="mm")
+    # vergrößert: Zapfen mit Keil und Stegen (nur Linien, wie geschnitten)
+    cx, cy = 35.0, 34 + float(shift[1])
+    zoom = Image.new("RGB", (300, 330), "white")
+    dz = ImageDraw.Draw(zoom)
+    for r in ra:
+        dz.line(P(np.vstack([r, r[:1]]), 7.0, 150, 230, cx, cy), fill=(200, 40, 40), width=2)
+    dz.rectangle([0, 0, 299, 329], outline=(200, 200, 200))
+    im.paste(zoom, (350, 75))
+    d.text((500, 430), _t("Zapfen mit Keil und Stegen"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt nach dem Einschlagen
+    sc2, cx2, base = 6.0, 840, 270
+    H = spec.thickness + spec.protrude
+    edge, _ = hammer_tenon_profile(0.0, spec)
+    tenon = [(s, t) for s, t in edge if t <= H + 1e-9]               # ohne Keilkopf
+    body = [(cx2 - 22 * sc2, base)] + [(cx2 + s * sc2, base - t * sc2) for s, t in tenon] + \
+        [(cx2 + 22 * sc2, base), (cx2 + 22 * sc2, base + 21 * sc2), (cx2 - 22 * sc2, base + 21 * sc2)]
+    d.polygon(body, fill=HOLZ, outline=TEXT)
+    t, hw = spec.thickness, spec.width / 2
+    for x0, x1 in ((-26, -hw), (hw, 26)):
+        d.rectangle([cx2 + x0 * sc2, base - (t + spec.clearance) * sc2, cx2 + x1 * sc2, base], fill=(150, 190, 230),
+                    outline=TEXT)
+    top = [p for p in edge if p[1] > H + 1e-9]
+    wb = -spec.depth + 1.0
+    half_top = abs(top[0][0])
+    wedge = [(-half_top, H), (half_top, H), (half_top - spec.spread / 2 - spec.taper / 2 * (H - wb), wb),
+             (-half_top + spec.spread / 2 + spec.taper / 2 * (H - wb), wb)]
+    d.polygon([(cx2 + s * sc2, base - y * sc2) for s, y in wedge], fill=(200, 160, 110), outline=TEXT)
+    d.text((cx2, 430), _t("Keil eingeschlagen (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "hammerverbindung.png"), optimize=True)
+
+
+def knuckle_types():
+    """Knöchelscharnier: links Rückwände von Box und Deckel mit Schlitzen und die Knöchel, rechts im Schnitt."""
+    spec = KnuckleSpec()
+    A = [np.array([[0, 0], [100, 0], [100, 50], [0, 50.]])]
+    B = [np.array([[0, 50], [100, 50], [100, 75], [0, 75.]])]
+    slots_a, slots_b, plates, pins, _ = knuckle_hinge(A, B, spec)
+    im = Image.new("RGB", (1100, 430), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 3.6, 20, 330
+
+    def P(r, dx=0.0, dy=0.0):
+        return [(ox + (x + dx) * sc, oy - (y + dy) * sc) for x, y in r]
+    d.polygon(P(A[0]), fill=HOLZ, outline=TEXT)
+    d.polygon(P(B[0]), fill=(150, 190, 230), outline=TEXT)
+    for r in slots_a + slots_b:
+        d.polygon(P(r), fill="white", outline=TEXT)
+    d.text((ox + 50 * sc, 400), _t("Rückwand Box und Deckel"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt quer zur Achse: Wände senkrecht, außen rechts; Box unten (Holz), Deckel oben (blau)
+    s2, cx, cy = 7.0, 700, 200
+    t = spec.thickness
+    plate, hole = knuckle_plate(spec)
+    for sign, col, dark in ((1, HOLZ, (190, 160, 110)), (-1, (150, 190, 230), (100, 140, 190))):
+        wall = [(-t, 0), (0, 0), (0, 26), (-t, 26)]
+        d.polygon([(cx + w * s2, cy + sign * u * s2) for w, u in wall], fill=dark, outline=TEXT)
+        d.polygon([(cx + w * s2, cy + sign * u * s2) for u, w in plate], fill=col, outline=TEXT)
+    R = knuckle_hole(spec) / 2 + spec.wall
+    d.polygon([(cx + w * s2, cy + u * s2) for u, w in hole], fill="white", outline=TEXT)
+    q = t / 2
+    d.polygon([(cx + (R + x) * s2, cy + y * s2) for x, y in ((-q, -q), (q, -q), (q, q), (-q, q))],
+              fill=(200, 160, 110), outline=TEXT)
+    d.text((cx - 30, cy - 140), _t("Deckel"), fill=TEXT, font=_font(16), anchor="rm")
+    d.text((cx - 30, cy + 140), _t("Box"), fill=TEXT, font=_font(16), anchor="rm")
+    d.text((cx, 400), _t("Schnitt quer zur Achse"), fill=TEXT, font=_font(18), anchor="mm")
+    # einzelner Knöchel
+    s3, kx, ky = 5.0, 880, 330
+    d.polygon([(kx + x * s3, ky - y * s3) for x, y in plate], fill=HOLZ, outline=TEXT)
+    d.polygon([(kx + x * s3, ky - y * s3) for x, y in hole], fill="white", outline=TEXT)
+    d.text((kx + 60, 400), _t("Knöchel"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
 
 
 def hinge_types():

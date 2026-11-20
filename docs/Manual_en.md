@@ -576,6 +576,115 @@ the other exactly matching cut-outs. This is how:
 Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
 ([Determining the kerf](#determining-the-kerf)).
 
+<!-- hilfe: puzzle-verbindung -->
+### Puzzle joint on edge
+
+Connects two parts lying **flat edge to edge** with round knobs like jigsaw pieces – e.g. to assemble a
+panel larger than the work area from two parts, or for signs and games. The neck of each knob is narrower
+than its head, so the parts cannot be pulled apart in the plane.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K).
+2. Select both parts → *Tools → Puzzle joint on edge…*
+3. Under **Knobs on**, choose which part gets the knobs; the other gets exactly matching cut-outs.
+
+![Puzzle joint: knobs on one part and alternating](screenshots/en/puzzle_verbindung.png)
+
+| Setting | Effect |
+|---|---|
+| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob) |
+| Knob size (head diameter) | Diameter of the round head. The neck is 60 % as wide, the knob protrudes about 1.15 × head diameter beyond the edge – the other part must be at least that deep |
+| Number per edge | 0 = automatic: about one knob every 2.5 head diameters, evenly distributed |
+| Alternate knobs on both parts | The knobs sit alternately on one and the other part (right picture) – holds equally well when pulled in both directions across the edge |
+| Clearance | Gap between knob and cut-out (half on each part). Positive = looser, negative = tighter. The laser itself already removes some material (kerf); for plywood 0 or a slightly negative value usually fits, see [Determining the kerf](#determining-the-kerf) |
+| Tolerance | How far apart the edges may be and still count as “touching” |
+| All shared edges | Otherwise only the longest shared edge is processed |
+
+If a part is too narrow at the edge for the knobs or the requested number of knobs does not fit on the edge,
+TiLaser reports this and changes nothing. Curves of the parts are converted into fine polylines. For the pieces
+of a whole jigsaw picture there is the [puzzle generator](#gear-puzzle-and-stencil-bridges).
+
+<!-- hilfe: snap-lock -->
+### Snap lock on edge
+
+Plug-in joint **at a right angle without glue or screws**: one part gets tabs made of two springy prongs with
+small hooks, the other matching rectangular slots. When pushing through, the prongs are squeezed together;
+on the back the hooks snap in. To release, squeeze the prongs together with your fingers. Typical for
+housings, boxes and brackets.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K). The edge of one part is later plugged into the
+   face of the other.
+2. Select both parts → *Tools → Snap lock on edge…*
+3. Under **Tabs on**, choose which part gets the tabs.
+
+TiLaser places the tabs on the edge, cuts the slots into the other part and then moves the part with the
+tabs away a little so that nothing overlaps (the status bar shows the distance).
+
+![Snap lock: parts as created and snapped in, in section](screenshots/en/snap_lock.png)
+
+| Setting | Effect |
+|---|---|
+| Tabs on | Part that gets the tabs; the other gets the slots |
+| Material thickness | Thickness of the material (both parts). The hooks sit just above it, the slots are that wide |
+| Tab width | Width of one tab (both prongs and the spring slit together) |
+| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed |
+| Hook (sideways overhang) | How far each hook protrudes sideways. More = holds tighter, harder to plug in. Together they must be smaller than spring slit + clearance, otherwise the prongs do not get through |
+| Spring slit | Width of the slit between the two prongs. It reaches a little into the part so that the prongs are longer and spring more softly |
+| Clearance | Play in the slot and under the hooks |
+| Distance of the slots from the edge | How far the slots are from the edge of the other part – the part with the tabs will stand exactly there |
+| Tolerance | How far apart the edges may be and still count as “touching” |
+| All shared edges | Otherwise only the longest shared edge is processed |
+
+**Tips:** The spring effect depends strongly on the material – test plywood and acrylic (brittle!) with a
+sample first. For acrylic choose small hooks (0.3–0.5 mm) and a wider spring slit. If the slots do not fit
+into the other part (too narrow or too close to the edge), TiLaser reports this and changes nothing.
+
+<!-- hilfe: hammerverbindung -->
+### Hammer joint on edge
+
+Tenon joint **at a right angle without screws or glue** after the “Hammer Joint” drawing by Jiskar Schmitz
+(Lasersheets, free to use): one part gets tenons with a tapering slot, the other matching mortises. The
+**wedge is cut directly inside the slot** and only hangs on two short bridges; it sticks out beyond the tenon.
+
+**Assembly:** push the tenon through the hole and drive the wedge in with a hammer. The bridges break, the
+wedge slides into the narrow part of the slot and pushes the two halves of the tenon apart inside the hole –
+the joint clamps. Afterwards the wedge is flush with the tenon, which itself protrudes slightly (*tenon
+protrusion*) and can be sanded flush. The joint cannot be taken apart again without damage.
+
+1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
+   [Placing edges together](#placing-edges-together) (Alt+K).
+2. Select both parts → *Tools → Hammer joint on edge…*
+3. Under **Tenons on**, choose which part gets the tenons.
+
+TiLaser places the tenons including the wedges on the edge, cuts the mortises into the other part and moves
+the part with the tenons away a little so that nothing overlaps.
+
+![Hammer joint: parts as created, tenon with wedge and bridges, driven in, in section](screenshots/en/hammerverbindung.png)
+
+| Setting | Effect |
+|---|---|
+| Tenons on | Part that gets the tenons; the other gets the mortises |
+| Material thickness | Thickness of the material (both parts); the mortise is that wide plus *clearance*, the tenon that long plus *protrusion* |
+| Tenon width | Length of the mortise (proven: 20 mm). The tenon itself is wider by the *oversize* |
+| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed |
+| Tenon protrusion | How far the tenon protrudes beyond the mating part (for sanding flush) |
+| Wedge protrusion before driving in | How far the wedge sticks out beyond the tenon – this is also the distance it slides into the slot when driven in. The original drawing uses 10 mm for all thicknesses |
+| Spread by the wedge | The wedge is this much wider at the top than the slot at the tip of the tenon (in total). More = tighter, but a higher risk of breaking |
+| Length of the holding bridges | The two bridges left and right on which the wedge hangs (5 mm below the tip of the tenon). Too long = hard to drive in, too short = the wedge falls out while lasering |
+| Slot depth into the part | How deep the wedge slot and the relief slits reach below the edge (original: 20 mm) |
+| Relief slits | Wedge-shaped slits left and right of the tenon (this wide at the top, pointed at the bottom). They make the tenon halves flexible. 0 = none |
+| Tenon oversize (width) | The tenon is this much wider than the mortise is long (original: 0.15 mm) – clamps additionally across |
+| Clearance in the mortise | The mortise is this much wider than the material is thick (original: 0.075 mm) |
+| Distance of the mortises from the edge | How far the mortises are from the edge of the other part – the part with the tenons will stand there |
+| Tolerance, All shared edges | As with the other joints |
+
+The defaults correspond to the original drawing (built the same for 3 to 12 mm; only the tenon length and
+the mortise width grow with the material thickness). **Tips:** birch plywood and solid wood from 6 mm work
+best, MDF works too. Brittle or very smooth materials (acrylic, bamboo across the grain, POM) are unsuitable.
+The clamping force depends strongly on material, kerf and beam taper – always test with a sample first. Lay
+the joint flat on the table when hammering so that the tenon does not tilt.
+
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
 
@@ -593,6 +702,43 @@ then cut out the puzzle.
 **Stencil bridges** (*Tools → Stencil bridges…*) – for stencils where letters are cut out of a sheet:
 inner parts as in O, A, B or 8 would fall out. Select a text or shape; TiLaser lays a bridge (vertical or
 horizontal) of the set width through each inner part.
+
+<!-- hilfe: knoechelscharnier -->
+### Knuckle hinge on edge
+
+*Tools → Knuckle hinge on edge…* builds a **hinge made only of laser-cut parts** between two parts of a box –
+typically the **back wall of the box and the back wall of the lid**. The knuckles are discs of the material
+that stand perpendicular on the outside of the walls, alternately on both parts. Each knuckle sits with **two
+small finger tabs** in slots of its wall. The eye with the hole sits exactly above the shared edge; towards
+the end the knuckle is **bevelled**. The **pin** goes through all eyes; the lid rotates around it.
+
+1. Place the two back walls as they meet when the box is closed: **edge to edge** (easiest with
+   [Placing edges together](#placing-edges-together), Alt+K).
+2. Select both → *Tools → Knuckle hinge on edge…*
+
+TiLaser cuts the slots into both back walls and places the knuckles (and the pins) to the right of the parts.
+Knuckles 1, 3, 5 … of each hinge belong to the part selected first, 2, 4 … to the other – the status bar
+names the assignment.
+
+![Knuckle hinge: back walls with slots, section across the axis, single knuckle](screenshots/en/knoechelscharnier.png)
+
+**Assembly:** put the knuckles into the slots (glue them if you like), place box and lid together so that the
+knuckles alternate and the eyes line up, then push the pin through. The laser-cut pin protrudes by one
+material thickness on both sides; a drop of glue at the ends holds it.
+
+| Setting | Effect |
+|---|---|
+| Material thickness | Thickness of the material – width of each knuckle, depth of the finger tabs |
+| Hinges | *One in the middle* or *Two, near the ends* of the edge |
+| Distance from the end of the edge | With two hinges: how far they are from the ends of the edge |
+| Knuckles per hinge | A hinge is *knuckles × material thickness* long. With an odd number, both outer knuckles belong to the first part |
+| Knuckle length | How far the knuckle lies on the wall from the edge |
+| Height at the bevelled end | The knuckle slopes down from the eye to this height |
+| Length of the finger tabs | Length of the two tabs (and slots) along the wall; one sits right behind the eye, one shortly before the end |
+| Pin diameter | 0 = a **square pin** is cut as well (edge length = material thickness); it turns in the round hole, whose diameter matches the diagonal. Otherwise the diameter of a round rod or wire |
+| Wall thickness around the hole | Material between the hole and the outer edge of the eye |
+| Clearance | Play in the hole around the pin and in the slots around the tabs |
+| Tolerance | How far apart the edges may be and still count as “touching” |
 
 ---
 
@@ -1298,6 +1444,10 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
+| Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
+| Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
+| Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
+| Knuckle hinge on edge… | | Hinge between two box parts: knuckles with finger tabs, slots, pin ([Knuckle hinge on edge](#knuckle-hinge-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

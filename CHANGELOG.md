@@ -4,6 +4,20 @@ Jede Version hat einen Abschnitt `## <Version>`; der Release-Workflow übernimmt
 GitHub-Releases. / Each version has a `## <version>` section; the release workflow uses it as the description of
 the GitHub release.
 
+## Unveröffentlicht
+
+- **Puzzle-Verbindung an Kante** (*Werkzeuge*): verbindet zwei flach Kante an Kante liegende Teile mit
+  runden Puzzle-Nasen (schmaler Hals, formschlüssig); Nasengröße, Anzahl, Spiel und Nasen abwechselnd an
+  beiden Teilen einstellbar.
+- **Snap-Lock an Kante** (*Werkzeuge*): federnde Rastlaschen mit Haken an einem Teil und passende Schlitze im
+  anderen – Steckverbindung im rechten Winkel ohne Leim.
+- **Hammerverbindung an Kante** (*Werkzeuge*, nach der Hammer-Joint-Zeichnung von Lasersheets): Zapfen mit
+  mitgelasertem Keil an zwei Haltestegen und passende Zapfenlöcher – der eingeschlagene Keil spreizt den Zapfen
+  im Loch (ohne Schrauben und Leim).
+- **Knöchelscharnier an Kante** (*Werkzeuge*): Scharnier nur aus Laserteilen zwischen zwei Boxteilen (z. B.
+  Rückwand von Box und Deckel) – abgeschrägte Knöchel mit je zwei Fingerzinken in Schlitzen der Wände und ein
+  mitgelaserter Vierkantstift (oder Rundstab).
+
 ## 0.9.1
 
 **Sicherheitsupdate (Beta).** Behebt Fehler aus einem Code-Review, die den Laser oder das Programm betreffen.

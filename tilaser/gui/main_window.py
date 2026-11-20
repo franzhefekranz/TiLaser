@@ -342,6 +342,17 @@ class MainWindow(QMainWindow):
                                "Hahnentritt, Fischgrät, Waben … als Gravur in der ausgewählten Fläche"))
         wz.addAction(self._act("Fingerzinken an Kante…", self.finger_joint_tool, None,
                                "Zinken an der gemeinsamen Kante zweier Teile, optional mit Dogbone-Ecken"))
+        wz.addAction(self._act("Puzzle-Verbindung an Kante…", self.puzzle_joint_tool, None,
+                               "Puzzle-Nasen an der gemeinsamen Kante zweier Teile, die Kante an Kante liegen"))
+        wz.addAction(self._act("Snap-Lock an Kante…", self.snap_lock_tool, None,
+                               "Federnde Rastlaschen an einem Teil, passende Schlitze im anderen (Steckverbindung "
+                               "im rechten Winkel ohne Leim)"))
+        wz.addAction(self._act("Hammerverbindung an Kante…", self.hammer_joint_tool, None,
+                               "Zapfen mit mitgelasertem Keil an einem Teil, Zapfenlöcher im anderen; der "
+                               "eingeschlagene Keil klemmt die Verbindung (ohne Schrauben und Leim)"))
+        wz.addAction(self._act("Knöchelscharnier an Kante…", self.knuckle_hinge_tool, None,
+                               "Scharnier zwischen zwei Boxteilen (z. B. Rückwand Box und Deckel): Knöchel mit je zwei "
+                               "Fingerzinken, Schlitze in den Wänden, Stift"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -1786,6 +1797,273 @@ class MainWindow(QMainWindow):
         self.canvas.select_only(new_ids)
         self.statusBar().showMessage(f"Fingerzinken an {n} Kante(n) erzeugt.", 6000)
 
+    def puzzle_joint_tool(self):
+        from ..core.joints import puzzle_height, puzzle_joint, sides
+        title = "Puzzle-Verbindung an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile Kante an Kante "
+                                                 "legen (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                                                 "versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        fields = [("knobs_on", "Nasen an", "c", "0", who),
+                  ("size", "Nasengröße (Kopfdurchmesser)", "f", 10.0, (2, 200, 1, 1, " mm")),
+                  ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
+                  ("alternate", "Nasen abwechselnd an beiden Teilen", "b", False, None),
+                  ("clearance", "Spiel", "f", 0.0, (-1, 2, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Das gewählte Teil bekommt runde Nasen mit schmalerem Hals, das andere genau passende Aussparungen – "
+                "die Teile halten in der Ebene zusammen wie Puzzleteile. Automatisch etwa alle 2,5 Kopfdurchmesser "
+                "eine Nase. Spiel: positiv = lockerer (z. B. 0,1 mm), negativ = strammer; der Laser nimmt selbst "
+                "schon etwas Material weg. Kurven der Teile werden in feine Linienzüge umgewandelt.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        first = 1 if str(v["knobs_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n = puzzle_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], v["size"], v["count"],
+                                     v["clearance"], v["alternate"], v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        new_ids = []
+        for it, world, idx, rr in ((a, wa, ia, ra), (b, wb, ib, rb)):
+            new_world = list(world)
+            for k, i in enumerate(idx):
+                if len(rr[k]) != len(world[i][0].pts) or not np.allclose(rr[k], world[i][0].pts):
+                    new_world[i] = (g.Polyline(rr[k], True), world[i][1])
+            new_ids.append(self._replace_item(it, new_world).id)
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"Puzzle-Verbindung an {n} Kante(n) erzeugt (Nasen ragen "
+                                     f"{puzzle_height(v['size']):.1f} mm über die Kante).", 6000)
+
+    def snap_lock_tool(self):
+        from ..core.joints import SnapSpec, sides, snap_height, snap_lock
+        title = "Snap-Lock an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile Kante an Kante "
+                                                 "legen (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                                                 "versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = SnapSpec()
+        fields = [("tabs_on", "Laschen an", "c", "0", who),
+                  ("thickness", "Materialstärke", "f", d.thickness, (0.5, 20, 2, 0.1, " mm")),
+                  ("width", "Laschenbreite", "f", d.width, (3, 100, 1, 0.5, " mm")),
+                  ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
+                  ("barb", "Haken (seitlicher Überstand)", "f", d.barb, (0.1, 3, 2, 0.05, " mm")),
+                  ("slit", "Federschlitz", "f", d.slit, (0.3, 10, 2, 0.1, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("inset", "Abstand der Schlitze zur Kante", "f", d.inset, (0.5, 100, 1, 0.5, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Das gewählte Teil bekommt Laschen aus zwei federnden Zungen mit Haken, das andere passende "
+                "rechteckige Schlitze. Zusammengesteckt stehen die Teile im rechten Winkel; die Zungen werden "
+                "beim Durchstecken zusammengedrückt und die Haken rasten auf der Rückseite ein. Danach wird das "
+                "Teil mit den Laschen etwas weggeschoben, damit sich nichts überlappt. Lösen: Zungen "
+                "zusammendrücken.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = SnapSpec(v["thickness"], v["width"], v["count"], v["barb"], v["slit"], v["clearance"], v["inset"])
+        first = 1 if str(v["tabs_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n, shift = snap_lock([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec,
+                                         v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        moved = [(p.transformed(g.translate(float(shift[0]), float(shift[1]))), lid) for p, lid in wa]
+        for k, i in enumerate(ia):
+            moved[i] = (g.Polyline(ra[k], True), wa[i][1])
+        new_b = list(wb)
+        for k, i in enumerate(ib):
+            if len(rb[k]) != len(wb[i][0].pts) or not np.allclose(rb[k], wb[i][0].pts):
+                new_b[i] = (g.Polyline(rb[k], True), wb[i][1])
+        lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+        new_b += [(g.Polyline(r, True), lid_b) for r in rb[len(ib):]]           # neue Schlitze
+        new_ids = [self._replace_item(a, moved).id, self._replace_item(b, new_b).id]
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"Snap-Lock an {n} Kante(n) erzeugt; {a.name} wurde um "
+                                     f"{snap_height(spec) + spec.gap:.1f} mm weggeschoben.", 8000)
+
+    def hammer_joint_tool(self):
+        from ..core.joints import HammerSpec, hammer_joint, sides
+        title = "Hammerverbindung an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        pos = sides(rings[0], rings[1], tol=2.0)
+        if pos is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile Kante an Kante "
+                                                 "legen (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                                                 "versuchen.")
+            return
+        where = {"left": "links", "right": "rechts", "top": "oben", "bottom": "unten"}
+        who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
+        d = HammerSpec()
+        fields = [("tenons_on", "Zapfen an", "c", "0", who),
+                  ("thickness", "Materialstärke", "f", d.thickness, (2, 30, 2, 0.5, " mm")),
+                  ("width", "Zapfenbreite", "f", d.width, (8, 100, 1, 1, " mm")),
+                  ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
+                  ("protrude", "Überstand des Zapfens", "f", d.protrude, (0, 3, 2, 0.05, " mm")),
+                  ("wedge_out", "Keilüberstand vor dem Einschlagen", "f", d.wedge_out, (2, 40, 1, 0.5, " mm")),
+                  ("spread", "Spreizung durch den Keil", "f", d.spread, (0.1, 4, 2, 0.05, " mm")),
+                  ("bridge", "Länge der Haltestege", "f", d.bridge, (0.2, 3, 2, 0.1, " mm")),
+                  ("depth", "Schlitztiefe in das Teil", "f", d.depth, (5, 100, 1, 0.5, " mm")),
+                  ("relief", "Entlastungsschlitze (0 = keine)", "f", d.relief, (0, 3, 2, 0.05, " mm")),
+                  ("press", "Übermaß des Zapfens (Breite)", "f", d.press, (-0.5, 1, 3, 0.05, " mm")),
+                  ("clearance", "Spiel im Zapfenloch", "f", d.clearance, (0, 1, 3, 0.025, " mm")),
+                  ("inset", "Abstand der Zapfenlöcher zur Kante", "f", d.inset, (0.5, 100, 1, 0.5, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
+                  ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
+        info = ("Nach der Hammerverbindung von Lasersheets: Das gewählte Teil bekommt Zapfen mit einem sich "
+                "verjüngenden Schlitz, das andere passende Zapfenlöcher. Der Keil wird mit zwei kurzen Stegen direkt "
+                "im Schlitz mitgelasert und steht über den Zapfen hinaus. Zapfen durch das Loch stecken und den Keil "
+                "mit dem Hammer bündig einschlagen – die Stege brechen, der Keil spreizt die Zapfenhälften im Loch. "
+                "Ohne Schrauben und Leim, nicht wieder lösbar. Am besten ab 6 mm Sperrholz oder Massivholz; vorher an "
+                "einem Probestück testen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = HammerSpec(thickness=v["thickness"], width=v["width"], count=v["count"], protrude=v["protrude"],
+                          wedge_out=v["wedge_out"], spread=v["spread"], bridge=v["bridge"], depth=v["depth"],
+                          relief=v["relief"], press=v["press"], clearance=v["clearance"], inset=v["inset"])
+        first = 1 if str(v["tenons_on"]) == "1" else 0
+        a, b = items[first], items[1 - first]
+        wa, wb = worlds[first], worlds[1 - first]
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        try:
+            ra, rb, n, shift = hammer_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec,
+                                            v["tol"], v["all"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        moved = [(p.transformed(g.translate(float(shift[0]), float(shift[1]))), lid) for p, lid in wa]
+        for k, i in enumerate(ia):
+            moved[i] = (g.Polyline(ra[k], True), wa[i][1])
+        lid_a = wa[ia[0]][1] if ia else next(iter(a.layer_ids()))
+        moved += [(g.Polyline(r, True), lid_a) for r in ra[len(ia):]]          # Schlitze unter den Keilen
+        new_b = list(wb)
+        lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+        new_b += [(g.Polyline(r, True), lid_b) for r in rb[len(ib):]]           # Zapfenlöcher
+        new_ids = [self._replace_item(a, moved).id, self._replace_item(b, new_b).id]
+        self.canvas.select_only(new_ids)
+        self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt; {a.name} wurde um "
+                                     f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
+
+    def knuckle_hinge_tool(self):
+        from ..core.joints import KnuckleSpec, knuckle_hinge, knuckle_hole, sides
+        title = "Knöchelscharnier an Kante"
+        items = self._vector_selection()
+        if len(items) != 2:
+            QMessageBox.information(self, title, "Bitte genau zwei Teile auswählen, deren Kanten sich berühren – z. B. "
+                                                 "die Rückwand der Box und die Rückwand des Deckels.")
+            return
+        worlds = [[(p, vp.layer_id) for p, vp in zip(it.world_paths(), it.paths)] for it in items]
+        rings = [[p.pts for p, _ in w if p.closed] for w in worlds]
+        if sides(rings[0], rings[1], tol=2.0) is None:
+            QMessageBox.information(self, title, "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, wie sie "
+                                                 "bei geschlossener Box aneinanderstoßen (z. B. mit Anordnen → Kanten "
+                                                 "aneinanderlegen), dann erneut versuchen.")
+            return
+        d = KnuckleSpec()
+        fields = [("thickness", "Materialstärke", "f", d.thickness, (1, 20, 2, 0.5, " mm")),
+                  ("hinges", "Scharniere", "c", 2, {1: "Eines in der Mitte", 2: "Zwei, nahe den Enden"}),
+                  ("inset", "Abstand vom Ende der Kante (bei zwei)", "f", d.inset, (0, 500, 1, 1, " mm")),
+                  ("knuckles", "Knöchel je Scharnier", "i", d.knuckles, (2, 99)),
+                  ("length", "Knöchellänge", "f", d.length, (8, 200, 1, 1, " mm")),
+                  ("end_height", "Höhe am abgeschrägten Ende", "f", d.end_height, (0.5, 50, 1, 0.5, " mm")),
+                  ("tab", "Länge der Fingerzinken", "f", d.tab, (1, 50, 1, 0.5, " mm")),
+                  ("pin", "Stiftdurchmesser (0 = Vierkantstift mitlasern)", "f", d.pin, (0, 20, 2, 0.5, " mm")),
+                  ("wall", "Wandstärke um das Loch", "f", d.wall, (0.8, 20, 1, 0.5, " mm")),
+                  ("clearance", "Spiel", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm"))]
+        info = ("Für zwei Boxteile, die bei geschlossener Box aneinanderstoßen – z. B. Rückwand der Box und Rückwand "
+                "des Deckels. Die Knöchel stehen senkrecht außen auf den Wänden, abwechselnd an beiden Teilen, und "
+                "stecken mit je zwei kleinen Fingerzinken in Schlitzen der Wand. Das Auge sitzt genau über der "
+                "gemeinsamen Kante, zum Ende hin ist der Knöchel abgeschrägt. Durch alle Augen geht der Stift – ein "
+                "mitgelaserter Vierkantstift oder ein Rundstab/Draht. Die Schlitze werden in die beiden Teile "
+                "geschnitten, Knöchel und Stifte entstehen neben den Teilen.")
+        dlg = ParamDialog(title, fields, self.project, info, self)
+        if dlg.exec() != ParamDialog.DialogCode.Accepted:
+            return
+        v = dlg.values()
+        spec = KnuckleSpec(thickness=v["thickness"], knuckles=v["knuckles"], hinges=int(v["hinges"]),
+                           inset=v["inset"], pin=v["pin"], clearance=v["clearance"], wall=v["wall"],
+                           length=v["length"], end_height=v["end_height"], tab=v["tab"])
+        a, b = items
+        wa, wb = worlds
+        try:
+            slots_a, slots_b, plates, pins, _ = knuckle_hinge(rings[0], rings[1], spec, v["tol"])
+        except ValueError as e:
+            QMessageBox.information(self, title, str(e))
+            return
+        self._checkpoint(title)
+        ia = [i for i, (p, _) in enumerate(wa) if p.closed]
+        ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        lid_a = wa[ia[0]][1] if ia else next(iter(a.layer_ids()))
+        lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+        new_a = list(wa) + [(g.Polyline(r, True), lid_a) for r in slots_a]
+        new_b = list(wb) + [(g.Polyline(r, True), lid_b) for r in slots_b]
+        bb = g.bbox_of([p for p, _ in wa + wb])
+        x = bb[2] + 10.0
+        knuckle_world = []
+        for rr in plates:
+            w_ = float(max(r[:, 0].max() for r in rr) - min(r[:, 0].min() for r in rr))
+            dx = x - float(min(r[:, 0].min() for r in rr))
+            knuckle_world += [(g.Polyline(r + [dx, bb[1] - float(min(q[:, 1].min() for q in rr))], True), lid_a)
+                              for r in rr]
+            x += w_ + 3.0
+        ids = [self._replace_item(a, new_a).id, self._replace_item(b, new_b).id,
+               self._add_generated(f"Knöchel ({len(plates)})", knuckle_world, False).id]
+        if pins:
+            y = bb[1] - 10.0
+            pin_world = []
+            for r in pins:
+                pin_world.append((g.Polyline(r + [bb[2] + 10.0, y], True), lid_a))
+                y -= spec.thickness + 3
+            ids.append(self._add_generated(f"Stift ({len(pins)})", pin_world, False).id)
+        self.canvas.select_only(ids)
+        self.statusBar().showMessage(f"Knöchelscharnier: {spec.hinges} × {spec.knuckles} Knöchel, Loch Ø "
+                                     f"{knuckle_hole(spec):.2f} mm. Ungerade Knöchel gehören zu {a.name}, gerade zu "
+                                     f"{b.name}.", 10000)
+
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)
         n = self.project._item_from_world(it.name, world)
@@ -2068,7 +2346,7 @@ class MainWindow(QMainWindow):
         self.canvas.set_tool("select")
         self.canvas.select_only([it.id])
         self.statusBar().showMessage("Kanten bündig angelegt. Tipp: beide Teile auswählen und Werkzeuge → "
-                                     "Fingerzinken an Kante… verzinkt sie.", 8000)
+                                     "Fingerzinken an Kante… oder Puzzle-Verbindung an Kante… verbindet sie.", 8000)
 
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):
