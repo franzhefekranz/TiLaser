@@ -643,44 +643,47 @@ into the other part (too narrow or too close to the edge), TiLaser reports this 
 <!-- hilfe: hammerverbindung -->
 ### Hammer joint on edge
 
-Tenon joint **at a right angle without screws or glue** that is fixed with a wedge (after the idea of the
-“hammer joint” by Snijlab/Lasersheets): one part gets tenons with a wedge-shaped slot, the other matching
-mortises. TiLaser also cuts a wedge for every tenon.
+Tenon joint **at a right angle without screws or glue** after the “Hammer Joint” drawing by Jiskar Schmitz
+(Lasersheets, free to use): one part gets tenons with a tapering slot, the other matching mortises. The
+**wedge is cut directly inside the slot** and only hangs on two short bridges; it sticks out beyond the tenon.
 
-**Assembly:** push the tenon through the hole, put the wedge into the slot narrow end first and drive it in
-flush with a hammer. The wedge is slightly wider than the slot and pushes the two halves of the tenon apart
-inside the hole – the joint clamps. It cannot be taken apart again without damage. The tenon protrudes
-slightly and can be sanded flush.
+**Assembly:** push the tenon through the hole and drive the wedge in with a hammer. The bridges break, the
+wedge slides into the narrow part of the slot and pushes the two halves of the tenon apart inside the hole –
+the joint clamps. Afterwards the wedge is flush with the tenon, which itself protrudes slightly (*tenon
+protrusion*) and can be sanded flush. The joint cannot be taken apart again without damage.
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** – easiest with
    [Placing edges together](#placing-edges-together) (Alt+K).
 2. Select both parts → *Tools → Hammer joint on edge…*
 3. Under **Tenons on**, choose which part gets the tenons.
 
-TiLaser places the tenons on the edge, cuts the mortises into the other part, puts the wedges next to the
-part with the tenons and moves that part away a little so that nothing overlaps.
+TiLaser places the tenons including the wedges on the edge, cuts the mortises into the other part and moves
+the part with the tenons away a little so that nothing overlaps.
 
-![Hammer joint: parts as created and with the wedge driven in, in section](screenshots/en/hammerverbindung.png)
+![Hammer joint: parts as created, tenon with wedge and bridges, driven in, in section](screenshots/en/hammerverbindung.png)
 
 | Setting | Effect |
 |---|---|
 | Tenons on | Part that gets the tenons; the other gets the mortises |
-| Material thickness | Thickness of the material (both parts); the tenons are that long plus *protrusion*, the mortises that wide |
-| Tenon width | Width of one tenon (proven: about 20 mm) |
+| Material thickness | Thickness of the material (both parts); the mortise is that wide plus *clearance*, the tenon that long plus *protrusion* |
+| Tenon width | Length of the mortise (proven: 20 mm). The tenon itself is wider by the *oversize* |
 | Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed |
-| Wedge slot top / bottom | Width of the slot at the tip of the tenon and at its (round) bottom. The slot tapers evenly; the wedge has the same slope |
-| Slot depth into the part | How far the wedge slot reaches below the edge. Longer tenon halves spring more softly |
-| Spread by the wedge | The wedge is this much wider than the slot – the tenon halves are pushed apart by this amount in total. More = tighter, but a higher risk of breaking |
-| Relief slits | Narrow slits left and right of the tenon, ¾ as deep as the wedge slot. They make the tenon halves flexible. 0 = none |
-| Tenon protrusion | The tenon is this much longer than the material is thick (for sanding flush) |
-| Clearance in the mortise | Play around the tenon |
+| Tenon protrusion | How far the tenon protrudes beyond the mating part (for sanding flush) |
+| Wedge protrusion before driving in | How far the wedge sticks out beyond the tenon – this is also the distance it slides into the slot when driven in. The original drawing uses 10 mm for all thicknesses |
+| Spread by the wedge | The wedge is this much wider at the top than the slot at the tip of the tenon (in total). More = tighter, but a higher risk of breaking |
+| Length of the holding bridges | The two bridges left and right on which the wedge hangs (5 mm below the tip of the tenon). Too long = hard to drive in, too short = the wedge falls out while lasering |
+| Slot depth into the part | How deep the wedge slot and the relief slits reach below the edge (original: 20 mm) |
+| Relief slits | Wedge-shaped slits left and right of the tenon (this wide at the top, pointed at the bottom). They make the tenon halves flexible. 0 = none |
+| Tenon oversize (width) | The tenon is this much wider than the mortise is long (original: 0.15 mm) – clamps additionally across |
+| Clearance in the mortise | The mortise is this much wider than the material is thick (original: 0.075 mm) |
 | Distance of the mortises from the edge | How far the mortises are from the edge of the other part – the part with the tenons will stand there |
 | Tolerance, All shared edges | As with the other joints |
 
-**Tips:** Birch plywood and solid wood from 6 mm work best, MDF works too. Brittle or very smooth materials
-(acrylic, bamboo across the grain, POM) are unsuitable. The clamping force depends strongly on material,
-kerf and beam taper – always test with a sample first and then adjust *spread* or *clearance*. Lay the joint
-flat on the table when hammering so that the tenon does not tilt.
+The defaults correspond to the original drawing (built the same for 3 to 12 mm; only the tenon length and
+the mortise width grow with the material thickness). **Tips:** birch plywood and solid wood from 6 mm work
+best, MDF works too. Brittle or very smooth materials (acrylic, bamboo across the grain, POM) are unsuitable.
+The clamping force depends strongly on material, kerf and beam taper – always test with a sample first. Lay
+the joint flat on the table when hammering so that the tenon does not tilt.
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Gear, puzzle and stencil bridges
@@ -1406,7 +1409,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
 | Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |
-| Hammer joint on edge… | | Tenons with wedge slot, mortises and wedges ([Hammer joint on edge](#hammer-joint-on-edge)) |
+| Hammer joint on edge… | | Tenons with a wedge cut in place, mortises in the other part ([Hammer joint on edge](#hammer-joint-on-edge)) |
 | Stencil bridges… | | Bridges for inner parts of letters |
 | Focus test… | | Find the best focus distance ([Focus test](#focus-test)) |
 | Line interval test… | | Find the best line interval ([Line interval test](#line-interval-test)) |

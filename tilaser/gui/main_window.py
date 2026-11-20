@@ -348,8 +348,8 @@ class MainWindow(QMainWindow):
                                "Federnde Rastlaschen an einem Teil, passende Schlitze im anderen (Steckverbindung "
                                "im rechten Winkel ohne Leim)"))
         wz.addAction(self._act("Hammerverbindung an Kante…", self.hammer_joint_tool, None,
-                               "Zapfen mit Keilschlitz an einem Teil, Zapfenlöcher im anderen; ein eingeschlagener "
-                               "Keil klemmt die Verbindung (ohne Schrauben und Leim)"))
+                               "Zapfen mit mitgelasertem Keil an einem Teil, Zapfenlöcher im anderen; der "
+                               "eingeschlagene Keil klemmt die Verbindung (ohne Schrauben und Leim)"))
         wz.addAction(self._act("Schablonen-Stege…", self.stencil_tool, None,
                                "Stege einfügen, damit Innenteile (O, A, B …) beim Ausschneiden nicht herausfallen"))
         wz.addSeparator()
@@ -1935,35 +1935,38 @@ class MainWindow(QMainWindow):
                   ("thickness", "Materialstärke", "f", d.thickness, (2, 30, 2, 0.5, " mm")),
                   ("width", "Zapfenbreite", "f", d.width, (8, 100, 1, 1, " mm")),
                   ("count", "Anzahl je Kante (0 = automatisch)", "i", 0, (0, 100)),
-                  ("slot_top", "Keilschlitz oben", "f", d.slot_top, (1, 30, 2, 0.1, " mm")),
-                  ("slot_bottom", "Keilschlitz unten", "f", d.slot_bottom, (0.3, 20, 2, 0.1, " mm")),
-                  ("depth", "Schlitztiefe in das Teil", "f", d.depth, (2, 100, 1, 0.5, " mm")),
-                  ("spread", "Spreizung durch den Keil", "f", d.spread, (0.1, 3, 2, 0.05, " mm")),
-                  ("relief", "Entlastungsschlitze (0 = keine)", "f", d.relief, (0, 5, 2, 0.1, " mm")),
                   ("protrude", "Überstand des Zapfens", "f", d.protrude, (0, 3, 2, 0.05, " mm")),
-                  ("clearance", "Spiel im Zapfenloch", "f", d.clearance, (0, 1, 2, 0.05, " mm")),
+                  ("wedge_out", "Keilüberstand vor dem Einschlagen", "f", d.wedge_out, (2, 40, 1, 0.5, " mm")),
+                  ("spread", "Spreizung durch den Keil", "f", d.spread, (0.1, 4, 2, 0.05, " mm")),
+                  ("bridge", "Länge der Haltestege", "f", d.bridge, (0.2, 3, 2, 0.1, " mm")),
+                  ("depth", "Schlitztiefe in das Teil", "f", d.depth, (5, 100, 1, 0.5, " mm")),
+                  ("relief", "Entlastungsschlitze (0 = keine)", "f", d.relief, (0, 3, 2, 0.05, " mm")),
+                  ("press", "Übermaß des Zapfens (Breite)", "f", d.press, (-0.5, 1, 3, 0.05, " mm")),
+                  ("clearance", "Spiel im Zapfenloch", "f", d.clearance, (0, 1, 3, 0.025, " mm")),
                   ("inset", "Abstand der Zapfenlöcher zur Kante", "f", d.inset, (0.5, 100, 1, 0.5, " mm")),
                   ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
                   ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
-        info = ("Das gewählte Teil bekommt Zapfen mit einem keilförmigen Schlitz, das andere passende Zapfenlöcher; "
-                "dazu entsteht je Zapfen ein Keil neben dem Teil. Zusammenbau: Zapfen durch das Loch stecken, Keil "
-                "in den Schlitz setzen und mit dem Hammer einschlagen – er drückt die Zapfenhälften im Loch "
-                "auseinander. Ohne Schrauben und Leim, aber nicht wieder lösbar. Am besten ab 6 mm Sperrholz oder "
-                "Massivholz; vorher an einem Probestück testen.")
+        info = ("Nach der Hammerverbindung von Lasersheets: Das gewählte Teil bekommt Zapfen mit einem sich "
+                "verjüngenden Schlitz, das andere passende Zapfenlöcher. Der Keil wird mit zwei kurzen Stegen direkt "
+                "im Schlitz mitgelasert und steht über den Zapfen hinaus. Zapfen durch das Loch stecken und den Keil "
+                "mit dem Hammer bündig einschlagen – die Stege brechen, der Keil spreizt die Zapfenhälften im Loch. "
+                "Ohne Schrauben und Leim, nicht wieder lösbar. Am besten ab 6 mm Sperrholz oder Massivholz; vorher an "
+                "einem Probestück testen.")
         dlg = ParamDialog(title, fields, self.project, info, self)
         if dlg.exec() != ParamDialog.DialogCode.Accepted:
             return
         v = dlg.values()
-        spec = HammerSpec(v["thickness"], v["width"], v["count"], v["slot_top"], v["slot_bottom"], v["depth"],
-                          v["spread"], v["protrude"], v["clearance"], v["inset"], v["relief"])
+        spec = HammerSpec(thickness=v["thickness"], width=v["width"], count=v["count"], protrude=v["protrude"],
+                          wedge_out=v["wedge_out"], spread=v["spread"], bridge=v["bridge"], depth=v["depth"],
+                          relief=v["relief"], press=v["press"], clearance=v["clearance"], inset=v["inset"])
         first = 1 if str(v["tenons_on"]) == "1" else 0
         a, b = items[first], items[1 - first]
         wa, wb = worlds[first], worlds[1 - first]
         ia = [i for i, (p, _) in enumerate(wa) if p.closed]
         ib = [i for i, (p, _) in enumerate(wb) if p.closed]
         try:
-            ra, rb, wedges, n, shift = hammer_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec,
-                                                    v["tol"], v["all"])
+            ra, rb, n, shift = hammer_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], spec,
+                                            v["tol"], v["all"])
         except ValueError as e:
             QMessageBox.information(self, title, str(e))
             return
@@ -1972,15 +1975,14 @@ class MainWindow(QMainWindow):
         for k, i in enumerate(ia):
             moved[i] = (g.Polyline(ra[k], True), wa[i][1])
         lid_a = wa[ia[0]][1] if ia else next(iter(a.layer_ids()))
-        moved += [(g.Polyline(r, True), lid_a) for r in wedges]                 # Keile neben Teil A
+        moved += [(g.Polyline(r, True), lid_a) for r in ra[len(ia):]]          # Schlitze unter den Keilen
         new_b = list(wb)
         lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
         new_b += [(g.Polyline(r, True), lid_b) for r in rb[len(ib):]]           # Zapfenlöcher
         new_ids = [self._replace_item(a, moved).id, self._replace_item(b, new_b).id]
         self.canvas.select_only(new_ids)
-        self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt ({len(wedges)} Keil(e) neben "
-                                     f"{a.name}); {a.name} wurde um {abs(float(np.hypot(*shift))):.1f} mm "
-                                     "weggeschoben.", 8000)
+        self.statusBar().showMessage(f"Hammerverbindung an {n} Kante(n) erzeugt; {a.name} wurde um "
+                                     f"{abs(float(np.hypot(*shift))):.1f} mm weggeschoben.", 8000)
 
     def _replace_item(self, it, world):
         idx = self.project.items.index(it)

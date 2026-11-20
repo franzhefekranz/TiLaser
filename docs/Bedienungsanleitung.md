@@ -650,45 +650,50 @@ Schlitze nicht in das andere Teil (zu schmal oder zu nah am Rand), meldet TiLase
 <!-- hilfe: hammerverbindung -->
 ### Hammerverbindung an Kante
 
-Zapfenverbindung **im rechten Winkel ohne Schrauben und Leim**, die mit einem Keil festgeschlagen wird
-(nach der Idee der „Hammerverbindung“ von Snijlab/Lasersheets): Das eine Teil bekommt Zapfen mit einem
-keilförmigen Schlitz, das andere passende Zapfenlöcher. Zu jedem Zapfen schneidet TiLaser einen Keil mit.
+Zapfenverbindung **im rechten Winkel ohne Schrauben und Leim** nach der „Hammer Joint“-Zeichnung von
+Jiskar Schmitz (Lasersheets, frei verwendbar): Das eine Teil bekommt Zapfen mit einem sich verjüngenden
+Schlitz, das andere passende Zapfenlöcher. Der **Keil wird direkt im Schlitz mitgelasert** und hängt nur an
+zwei kurzen Stegen; er steht über den Zapfen hinaus.
 
-**Zusammenbau:** Zapfen durch das Loch stecken, den Keil mit der schmalen Seite voran in den Schlitz setzen
-und mit dem Hammer bündig einschlagen. Der Keil ist etwas breiter als der Schlitz und drückt die beiden
-Zapfenhälften im Loch auseinander – die Verbindung klemmt. Sie lässt sich danach nicht mehr zerstörungsfrei
-lösen. Der Zapfen steht minimal über und kann bündig geschliffen werden.
+**Zusammenbau:** Zapfen durch das Loch stecken und den Keil mit dem Hammer einschlagen. Die Stege brechen,
+der Keil rutscht in den engen Teil des Schlitzes und drückt die beiden Zapfenhälften im Loch auseinander –
+die Verbindung klemmt. Danach ist der Keil bündig mit dem Zapfen, der seinerseits minimal übersteht
+(*Überstand des Zapfens*) und bündig geschliffen werden kann. Die Verbindung lässt sich nicht mehr
+zerstörungsfrei lösen.
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** – am einfachsten mit
    [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
 2. Beide Teile auswählen → *Werkzeuge → Hammerverbindung an Kante…*
 3. Unter **Zapfen an** wählen, welches Teil die Zapfen bekommt.
 
-TiLaser setzt die Zapfen an die Kante, schneidet die Löcher in das andere Teil, legt die Keile neben das
-Teil mit den Zapfen und schiebt dieses etwas weg, damit sich nichts überlappt.
+TiLaser setzt Zapfen samt Keil an die Kante, schneidet die Löcher in das andere Teil und schiebt das Teil mit
+den Zapfen etwas weg, damit sich nichts überlappt.
 
-![Hammerverbindung: Teile wie erzeugt und mit eingeschlagenem Keil im Schnitt](screenshots/hammerverbindung.png)
+![Hammerverbindung: Teile wie erzeugt, Zapfen mit Keil und Stegen, eingeschlagen im Schnitt](screenshots/hammerverbindung.png)
 
 | Einstellung | Wirkung |
 |---|---|
 | Zapfen an | Teil, das die Zapfen bekommt; das andere bekommt die Zapfenlöcher |
-| Materialstärke | Dicke des Materials (beide Teile); die Zapfen sind so lang plus *Überstand*, die Löcher so breit |
-| Zapfenbreite | Breite eines Zapfens (bewährt: etwa 20 mm) |
+| Materialstärke | Dicke des Materials (beide Teile); das Zapfenloch ist so breit plus *Spiel*, der Zapfen so lang plus *Überstand* |
+| Zapfenbreite | Länge des Zapfenlochs (bewährt: 20 mm). Der Zapfen selbst ist um das *Übermaß* breiter |
 | Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt |
-| Keilschlitz oben / unten | Breite des Schlitzes an der Zapfenspitze und an seinem (runden) Grund. Der Schlitz verjüngt sich gleichmäßig; der Keil hat dieselbe Schräge |
-| Schlitztiefe in das Teil | Wie weit der Keilschlitz unter die Kante reicht. Längere Zapfenhälften federn weicher |
-| Spreizung durch den Keil | Um so viel ist der Keil breiter als der Schlitz – so weit werden die Zapfenhälften zusammen auseinandergedrückt. Mehr = fester, aber höhere Bruchgefahr |
-| Entlastungsschlitze | Schmale Schlitze links und rechts neben dem Zapfen, ¾ so tief wie der Keilschlitz. Sie machen die Zapfenhälften beweglich. 0 = keine |
-| Überstand des Zapfens | Der Zapfen ist so viel länger als das Material dick ist (zum Bündigschleifen) |
-| Spiel im Zapfenloch | Luft rund um den Zapfen |
+| Überstand des Zapfens | So weit steht der Zapfen über das Gegenstück hinaus (zum Bündigschleifen) |
+| Keilüberstand vor dem Einschlagen | So weit ragt der Keil über den Zapfen – das ist auch der Weg, den er beim Einschlagen in den Schlitz rutscht. Die Originalzeichnung verwendet für alle Stärken 10 mm |
+| Spreizung durch den Keil | Um so viel ist der Keil oben breiter als der Schlitz an der Zapfenspitze (gesamt). Mehr = fester, aber höhere Bruchgefahr |
+| Länge der Haltestege | Die zwei Stege links und rechts, an denen der Keil hängt (5 mm unter der Zapfenspitze). Zu lang = lässt sich schwer einschlagen, zu kurz = Keil fällt beim Lasern heraus |
+| Schlitztiefe in das Teil | Wie tief Keilschlitz und Entlastungsschlitze unter die Kante reichen (Original: 20 mm) |
+| Entlastungsschlitze | Keilförmige Schlitze links und rechts neben dem Zapfen (oben so breit, unten spitz). Sie machen die Zapfenhälften beweglich. 0 = keine |
+| Übermaß des Zapfens (Breite) | So viel ist der Zapfen breiter als das Loch lang (Original: 0,15 mm) – klemmt zusätzlich quer |
+| Spiel im Zapfenloch | So viel ist das Loch breiter als das Material dick (Original: 0,075 mm) |
 | Abstand der Zapfenlöcher zur Kante | Wie weit die Löcher vom Rand des anderen Teils entfernt sind – dort steht später das Teil mit den Zapfen |
 | Toleranz, Alle gemeinsamen Kanten | Wie bei den anderen Verbindungen |
 
-**Tipps:** Am besten geeignet sind Birken-Sperrholz und Massivholz ab 6 mm, MDF geht auch. Spröde oder sehr
-glatte Materialien (Acryl, Bambus quer zur Faser, POM) sind ungeeignet. Die Klemmkraft hängt stark von
-Material, Kerf und Strahlkegel ab – unbedingt vorher an einem Probestück testen und dann *Spreizung* oder
-*Spiel* anpassen. Beim Einschlagen die Verbindung flach auf den Tisch legen, damit sich der Zapfen nicht
-schräg stellt.
+Die Voreinstellungen entsprechen der Originalzeichnung (für 3 bis 12 mm gleich aufgebaut; nur Zapfenlänge
+und Lochbreite wachsen mit der Materialstärke). **Tipps:** Am besten geeignet sind Birken-Sperrholz und
+Massivholz ab 6 mm, MDF geht auch. Spröde oder sehr glatte Materialien (Acryl, Bambus quer zur Faser, POM)
+sind ungeeignet. Die Klemmkraft hängt stark von Material, Kerf und Strahlkegel ab – unbedingt vorher an
+einem Probestück testen. Beim Einschlagen die Verbindung flach auf den Tisch legen, damit sich der Zapfen
+nicht schräg stellt.
 
 <!-- hilfe: zahnrad-puzzle -->
 ### Zahnrad, Puzzle und Schablonen-Stege
@@ -1423,7 +1428,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
 | Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |
-| Hammerverbindung an Kante… | | Zapfen mit Keilschlitz, Zapfenlöcher und Keile ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
+| Hammerverbindung an Kante… | | Zapfen mit mitgelasertem Keil, Zapfenlöcher im anderen Teil ([Hammerverbindung an Kante](#hammerverbindung-an-kante)) |
 | Schablonen-Stege… | | Stege für Innenteile von Buchstaben |
 | Fokustest… | | Besten Fokusabstand finden ([Fokustest](#fokustest)) |
 | Zeilenabstandstest… | | Besten Zeilenabstand finden ([Zeilenabstandstest](#zeilenabstandstest)) |

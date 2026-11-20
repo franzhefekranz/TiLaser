@@ -2206,30 +2206,33 @@ def test_snap_lock():
 
 
 def test_hammer_joint():
-    from tilaser.core.joints import HammerSpec, hammer_joint, hammer_wedge
-
-    def area(r):
-        return abs(0.5 * float(np.sum(r[:, 0] * np.roll(r[:, 1], -1) - np.roll(r[:, 0], -1) * r[:, 1])))
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import HammerSpec, hammer_joint, hammer_tenon_profile
     a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40]], float)]
     b = [np.array([[80, 40], [0, 40], [0, 80], [80, 80]], float)]
-    spec = HammerSpec()
-    ra, rb, wedges, n, shift = hammer_joint(a, b, spec)
-    L = spec.thickness + spec.protrude
-    assert n == 1 and len(rb) == 2 and len(wedges) == 1 and np.allclose(shift, [0, -(L + spec.gap)])
-    assert abs(ra[0][:, 1].max() - shift[1] - (40 + L)) < 1e-9                      # Zapfenlänge
+    spec = HammerSpec(thickness=10, protrude=0.074)                         # wie die 10-mm-Originalzeichnung
+    ra, rb, n, shift = hammer_joint(a, b, spec)
+    H = 10.074
+    assert n == 1 and len(ra) == 2 and len(rb) == 2
+    assert np.allclose(shift, [0, -(H + spec.wedge_out + spec.gap)])
+    up = ra[0] - shift
+    assert abs(up[:, 1].max() - (40 + H + spec.wedge_out)) < 1e-9              # Keil steht über den Zapfen
     hole = rb[1]
-    assert abs(np.ptp(hole[:, 0]) - (spec.width + spec.clearance)) < 1e-9
-    # Keil: breiter als der Schlitz an der Spitze (Spreizung), schmal genug, um anzusetzen
-    wd = hammer_wedge(spec)
-    assert abs(np.ptp(wd[:, 0]) - (spec.slot_top + spec.spread)) < 1e-9 and wd[0, 0] * -2 < spec.slot_top
-    assert abs(area(wedges[0]) - area(wd)) < 1e-9
-    # Keile und Teile überlappen sich nicht
-    from tilaser.core.clip import inside
-    assert not inside(wedges[0], ra).any() and not inside(wedges[0], rb[:1]).any()
-    # Zapfen + Schlitze ändern die Fläche von A: Zapfen kommt hinzu, Schlitze fallen weg
-    assert area(ra[0]) > 80 * 40
-    for bad in (HammerSpec(slot_top=1.0, slot_bottom=1.5), HammerSpec(spread=3.0), HammerSpec(depth=45),
-                HammerSpec(inset=60)):
+    assert abs(np.ptp(hole[:, 0]) - 20.0) < 1e-9 and abs(np.ptp(hole[:, 1]) - 10.075) < 1e-9
+    edge, inner = hammer_tenon_profile(0.0, spec)
+    E, I = np.array(edge), np.array(inner)
+    tip = E[np.isclose(E[:, 1], H)]
+    assert abs(np.ptp(tip[:, 0]) - 20.15) < 1e-6                              # Zapfen 20,15 mm (Übermaß)
+    head = E[E[:, 1] > H + 1e-9]
+    assert abs(head[:, 0].max() - 3.3) < 0.05                                  # Keilkopf wie Original (±3,27)
+    assert abs(I[:, 1].min() + 20) < 1e-9 and abs(I[:, 1].max() - (H - 6)) < 1e-9   # Schlitz bis zum Steg
+    # Stege: zwischen Unterkante des Einzelschnitts und Oberkante der Schlitzkontur 1 mm Material
+    cut_bottom = E[E[:, 1] < H - 1e-9][:, 1]
+    assert abs(cut_bottom[(cut_bottom > 0)].min() - (H - 5)) < 1e-9
+    # der Keil (innerhalb der Kontur von A) ist mit A verbunden: Punkt im Keil liegt im Material von A
+    probe = np.array([[40.0, 40 + H - 1]]) + shift
+    assert inside(probe, ra[:1])[0] and not inside(probe, ra[1:])[0]
+    for bad in (HammerSpec(wedge_out=30), HammerSpec(depth=45), HammerSpec(inset=60), HammerSpec(spread=0)):
         try:
             hammer_joint(a, b, bad)
             raise AssertionError("muss abgelehnt werden")

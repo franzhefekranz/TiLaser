@@ -19,7 +19,7 @@ from tilaser.core import i18n                               # noqa: E402
 from tilaser.core.i18n import tr as _t                       # noqa: E402
 from tilaser.core import patterns as pt                     # noqa: E402
 from tilaser.core.joints import (HammerSpec, SnapSpec, finger_joint, hammer_joint, hammer_tenon_profile,  # noqa: E402
-                                 hammer_wedge, puzzle_joint, snap_lock, snap_tab_profile)
+                                 puzzle_joint, snap_lock, snap_tab_profile)
 from tilaser.core.shapes_gen import gear_pair, jigsaw, stencil_bridges   # noqa: E402
 from tilaser.core.text_import import default_font, text_to_polylines     # noqa: E402
 
@@ -170,37 +170,52 @@ def snap_types():
 
 
 def hammer_types():
-    """Hammerverbindung: links die Teile wie erzeugt (mit Keil), rechts eingeschlagen im Schnitt."""
+    """Hammerverbindung: links die Teile wie erzeugt, Mitte der Zapfen vergrößert, rechts eingeschlagen (Schnitt)."""
     a = [np.array([[0, 0], [70, 0], [70, 34], [0, 34.]])]
     b = [np.array([[0, 34], [70, 34], [70, 62], [0, 62.]])]
     spec = HammerSpec()
-    ra, rb, wedges, _, _ = hammer_joint(a, b, spec)
-    im = Image.new("RGB", (900, 440), "white")
+    ra, rb, _, shift = hammer_joint(a, b, spec)
+    im = Image.new("RGB", (1000, 460), "white")
     d = ImageDraw.Draw(im)
-    sc, ox, oy = 3.6, 40, 380
+    sc, ox, oy = 3.4, 30, 330
 
-    def P(r):
-        return [(x * sc + ox, oy - (y + 10) * sc) for x, y in r]
+    def P(r, s=sc, x0=ox, y0=oy, cx=0.0, cy=0.0):
+        return [((x - cx) * s + x0, y0 - (y - cy) * s) for x, y in r]
     d.polygon(P(ra[0]), fill=HOLZ, outline=TEXT)
+    for r in ra[1:]:
+        d.polygon(P(r), fill="white", outline=TEXT)
     d.polygon(P(rb[0]), fill=(150, 190, 230), outline=TEXT)
     for r in rb[1:]:
         d.polygon(P(r), fill="white", outline=TEXT)
-    for r in wedges:
-        d.polygon(P(r), fill=(200, 160, 110), outline=TEXT)
-    d.text((ox + 40 * sc, 415), _t("Teile wie erzeugt (mit Keil)"), fill=TEXT, font=_font(18), anchor="mm")
-    sc2, cx, base = 7.5, 690, 250
-    tab = [(cx + s * sc2, base - t * sc2) for s, t in hammer_tenon_profile(0.0, spec)]
-    body = [(cx - 19 * sc2, base)] + tab + [(cx + 19 * sc2, base), (cx + 19 * sc2, base + 20 * sc2),
-                                           (cx - 19 * sc2, base + 20 * sc2)]
+    d.text((ox + 35 * sc, 430), _t("Teile wie erzeugt"), fill=TEXT, font=_font(18), anchor="mm")
+    # vergrößert: Zapfen mit Keil und Stegen (nur Linien, wie geschnitten)
+    cx, cy = 35.0, 34 + float(shift[1])
+    zoom = Image.new("RGB", (300, 330), "white")
+    dz = ImageDraw.Draw(zoom)
+    for r in ra:
+        dz.line(P(np.vstack([r, r[:1]]), 7.0, 150, 230, cx, cy), fill=(200, 40, 40), width=2)
+    dz.rectangle([0, 0, 299, 329], outline=(200, 200, 200))
+    im.paste(zoom, (350, 75))
+    d.text((500, 430), _t("Zapfen mit Keil und Stegen"), fill=TEXT, font=_font(18), anchor="mm")
+    # Schnitt nach dem Einschlagen
+    sc2, cx2, base = 6.0, 840, 270
+    H = spec.thickness + spec.protrude
+    edge, _ = hammer_tenon_profile(0.0, spec)
+    tenon = [(s, t) for s, t in edge if t <= H + 1e-9]               # ohne Keilkopf
+    body = [(cx2 - 22 * sc2, base)] + [(cx2 + s * sc2, base - t * sc2) for s, t in tenon] + \
+        [(cx2 + 22 * sc2, base), (cx2 + 22 * sc2, base + 21 * sc2), (cx2 - 22 * sc2, base + 21 * sc2)]
     d.polygon(body, fill=HOLZ, outline=TEXT)
-    t, hw = spec.thickness, (spec.width + spec.clearance) / 2
-    for x0, x1 in ((-30, -hw), (hw, 30)):
-        d.rectangle([cx + x0 * sc2, base - t * sc2, cx + x1 * sc2, base], fill=(150, 190, 230), outline=TEXT)
-    L = spec.thickness + spec.protrude
-    wd = hammer_wedge(spec)
-    lw = wd[:, 1].max()
-    d.polygon([(cx + x * sc2, base - (L - lw + y) * sc2) for x, y in wd], fill=(200, 160, 110), outline=TEXT)
-    d.text((cx, 415), _t("Keil eingeschlagen (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
+    t, hw = spec.thickness, spec.width / 2
+    for x0, x1 in ((-26, -hw), (hw, 26)):
+        d.rectangle([cx2 + x0 * sc2, base - (t + spec.clearance) * sc2, cx2 + x1 * sc2, base], fill=(150, 190, 230),
+                    outline=TEXT)
+    top = [p for p in edge if p[1] > H + 1e-9]
+    wb = -spec.depth + 1.0
+    half_top = abs(top[0][0])
+    wedge = [(-half_top, H), (half_top, H), (half_top - spec.spread / 2 - spec.taper / 2 * (H - wb), wb),
+             (-half_top + spec.spread / 2 + spec.taper / 2 * (H - wb), wb)]
+    d.polygon([(cx2 + s * sc2, base - y * sc2) for s, y in wedge], fill=(200, 160, 110), outline=TEXT)
+    d.text((cx2, 430), _t("Keil eingeschlagen (Schnitt)"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "hammerverbindung.png"), optimize=True)
 
 
