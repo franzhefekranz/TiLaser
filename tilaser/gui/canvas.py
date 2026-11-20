@@ -377,14 +377,24 @@ class LaserCanvas(QGraphicsView):
         self.rebuild_all()
 
     def rebuild_all(self):
+        """Alle Objekte neu aufbauen (z. B. nach Rückgängig oder Projekt laden).
+
+        Beim Entfernen ausgewählter Grafiken meldet die Szene sofort „Auswahl geändert“ – zu diesem Zeitpunkt
+        passen Grafiken und Projekt nicht zusammen (Objekte, die es im neuen Projekt nicht gibt). Die Signale
+        werden deshalb während des Umbaus gesperrt und danach einmal mit der gültigen Auswahl gesendet."""
         selected = set(self.selected_ids())
-        for gi in self.graphics.values():
-            self.scene_.removeItem(gi)
-        self.graphics = {}
-        for it in self.project.items:
-            self.add_item(it, select=it.id in selected)
+        old, self.graphics = self.graphics, {}
+        self.scene_.blockSignals(True)
+        try:
+            for gi in old.values():
+                self.scene_.removeItem(gi)
+            for it in self.project.items:
+                self.add_item(it, select=it.id in selected)
+        finally:
+            self.scene_.blockSignals(False)
         self.update_overlay()
         self.update_scene_rect()
+        self._on_selection()
 
     def add_item(self, item: Item, select=False):
         gi = ItemGraphic(item, self.project, self._on_graphic_moved, self._snap)
@@ -397,7 +407,14 @@ class LaserCanvas(QGraphicsView):
     def remove_item(self, item_id: str):
         gi = self.graphics.pop(item_id, None)
         if gi:
-            self.scene_.removeItem(gi)
+            was_selected = gi.isSelected()
+            self.scene_.blockSignals(True)               # Auswahl-Signal erst, wenn alles konsistent ist
+            try:
+                self.scene_.removeItem(gi)
+            finally:
+                self.scene_.blockSignals(False)
+            if was_selected:
+                self._on_selection()
         self.update_overlay()
 
     def refresh_item(self, item_id: str, geometry=False):

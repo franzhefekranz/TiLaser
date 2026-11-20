@@ -555,6 +555,36 @@ ideal für Lüftungsgitter in Gehäusewänden.
 Ziegel, Wellen), *Drehung* dreht das Muster. Hahnentritt und Fischgrät sind wie beim Stoff aus kleinen
 Quadraten aufgebaut.
 
+<!-- hilfe: biegezone -->
+### Biegescharnier zwischen zwei Kanten
+
+*Werkzeuge → Biegescharnier zwischen zwei Kanten…* verbindet zwei Teile über eine **Biegezone** zu einem
+Teil – z. B. Boden und Wand eines Gehäuses mit runder Ecke. Die Länge der Biegezone berechnet TiLaser aus
+**Radius und Winkel**.
+
+1. Werkzeug aufrufen und die **Kante des ersten Teils** anklicken – dieses Teil wird gedreht und
+   verschoben (die Kante wird beim Darüberfahren orange markiert, die erste gewählte blau).
+2. Die **Kante des zweiten Teils** anklicken, an die die Biegezone anschließen soll.
+3. Im Dialog Radius, Winkel und Materialstärke eingeben, dazu die Einstellungen des Schnittmusters.
+
+TiLaser legt das erste Teil so, dass seine Kante der anderen im Abstand der Biegelänge gegenüberliegt (Mitten
+bündig), füllt den Streifen dazwischen und vereinigt alles zu **einem Teil**. Der Streifen bekommt das
+[Biegescharnier-Muster](#muster-in-einer-fläche); die Schlitze laufen parallel zu den Kanten. Löcher und
+Gravuren beider Teile bleiben erhalten. *Bearbeiten → Rückgängig* stellt die beiden Teile wieder her.
+
+![Biegescharnier zwischen zwei Kanten: vorher und nachher](screenshots/biegezone_kanten.png)
+
+| Einstellung | Wirkung |
+|---|---|
+| Biegeradius (innen) | Innenradius der Biegung |
+| Biegewinkel | Um wie viel Grad gebogen wird (90° = rechtwinklige Ecke, 180° = Kehre) |
+| Materialstärke | Biegelänge = Winkel × (Radius + halbe Materialstärke), gemessen in der Mitte des Materials – z. B. 90° bei 10 mm Radius und 3 mm Material: 18,1 mm |
+| Art, Schlitzlänge, Steg, Abstand der Reihen | Wie beim [Biegescharnier](#muster-in-einer-fläche) in einer Fläche |
+| Abstand zum Rand | Abstand der geschlossenen Schlitzreihen von den Enden der Biegezone |
+
+Die Biegezone ist so breit, wie sich die beiden Kanten nach dem Ausrichten überdecken. Sind die Kanten
+verschieden lang, steht das längere Teil seitlich über.
+
 <!-- hilfe: fingerzinken -->
 ### Fingerzinken an Kante
 
@@ -741,8 +771,8 @@ Stift steht beidseitig eine Materialstärke über; ein Tropfen Leim an den Enden
 | Einstellung | Wirkung |
 |---|---|
 | Materialstärke | Dicke des Materials – Breite jedes Knöchels, Tiefe der Fingerzinken |
-| Scharniere | *Eines in der Mitte* oder *Zwei, nahe den Enden* der Kante |
-| Abstand vom Ende der Kante | Bei zwei Scharnieren: wie weit sie von den Enden der Kante entfernt sind |
+| Anzahl Scharniere | 1 = ein Scharnier in der Mitte der Kante. Ab 2 sitzen die äußeren nahe den Enden, die übrigen gleichmäßig dazwischen – für breite Teile |
+| Abstand der äußeren Scharniere vom Ende der Kante | Ab zwei Scharnieren: wie weit die äußeren von den Enden der Kante entfernt sind |
 | Knöchel je Scharnier | Ein Scharnier ist *Knöchel × Materialstärke* lang. Bei ungerader Anzahl sitzen außen beide Knöchel am ersten Teil |
 | Knöchellänge | Wie weit der Knöchel ab der Kante auf der Wand liegt |
 | Höhe am abgeschrägten Ende | Der Knöchel fällt vom Auge bis hierhin ab |
@@ -1463,6 +1493,7 @@ Die Schnittreihenfolge wirkt, wenn in den Maschineneinstellungen *Objekt für Ob
 | Muster in Fläche → Biegescharnier… | | Schnittmuster zum Biegen ([Muster in einer Fläche](#muster-in-einer-fläche)) |
 | Muster in Fläche → Lochmuster / Lüftungsgitter… | | Löcher oder Langlöcher verteilen |
 | Muster in Fläche → Gravurmuster… | | Hahnentritt, Fischgrät, Waben … als Gravur |
+| Biegescharnier zwischen zwei Kanten… | | Zwei Teile über eine Biegezone aus Radius und Winkel zu einem Teil verbinden ([Biegescharnier zwischen zwei Kanten](#biegescharnier-zwischen-zwei-kanten)) |
 | Fingerzinken an Kante… | | Zinken an der gemeinsamen Kante zweier Teile ([Fingerzinken an Kante](#fingerzinken-an-kante)) |
 | Puzzle-Verbindung an Kante… | | Puzzle-Nasen an der gemeinsamen Kante zweier Teile ([Puzzle-Verbindung an Kante](#puzzle-verbindung-an-kante)) |
 | Snap-Lock an Kante… | | Federnde Rastlaschen an einem Teil, Schlitze im anderen ([Snap-Lock an Kante](#snap-lock-an-kante)) |

@@ -6,6 +6,14 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- **Biegescharnier zwischen zwei Kanten** (*Werkzeuge*): zwei Kanten anklicken, Radius und Winkel eingeben –
+  TiLaser legt die Teile im Abstand der Biegelänge aneinander, verbindet sie zu einem Teil und versieht die
+  Biegezone mit dem Biegescharnier-Muster.
+- **Knöchelscharnier:** beliebig viele Scharniere entlang der Kante (für breite Teile).
+- **Behoben:** *Rückgängig* nach Werkzeugen, die Objekte ersetzen (Fingerzinken, Puzzle-, Snap-Lock-,
+  Hammerverbindung, Knöchelscharnier u. a.), meldete einen Fehler bzw. beendete das Programm. Ursache: Beim
+  Neuaufbau der Zeichenfläche wurde die Auswahl mit Objekten gemeldet, die es im wiederhergestellten Projekt
+  nicht mehr gab.
 - **Puzzle-Verbindung an Kante** (*Werkzeuge*): verbindet zwei flach Kante an Kante liegende Teile mit
   runden Puzzle-Nasen (schmaler Hals, formschlüssig); Nasengröße, Anzahl, Spiel und Nasen abwechselnd an
   beiden Teilen einstellbar.

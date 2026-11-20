@@ -141,3 +141,53 @@ def align_matrix(moving: Edge, target: Edge, mode: str = "center", gap: float = 
 
 def rotation_deg(m: np.ndarray) -> float:
     return math.degrees(math.atan2(m[1, 0], m[0, 0]))
+
+
+def bend_length(radius: float, angle_deg: float, thickness: float) -> float:
+    """Länge der Biegezone: Bogen auf der neutralen Faser (Innenradius + halbe Materialstärke)."""
+    return math.radians(angle_deg) * (radius + thickness / 2)
+
+
+def strip_between(target: Edge, ma: np.ndarray, mb: np.ndarray, length: float, extend: float = 0.0,
+                  inset: float = 0.0):
+    """Rechteck zwischen der Zielkante und der (bereits verschobenen) Gegenkante im Abstand length.
+
+    Quer zur Kante reicht es von -extend bis length + extend; entlang der Kante über den Bereich, in dem sich
+    beide Kanten überdecken (an beiden Enden um inset eingerückt). Rückgabe: (Ring, Breite) oder (None, 0)."""
+    u = (target.b - target.a) / max(1e-12, target.length)
+    s = sorted((float((ma - target.a) @ u), float((mb - target.a) @ u)))
+    o0, o1 = max(0.0, s[0]) + inset, min(target.length, s[1]) - inset
+    if o1 - o0 <= 1e-6:
+        return None, 0.0
+    n = target.outward
+    ring = np.array([target.a + u * o0 - n * extend, target.a + u * o1 - n * extend,
+                     target.a + u * o1 + n * (length + extend), target.a + u * o0 + n * (length + extend)])
+    return ring, o1 - o0
+
+
+def tidy_ring(pts: np.ndarray, eps: float = 0.02, angle_deg: float = 0.2) -> np.ndarray:
+    """Winzige Stufen (< eps) und fast gerade Knicke aus einem geschlossenen Ring entfernen
+    (entstehen beim Vereinigen von Flächen, deren Kanten bewusst minimal versetzt sind)."""
+    p = [np.asarray(q, float) for q in pts]
+    changed = True
+    while changed and len(p) > 3:
+        changed = False
+        for i in range(len(p)):
+            a, b = p[i], p[(i + 1) % len(p)]
+            if np.hypot(*(b - a)) < eps:
+                del p[(i + 1) % len(p)]
+                changed = True
+                break
+        else:
+            for i in range(len(p)):
+                a, b, c = p[i - 1], p[i], p[(i + 1) % len(p)]
+                u, v = b - a, c - b
+                nu, nv = np.hypot(*u), np.hypot(*v)
+                if nu < 1e-12 or nv < 1e-12:
+                    continue
+                cross = (u[0] * v[1] - u[1] * v[0]) / (nu * nv)
+                if abs(cross) < math.sin(math.radians(angle_deg)) and u @ v > 0:
+                    del p[i]
+                    changed = True
+                    break
+    return np.array(p)

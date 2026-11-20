@@ -2261,12 +2261,45 @@ def test_knuckle_hinge():
     assert abs(np.ptp(hole[:, 0]) - knuckle_hole(spec)) < 0.01
     one = knuckle_hinge(A, B, KnuckleSpec(hinges=1, pin=2.0))
     assert len(one[2]) == 5 and one[3] == []
-    for bad in (KnuckleSpec(length=10), KnuckleSpec(knuckles=40), KnuckleSpec(inset=45), KnuckleSpec(length=60)):
+    three = knuckle_hinge(A, B, KnuckleSpec(hinges=3))                          # breite Teile: mehrere Scharniere
+    starts = sorted({round(float(r[:, 0].min()) + 0.1, 3) for r in three[0]})
+    assert len(three[2]) == 15 and len(three[3]) == 3
+    assert abs(starts[0] - 10) < 1e-6 and abs(starts[-1] - (100 - 10 - 15 + 4 * 3)) < 1e-6         # letzter Knöchel
+    for bad in (KnuckleSpec(length=10), KnuckleSpec(knuckles=40), KnuckleSpec(inset=45), KnuckleSpec(length=60),
+                KnuckleSpec(hinges=6)):
         try:
             knuckle_hinge(A, B, bad)
             raise AssertionError("muss abgelehnt werden")
         except ValueError:
             pass
+
+
+def test_bend_between_edges():
+    from tilaser.core.clip import inside
+    from tilaser.core.edgealign import Edge, bend_length
+    from tilaser.core.patterns import bend_between
+    A = [np.array([[0, 0], [100, 0], [100, 60], [0, 60]], float),
+         np.array([[10, 10], [20, 10], [20, 20], [10, 20]], float)]                # mit Loch
+    B = [np.array([[150, 0], [230, 0], [230, 40], [150, 40]], float)]
+    target = Edge("a", np.array([100., 60.]), np.array([0., 60.]), np.array([0., 1.]))
+    moving = Edge("b", np.array([150., 40.]), np.array([150., 0.]), np.array([-1., 0.]))
+    m, merged, slits, L, width = bend_between(A, B, moving, target, 10, 90, 3)
+    assert abs(L - np.pi / 2 * 11.5) < 1e-9 and abs(width - 40) < 0.02
+    outer = max(merged, key=lambda p: np.ptp(p.pts[:, 1]))
+    assert abs(outer.pts[:, 1].max() - (60 + L + 80)) < 1e-6                      # B um 90° gedreht dahinter
+    assert len(merged) == 2                                                       # Loch von A bleibt
+    pts = np.vstack([q.pts for q in slits])
+    assert len(slits) > 20 and pts[:, 1].min() >= 60 - 1e-6 and pts[:, 1].max() <= 60 + L + 1e-6
+    assert inside(pts * 0.999 + np.array([50, 69]) * 0.001, [p.pts for p in merged]).all()
+    tiny = [np.array([[150, 0], [153, 0], [153, 2], [150, 2]], float)]
+    tiny_edge = Edge("b", np.array([150., 2.]), np.array([150., 0.]), np.array([-1., 0.]))
+    for bb, edge, r, ang in ((B, moving, 0.5, 5), (tiny, tiny_edge, 10, 90)):  # zu kurz / zu schmal
+        try:
+            bend_between(A, bb, edge, target, r, ang, 3)
+            raise AssertionError("muss abgelehnt werden")
+        except ValueError:
+            pass
+    assert abs(bend_length(0, 180, 4) - np.pi * 2) < 1e-9
 
 
 if __name__ == "__main__":

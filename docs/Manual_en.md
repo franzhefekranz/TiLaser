@@ -549,6 +549,36 @@ vent grilles in enclosure walls.
 *Size* is the repeat, *gap* the distance between the elements (diamonds, dots, honeycomb, bricks, waves),
 *rotation* rotates the pattern. Houndstooth and herringbone are built from small squares, like in fabric.
 
+<!-- hilfe: biegezone -->
+### Living hinge between two edges
+
+*Tools → Living hinge between two edges…* joins two parts via a **bending zone** into one part – e.g. bottom
+and wall of a housing with a round corner. TiLaser calculates the length of the bending zone from **radius
+and angle**.
+
+1. Start the tool and click the **edge of the first part** – this part is rotated and moved (the edge is
+   highlighted orange when hovering, the first chosen one blue).
+2. Click the **edge of the second part** the bending zone should connect to.
+3. In the dialog, enter radius, angle and material thickness, plus the settings of the cut pattern.
+
+TiLaser places the first part so that its edge faces the other one at the distance of the bending length
+(centres aligned), fills the strip in between and merges everything into **one part**. The strip gets the
+[living hinge pattern](#patterns-in-an-area); the slits run parallel to the edges. Holes and engravings of
+both parts are kept. *Edit → Undo* restores the two parts.
+
+![Living hinge between two edges: before and after](screenshots/en/biegezone_kanten.png)
+
+| Setting | Effect |
+|---|---|
+| Bending radius (inside) | Inner radius of the bend |
+| Bending angle | How many degrees the part is bent (90° = right-angled corner, 180° = U-turn) |
+| Material thickness | Bending length = angle × (radius + half the material thickness), measured in the middle of the material – e.g. 90° at 10 mm radius and 3 mm material: 18.1 mm |
+| Type, slit length, bridge, row spacing | As with the [living hinge](#patterns-in-an-area) in an area |
+| Distance to the edge | Distance of the closed rows of slits from the ends of the bending zone |
+
+The bending zone is as wide as the two edges overlap after aligning. If the edges have different lengths,
+the longer part protrudes at the side.
+
 <!-- hilfe: fingerzinken -->
 ### Finger joint on edge
 
@@ -729,8 +759,8 @@ material thickness on both sides; a drop of glue at the ends holds it.
 | Setting | Effect |
 |---|---|
 | Material thickness | Thickness of the material – width of each knuckle, depth of the finger tabs |
-| Hinges | *One in the middle* or *Two, near the ends* of the edge |
-| Distance from the end of the edge | With two hinges: how far they are from the ends of the edge |
+| Number of hinges | 1 = one hinge in the middle of the edge. From 2 on, the outer ones sit near the ends and the others evenly in between – for wide parts |
+| Distance of the outer hinges from the end of the edge | From two hinges on: how far the outer ones are from the ends of the edge |
 | Knuckles per hinge | A hinge is *knuckles × material thickness* long. With an odd number, both outer knuckles belong to the first part |
 | Knuckle length | How far the knuckle lies on the wall from the edge |
 | Height at the bevelled end | The knuckle slopes down from the eye to this height |
@@ -1443,6 +1473,7 @@ The cut order takes effect when *Object by object* is chosen in the machine sett
 | Patterns in area → Living hinge… | | Cut pattern for bending ([Patterns in an area](#patterns-in-an-area)) |
 | Patterns in area → Hole pattern / vent grille… | | Distribute holes or slots |
 | Patterns in area → Engraving pattern… | | Houndstooth, herringbone, honeycomb … as engraving |
+| Living hinge between two edges… | | Join two parts into one via a bending zone from radius and angle ([Living hinge between two edges](#living-hinge-between-two-edges)) |
 | Finger joint on edge… | | Fingers on the shared edge of two parts ([Finger joint on edge](#finger-joint-on-edge)) |
 | Puzzle joint on edge… | | Puzzle knobs on the shared edge of two parts ([Puzzle joint on edge](#puzzle-joint-on-edge)) |
 | Snap lock on edge… | | Springy snap tabs on one part, slots in the other ([Snap lock on edge](#snap-lock-on-edge)) |

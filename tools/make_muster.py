@@ -104,6 +104,7 @@ def main():
     snap_types()
     hammer_types()
     knuckle_types()
+    bend_example()
     print("Bilder in", OUT)
 
 
@@ -260,6 +261,34 @@ def knuckle_types():
     d.polygon([(kx + x * s3, ky - y * s3) for x, y in hole], fill="white", outline=TEXT)
     d.text((kx + 60, 400), _t("Knöchel"), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "knoechelscharnier.png"), optimize=True)
+
+
+def bend_example():
+    """Biegescharnier zwischen zwei Kanten: vorher zwei Teile mit markierten Kanten, nachher ein Teil."""
+    from tilaser.core.edgealign import Edge
+    from tilaser.core.patterns import bend_between
+    A = [np.array([[0, 0], [70, 0], [70, 45], [0, 45.]])]
+    B = [np.array([[95, 0], [145, 0], [145, 30], [95, 30.]])]
+    target = Edge("a", np.array([70., 45.]), np.array([0., 45.]), np.array([0., 1.]))
+    moving = Edge("b", np.array([95., 30.]), np.array([95., 0.]), np.array([-1., 0.]))
+    _, merged, slits, L, _ = bend_between(A, B, moving, target, 8, 90, 3)
+    im = Image.new("RGB", (900, 470), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 2.8, 30, 380
+
+    def P(r, x0=ox):
+        return [(x0 + x * sc, oy - y * sc) for x, y in r]
+    for r in A + B:
+        d.polygon(P(r), fill=HOLZ, outline=TEXT)
+    for e in (target, moving):
+        d.line(P([e.a, e.b]), fill=(220, 120, 0), width=5)
+    d.text((ox + 72 * sc, 440), _t("Vorher: zwei Kanten anklicken"), fill=TEXT, font=_font(18), anchor="mm")
+    ox2 = 560
+    d.polygon(P(merged[0].pts, ox2), fill=HOLZ, outline=TEXT)
+    for q in slits:
+        d.line(P(q.pts, ox2), fill=(200, 40, 40), width=1)
+    d.text((ox2 + 35 * sc, 440), _t("Nachher: ein Teil mit Biegezone"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "biegezone_kanten.png"), optimize=True)
 
 
 def hinge_types():
