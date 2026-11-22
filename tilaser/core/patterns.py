@@ -337,7 +337,20 @@ def bend_between(closed_a, closed_b, moving, target, radius: float, angle_deg: f
     merged = boolean(boolean(ra, [g.Polyline(strip, True)], "union"), rb, "union")
     if not merged:
         raise ValueError("Die Teile ließen sich nicht verbinden.")
-    merged = [g.Polyline(tidy_ring(p.pts), True) for p in merged]
+    # Die Überlappung von 0,02/0,005 mm wieder herausnehmen: Punkte auf die genauen Ecken von A, B und dem
+    # Streifen ziehen – sonst bleibt an den Streifenenden eine minimal schräge statt einer geraden Kante.
+    exact, _ = strip_between(target, ma, mb, L)
+    refs = np.vstack([np.asarray(p.pts, float) for p in ra + rb] + ([exact] if exact is not None else []))
+
+    def snap(pts):
+        pts = np.array(pts, float)
+        for i, q in enumerate(pts):
+            d = np.hypot(*(refs - q).T)
+            j = int(np.argmin(d))
+            if d[j] < 0.05:
+                pts[i] = refs[j]
+        return pts
+    merged = [g.Polyline(tidy_ring(snap(tidy_ring(p.pts))), True) for p in merged]
     region, _ = strip_between(target, ma, mb, L, extend=margin - spacing / 2)
     ang = float(np.degrees(np.arctan2(*(target.b - target.a)[::-1])))
     slits = living_hinge([g.Polyline(region, True)], slit, bridge, spacing, margin, ang, style)

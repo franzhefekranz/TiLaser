@@ -2297,6 +2297,13 @@ def test_bend_between_edges():
     outer = max(merged, key=lambda p: np.ptp(p.pts[:, 1]))
     assert abs(outer.pts[:, 1].max() - (60 + L + 80)) < 1e-6                      # B um 90° gedreht dahinter
     assert len(merged) == 2                                                       # Loch von A bleibt
+    # Kontur genau: Streifenenden senkrecht (keine Reste der 0,005-mm-Überlappung)
+    xs = sorted({round(float(x), 9) for x in outer.pts[:, 0]})
+    assert xs == [0.0, 30.0, 70.0, 100.0], xs
+    same = [np.array([[150, 0], [250, 0], [250, 30], [150, 30]], float)]       # gleich breit -> ein Rechteck
+    e_same = Edge("b", np.array([150., 30.]), np.array([250., 30.]), np.array([0., 1.]))
+    out = bend_between(A[:1], same, e_same, target, 10, 90, 3)[1]
+    assert len(out) == 1 and len(out[0].pts) == 4
     pts = np.vstack([q.pts for q in slits])
     assert len(slits) > 20 and pts[:, 1].min() >= 60 - 1e-6 and pts[:, 1].max() <= 60 + L + 1e-6
     assert inside(pts * 0.999 + np.array([50, 69]) * 0.001, [p.pts for p in merged]).all()

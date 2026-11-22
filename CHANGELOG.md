@@ -6,6 +6,9 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Biegescharnier zwischen zwei Kanten: Die Kontur des verbundenen Teils ist jetzt exakt – an den Enden der
+  Biegezone blieb sonst eine minimal schräge statt einer geraden Kante; bei gleich breiten Teilen entsteht ein
+  glattes Rechteck ohne Zwischenpunkte.
 - Fingerzinken an Kante: neue Art *Kante an Fläche* (T-Verbindung) – Zinken am einen Teil, passende Löcher in der
   Fläche des anderen im einstellbaren Abstand von dessen Kante; Zinkenlänge und Spiel einstellbar.
 - Neu: *Ansicht → An Knoten fangen* – ein Teil an einem Knoten greifen und ziehen; der Knoten rastet an Knoten
