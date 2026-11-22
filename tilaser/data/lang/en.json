@@ -1359,7 +1359,6 @@
  "Die Nasengröße muss größer als 0 sein.": "The knob size must be greater than 0.",
  "Das Spiel ist für diese Nasengröße zu groß.": "The clearance is too large for this knob size.",
  "Keine gemeinsame Kante gefunden, die lang genug für die Nasen ist. Die beiden Teile Kante an Kante legen (z. B. mit Anordnen → Kanten aneinanderlegen) oder die Nasen kleiner wählen.": "No shared edge long enough for the knobs found. Place the two parts edge to edge (e.g. with Arrange → Place edges together) or choose smaller knobs.",
- "Auf die Kante ({0} mm) passen keine {1} Nasen mit {2} mm – weniger Nasen oder kleinere Nasen wählen.": "{1} knobs of {2} mm do not fit on the edge ({0} mm) – choose fewer or smaller knobs.",
  "Ein Teil ist an der Kante zu schmal für die Nasen (sie ragen {0} mm hinein) – kleinere Nasen wählen.": "A part is too narrow at the edge for the knobs (they reach {0} mm into it) – choose smaller knobs.",
  "Nasen an einem Teil": "Knobs on one part",
  "Nasen abwechselnd": "Alternating knobs",
@@ -1564,5 +1563,6 @@
  "zusammengesteckt (Ansicht von vorn)": "assembled (front view)",
  "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kante an Fläche (T-Verbindung, z. B. Zwischenwand oder Regalboden): das gewählte Teil bekommt Zinken, das andere keine Zinken, sondern passende Löcher in der Fläche, im eingestellten Abstand von seiner Kante; das Teil mit den Zinken wird danach etwas weggeschoben. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Edge to surface (T-joint, e.g. a divider or shelf): the chosen part gets fingers, the other no fingers but matching holes in its surface at the set distance from its edge; the part with the fingers is then moved away a little. Curves of the parts are converted into fine polylines.",
  "Stress Relief an den Schlitzenden (Ø, 0 = aus)": "Stress relief at the slit ends (Ø, 0 = off)",
- "Der Durchmesser der Entlastungsbohrung muss kleiner als der Reihenabstand sein, sonst berührt sie die Nachbarreihe.": "The diameter of the relief hole must be smaller than the row spacing, otherwise it touches the neighbouring row."
+ "Der Durchmesser der Entlastungsbohrung muss kleiner als der Reihenabstand sein, sonst berührt sie die Nachbarreihe.": "The diameter of the relief hole must be smaller than the row spacing, otherwise it touches the neighbouring row.",
+ "Auf die Kante ({0} mm nutzbar) passen keine {1} Nasen mit {2} mm – weniger Nasen oder kleinere Nasen wählen.": "{1} knobs of {2} mm do not fit on the edge ({0} mm usable) – choose fewer or smaller knobs."
 }

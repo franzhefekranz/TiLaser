@@ -412,11 +412,14 @@ def puzzle_joint(rings_a, rings_b, size: float = 10.0, count: int = 0, clearance
     height = puzzle_height(size)
     jobs = []
     for e in edges:
-        n = count if count > 0 else puzzle_count(e.length, size)
-        if n * 1.1 * size > e.length:
-            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Nasen mit {size:g} mm – "
+        # schräg anschließende Nachbarkanten: Nasen nur dort, wo sie ganz in beide Teile passen
+        lo, hi = finger_range(ra, rb, e.p0, e.p1, height)
+        span = hi - lo
+        n = count if count > 0 else puzzle_count(span, size)
+        if n * 1.1 * size > span:
+            raise ValueError(f"Auf die Kante ({span:.1f} mm nutzbar) passen keine {n} Nasen mit {size:g} mm – "
                              "weniger Nasen oder kleinere Nasen wählen.")
-        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        centers = [lo + span * (i + 0.5) / n for i in range(n)]
         signs = [(-1 if (alternate and i % 2) else 1) for i in range(n)]
         u = (e.p1 - e.p0) / e.length
         v = -_material_normal(ra, e.p0, e.p1)               # von A nach B

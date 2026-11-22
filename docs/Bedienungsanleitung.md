@@ -651,7 +651,7 @@ auseinanderziehen.
 
 | Einstellung | Wirkung |
 |---|---|
-| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase) |
+| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase). An schrägen Kanten werden die Nasen nur auf dem Stück verteilt, auf dem sie ganz in beide Teile passen – keine Nase ragt über eine schräg anschließende Nachbarkante |
 | Nasengröße (Kopfdurchmesser) | Durchmesser des runden Kopfes. Der Hals ist 60 % so breit, die Nase ragt etwa 1,15 × Kopfdurchmesser über die Kante – so tief muss auch das andere Teil mindestens sein |
 | Anzahl je Kante | 0 = automatisch: etwa alle 2,5 Kopfdurchmesser eine Nase, gleichmäßig verteilt |
 | Nasen abwechselnd an beiden Teilen | Die Nasen sitzen abwechselnd am einen und am anderen Teil (Bild rechts) – hält auch bei Zug in beide Richtungen quer zur Kante gleich gut |

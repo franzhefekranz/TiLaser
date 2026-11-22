@@ -643,7 +643,7 @@ than its head, so the parts cannot be pulled apart in the plane.
 
 | Setting | Effect |
 |---|---|
-| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob) |
+| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob). On slanted edges, the knobs are distributed only over the piece where they fit completely into both parts – no knob sticks out over a slanted neighbouring edge |
 | Knob size (head diameter) | Diameter of the round head. The neck is 60 % as wide, the knob protrudes about 1.15 × head diameter beyond the edge – the other part must be at least that deep |
 | Number per edge | 0 = automatic: about one knob every 2.5 head diameters, evenly distributed |
 | Alternate knobs on both parts | The knobs sit alternately on one and the other part (right picture) – holds equally well when pulled in both directions across the edge |

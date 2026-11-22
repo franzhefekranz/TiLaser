@@ -2529,6 +2529,23 @@ def test_finger_joint_slanted_whole_fingers():
     e2 = find_shared_edges(R1, R2)[0]
     assert np.allclose(finger_range(R1, R2, e2.p0, e2.p1, 4), (0, 100))
 
+
+def test_puzzle_joint_slanted():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import find_shared_edges, finger_range, puzzle_height, puzzle_joint
+    A = [np.array([[0, 0], [100, 0], [100, 40], [0, 70]], float)]
+    B = [np.array([[0, 70], [100, 40], [100, 90], [0, 110]], float)]
+    for alt in (False, True):
+        ra, rb, _ = puzzle_joint(A, B, 14, alternate=alt)
+        both = [A[0], B[0]]
+        allpts = np.vstack([ra[0], rb[0]])
+        assert allpts[:, 0].min() >= -1e-6 and allpts[:, 0].max() <= 100 + 1e-6
+        # jede Nase liegt in der Vereinigung der beiden Teile (nichts ragt über die Seiten hinaus)
+        assert (inside(ra[0] * 0.999 + 0.0005 * np.array([100, 110]), both)).all()
+    e = find_shared_edges(A, B)[0]
+    lo, hi = finger_range(A, B, e.p0, e.p1, puzzle_height(14))
+    assert lo > 1 and hi < e.length - 1
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):
