@@ -6,8 +6,9 @@ the GitHub release.
 
 ## Unveröffentlicht
 
-- Fingerzinken und Puzzle-Verbindung an schrägen Kanten: nur noch ganze Zinken bzw. Nasen – an den Enden bleibt ein kurzes Stück gerade Kante,
-  statt dass eine angeschnittene Zinke über die schräg anschließende Nachbarkante hinaussteht.
+- Fingerzinken, Puzzle-Verbindung, Snap-Lock und Hammerverbindung an schrägen Kanten: nur noch ganze Zinken, Nasen,
+  Laschen bzw. Zapfen; sie werden nur auf dem Stück der Kante verteilt, auf dem sie (und ihre Schlitze/Löcher) ganz
+  in die Teile passen – nichts ragt mehr über eine schräg anschließende Nachbarkante.
 - Biegescharnier (in einer Fläche und zwischen zwei Kanten): optional *Stress Relief* – kleine Löcher an den
   Schlitzenden im Material, wie Dogbones, damit das Holz beim Biegen nicht einreißt.
 - Biegescharnier zwischen zwei Kanten: Die Kontur des verbundenen Teils ist jetzt exakt – an den Enden der

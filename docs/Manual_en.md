@@ -679,7 +679,7 @@ tabs away a little so that nothing overlaps (the status bar shows the distance).
 | Tabs on | Part that gets the tabs; the other gets the slots |
 | Material thickness | Thickness of the material (both parts). The hooks sit just above it, the slots are that wide |
 | Tab width | Width of one tab (both prongs and the spring slit together) |
-| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed |
+| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed. On slanted edges only over the piece where the slots lie completely in the other part |
 | Hook (sideways overhang) | How far each hook protrudes sideways. More = holds tighter, harder to plug in. Together they must be smaller than spring slit + clearance, otherwise the prongs do not get through |
 | Spring slit | Width of the slit between the two prongs. It reaches a little into the part so that the prongs are longer and spring more softly |
 | Clearance | Play in the slot and under the hooks |
@@ -718,7 +718,7 @@ the part with the tenons away a little so that nothing overlaps.
 | Tenons on | Part that gets the tenons; the other gets the mortises |
 | Material thickness | Thickness of the material (both parts); the mortise is that wide plus *clearance*, the tenon that long plus *protrusion* |
 | Tenon width | Length of the mortise (proven: 20 mm). The tenon itself is wider by the *oversize* |
-| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed |
+| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed. On slanted edges only over the piece where the slot and the mortise fit completely into the parts |
 | Tenon protrusion | How far the tenon protrudes beyond the mating part (for sanding flush) |
 | Wedge protrusion before driving in | How far the wedge sticks out beyond the tenon – this is also the distance it slides into the slot when driven in. The original drawing uses 10 mm for all thicknesses |
 | Spread by the wedge | The wedge is this much wider at the top than the slot at the tip of the tenon (in total). More = tighter, but a higher risk of breaking |

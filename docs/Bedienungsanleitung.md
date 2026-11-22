@@ -687,7 +687,7 @@ den Laschen anschließend etwas weg, damit sich nichts überlappt (die Statuslei
 | Laschen an | Teil, das die Laschen bekommt; das andere bekommt die Schlitze |
 | Materialstärke | Dicke des Materials (beide Teile). Die Haken sitzen knapp darüber, die Schlitze sind so breit |
 | Laschenbreite | Breite einer Lasche (beide Zungen und der Federschlitz zusammen) |
-| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt |
+| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt. An schrägen Kanten nur auf dem Stück, auf dem die Schlitze ganz im anderen Teil liegen |
 | Haken (seitlicher Überstand) | Wie weit jeder Haken seitlich übersteht. Mehr = hält fester, lässt sich schwerer stecken. Muss zusammen kleiner sein als Federschlitz + Spiel, sonst kommen die Zungen nicht durch |
 | Federschlitz | Breite des Schlitzes zwischen den beiden Zungen. Er reicht etwas in das Teil hinein, damit die Zungen länger und weicher federn |
 | Spiel | Luft im Schlitz und unter den Haken |
@@ -728,7 +728,7 @@ den Zapfen etwas weg, damit sich nichts überlappt.
 | Zapfen an | Teil, das die Zapfen bekommt; das andere bekommt die Zapfenlöcher |
 | Materialstärke | Dicke des Materials (beide Teile); das Zapfenloch ist so breit plus *Spiel*, der Zapfen so lang plus *Überstand* |
 | Zapfenbreite | Länge des Zapfenlochs (bewährt: 20 mm). Der Zapfen selbst ist um das *Übermaß* breiter |
-| Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt |
+| Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt. An schrägen Kanten nur auf dem Stück, auf dem Schlitz und Zapfenloch ganz in die Teile passen |
 | Überstand des Zapfens | So weit steht der Zapfen über das Gegenstück hinaus (zum Bündigschleifen) |
 | Keilüberstand vor dem Einschlagen | So weit ragt der Keil über den Zapfen – das ist auch der Weg, den er beim Einschlagen in den Schlitz rutscht. Die Originalzeichnung verwendet für alle Stärken 10 mm |
 | Spreizung durch den Keil | Um so viel ist der Keil oben breiter als der Schlitz an der Zapfenspitze (gesamt). Mehr = fester, aber höhere Bruchgefahr |

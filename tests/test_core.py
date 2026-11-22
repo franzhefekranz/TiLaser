@@ -2546,6 +2546,18 @@ def test_puzzle_joint_slanted():
     lo, hi = finger_range(A, B, e.p0, e.p1, puzzle_height(14))
     assert lo > 1 and hi < e.length - 1
 
+
+def test_snap_hammer_slanted():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import HammerSpec, SnapSpec, hammer_joint, snap_lock
+    A = [np.array([[0, 0], [100, 0], [100, 20], [0, 78]], float)]               # Kante 30° geneigt
+    B = [np.array([[0, 78], [100, 20], [100, 90], [0, 140]], float)]
+    # früher lag der erste Schlitz halb außerhalb von B (Fehlermeldung), jetzt rücken die Laschen ein
+    _, rb, _, _ = snap_lock(A, B, SnapSpec(inset=12, count=5))
+    assert len(rb) == 6 and all(inside(r, [B[0]]).all() for r in rb[1:])
+    _, rb, _, _ = hammer_joint(A, B, HammerSpec(count=4, width=16))
+    assert len(rb) == 5 and all(inside(r, [B[0]]).all() for r in rb[1:])
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

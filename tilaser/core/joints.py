@@ -212,11 +212,13 @@ def sides(rings_a, rings_b, tol: float = 0.5, min_len: float = 3.0):
     return ("bottom", "top") if to_b[1] > 0 else ("top", "bottom")
 
 
-def finger_range(ra, rb, p0, p1, depth: float) -> tuple[float, float]:
+def finger_range(ra, rb, p0, p1, depth: float, depth_a: float | None = None) -> tuple[float, float]:
     """Stück der gemeinsamen Kante p0…p1, auf dem ganze Zinken Platz haben: An jeder Stelle muss das
     Material um ``depth`` senkrecht zur Kante in beide Teile reichen. Bei rechtwinklig anschließenden Kanten
     ist das die ganze Kante; bei schrägen Kanten fehlt an den Enden ein Stück – dort bliebe sonst nur eine
-    angeschnittene Zinke, die über den Rand hinaussteht. Rückgabe (lo, hi) gemessen ab p0."""
+    angeschnittene Zinke, die über den Rand hinaussteht. ``depth_a``: andere Tiefe für Teil A (Standard:
+    ``depth``). Rückgabe (lo, hi) gemessen ab p0."""
+    da = depth if depth_a is None else depth_a
     L = float(np.hypot(*(p1 - p0)))
     u = (p1 - p0) / max(L, 1e-12)
     v = -_material_normal(ra, p0, p1)                   # in Teil B hinein
@@ -227,7 +229,7 @@ def finger_range(ra, rb, p0, p1, depth: float) -> tuple[float, float]:
 
     def ok(s):
         p = p0 + u * s
-        return on(p + v * depth, rb) and on(p - v * depth, ra)
+        return on(p + v * depth, rb) and on(p - v * da, ra)
 
     def edge_end(a, b):                                 # erste Stelle von a aus (Richtung b), ab der es passt
         if ok(a):
@@ -503,11 +505,14 @@ def snap_lock(rings_a, rings_b, spec: SnapSpec, tol: float = 0.5, all_edges: boo
         edges = edges[:1]
     jobs, slots = [], []
     for e in edges:
-        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (4 * spec.width))))
-        if n * (spec.width + 2 * spec.barb + 3) > e.length:
-            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Laschen mit {spec.width:g} mm – "
-                             "weniger oder schmalere Laschen wählen.")
-        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        # schräg anschließende Kanten von B: Laschen nur dort, wo die Schlitze ganz in B liegen
+        lo, hi = finger_range(ra, rb, e.p0, e.p1, spec.inset + t + spec.clearance, 0.0)
+        span = hi - lo
+        n = spec.count if spec.count > 0 else max(1, int(round(span / (4 * spec.width))))
+        if n * (spec.width + 2 * spec.barb + 3) > span:
+            raise ValueError(f"Auf die Kante ({span:.1f} mm nutzbar) passen keine {n} Laschen mit {spec.width:g} mm "
+                             "– weniger oder schmalere Laschen wählen.")
+        centers = [lo + span * (i + 0.5) / n for i in range(n)]
         u = (e.p1 - e.p0) / e.length
         v = -_material_normal(ra, e.p0, e.p1)              # von A nach B
         for sc in centers:
@@ -619,11 +624,14 @@ def hammer_joint(rings_a, rings_b, spec: HammerSpec, tol: float = 0.5, all_edges
         edges = edges[:1]
     jobs, holes, inner_rings = [], [], []
     for e in edges:
-        n = spec.count if spec.count > 0 else max(1, int(round(e.length / (3 * w))))
-        if n * (w + 2 * spec.relief + 4) > e.length:
-            raise ValueError(f"Auf die Kante ({e.length:.1f} mm) passen keine {n} Zapfen mit {w:g} mm – "
+        # schräg anschließende Kanten: Zapfen nur dort, wo Schlitz (in A) und Loch (in B) ganz hineinpassen
+        lo, hi = finger_range(ra, rb, e.p0, e.p1, spec.inset + t + spec.clearance, spec.depth + 1.0)
+        span = hi - lo
+        n = spec.count if spec.count > 0 else max(1, int(round(span / (3 * w))))
+        if n * (w + 2 * spec.relief + 4) > span:
+            raise ValueError(f"Auf die Kante ({span:.1f} mm nutzbar) passen keine {n} Zapfen mit {w:g} mm – "
                              "weniger oder schmalere Zapfen wählen.")
-        centers = [e.length * (i + 0.5) / n for i in range(n)]
+        centers = [lo + span * (i + 0.5) / n for i in range(n)]
         u = (e.p1 - e.p0) / e.length
         v = -_material_normal(ra, e.p0, e.p1)
         for sc in centers:
