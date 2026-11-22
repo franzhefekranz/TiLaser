@@ -101,6 +101,7 @@ def main():
     sten = tile(st, [], "Schablonen-Stege", False, sc=1.9)
     sheet([hinge, holes, slots, joint, gears, puzzle, sten], 3, "muster_generatoren.png")
     joint_types()
+    surface_joint_example()
     hinge_types()
     puzzle_types()
     snap_types()
@@ -128,6 +129,33 @@ def joint_types():
                 d.polygon([(x * sc + ox, 330 - y * sc) for x, y in r], fill=col, outline=TEXT)
         d.text((ox + 40 * sc, 370), _t(label), fill=TEXT, font=_font(18), anchor="mm")
     im.save(os.path.join(OUT, "zinken_arten.png"), optimize=True)
+
+
+def surface_joint_example():
+    """Fingerzinken Kante an Fläche: links die Teile nach dem Erzeugen, rechts zusammengesteckt (Ansicht)."""
+    from tilaser.core.joints import finger_holes
+    a = [np.array([[0, 0], [80, 0], [80, 40], [0, 40.]])]
+    b = [np.array([[-10, 0], [-10, -55], [100, -55], [100, 0.]])]
+    t, inset = 4.0, 22.0
+    ra, rb, _, _ = finger_holes(a, b, t, 12, inset=inset, clearance=0.0)
+    im = Image.new("RGB", (900, 400), "white")
+    d = ImageDraw.Draw(im)
+    sc, ox, oy = 3.0, 60, 165
+    for rs, col in ((ra, HOLZ), (rb[:1], (150, 190, 230))):
+        for r in rs:
+            d.polygon([(ox + x * sc, oy - y * sc) for x, y in r], fill=col, outline=TEXT)
+    for r in rb[1:]:
+        d.polygon([(ox + x * sc, oy - y * sc) for x, y in r], fill="white", outline=TEXT)
+    d.text((ox + 45 * sc, 370), _t("Teile nach dem Erzeugen"), fill=TEXT, font=_font(18), anchor="mm")
+    # zusammengesteckt, von vorn gesehen: B liegt als Platte, A steht darauf, Zinken gehen durch
+    ox2, oy2, s2 = 520, 300, 3.0
+    d.rectangle((ox2 - 10 * s2, oy2, ox2 + 100 * s2, oy2 + t * s2), fill=(150, 190, 230), outline=TEXT)
+    d.rectangle((ox2, oy2 - 40 * s2, ox2 + 80 * s2, oy2), fill=HOLZ, outline=TEXT)
+    w = 80 / 7
+    for i in range(1, 7, 2):
+        d.rectangle((ox2 + i * w * s2, oy2, ox2 + (i + 1) * w * s2, oy2 + t * s2), fill=HOLZ, outline=TEXT)
+    d.text((ox2 + 45 * s2, 370), _t("zusammengesteckt (Ansicht von vorn)"), fill=TEXT, font=_font(18), anchor="mm")
+    im.save(os.path.join(OUT, "zinken_flaeche.png"), optimize=True)
 
 
 def puzzle_types():

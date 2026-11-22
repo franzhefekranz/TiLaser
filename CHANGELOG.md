@@ -6,6 +6,8 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Fingerzinken an Kante: neue Art *Kante an Fläche* (T-Verbindung) – Zinken am einen Teil, passende Löcher in der
+  Fläche des anderen im einstellbaren Abstand von dessen Kante; Zinkenlänge und Spiel einstellbar.
 - Neu: *Ansicht → An Knoten fangen* – ein Teil an einem Knoten greifen und ziehen; der Knoten rastet an Knoten
   anderer Teile ein (orange Markierung, Alt = ohne Fangen).
 - Feineres Verschieben mit den Pfeiltasten: Strg = 0,1 mm (weiterhin 1 mm, Shift = 10 mm); alle drei Schrittweiten

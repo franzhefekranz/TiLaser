@@ -590,7 +590,8 @@ the longer part protrudes at the side.
 ### Finger joint on edge
 
 Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom: one part gets fingers,
-the other exactly matching cut-outs. This is how:
+the other exactly matching cut-outs. With *Edge to surface* one part meets the middle of the other's surface
+(T-joint, e.g. a divider or a shelf) – matching holes are created there instead of fingers. This is how:
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** (same line,
    overlapping). Easiest with [Placing edges together](#placing-edges-together) (Alt+K).
@@ -603,12 +604,23 @@ the other exactly matching cut-outs. This is how:
 | Setting | Effect |
 |---|---|
 | Type | **Interlocking: one part with fingers, the other with cut-outs** (default): the fingers protrude beyond the edge by the material thickness, the mating part gets equally deep cut-outs at the same places. As the parts lie, the fingers fill the cut-outs without gaps (left picture); the shared line is cut only once. For a 90° corner, draw the part with the fingers shorter by the material thickness. **Corner joint: both parts with offset cut-outs, outside dimensions stay**: like the box generator – both parts keep their outside dimensions and get alternating cut-outs (right picture). Lying flat side by side there are gaps; they only interlock when turned by 90° |
-| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay) |
+| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay; for *edge to surface*: the part standing on the surface) |
 | Material thickness | Depth of the fingers/cut-outs |
 | Finger width | Desired width; an odd number of equally wide fingers is distributed along the edge |
 | Dogbone diameter | Relieves every **inner corner** with a small circle (“dogbone”) so that square fingers go in completely – important for thick material, a strongly tapered beam or milling. 0 = off |
+| Edge to surface: distance of the holes from the edge | Where the part with the fingers stands on the surface: distance of the holes (their nearer side) from the edge of the other part |
+| Edge to surface: finger length | How far the fingers stick out; 0 = material thickness (flush with the back). Longer = they protrude at the back, e.g. for wedging |
+| Edge to surface: clearance in the holes | The holes become larger all round by half of it |
 | Tolerance | How far apart the edges may be and still count as “touching” |
-| All shared edges | Otherwise only the longest shared edge is processed |
+| All shared edges | Otherwise only the longest shared edge is processed (for *edge to surface* always only the longest) |
+
+**Edge to surface:** As with the other types, lay the two parts **edge to edge** – the edge of the part with the
+fingers against the edge of the other part along which the holes should lie. The fingers sit in the middle of
+the edge; at both ends a piece of plain edge remains that rests on the surface. The holes lie at the set
+distance from the edge of the other part; the part with the fingers is then moved away by finger length + 3 mm
+so that nothing overlaps.
+
+![Edge to surface: fingers on the standing part, holes in the surface](screenshots/en/zinken_flaeche.png)
 
 Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
 ([Determining the kerf](#determining-the-kerf)).

@@ -596,7 +596,9 @@ verschieden lang, steht das längere Teil seitlich über.
 ### Fingerzinken an Kante
 
 Verzinkt zwei beliebige Teile miteinander – z. B. eine selbst gezeichnete Rückwand mit einem Boden: Das
-eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
+eine Teil bekommt Zinken, das andere genau passende Aussparungen. Mit *Kante an Fläche* stößt das eine Teil
+mitten auf die Fläche des anderen (T-Verbindung, z. B. Zwischenwand oder Regalboden) – dort entstehen statt
+Zinken passende Löcher. So geht es:
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
    überlappend). Am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
@@ -609,12 +611,23 @@ eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 | Einstellung | Wirkung |
 |---|---|
 | Art | **Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen** (Standard): Die Zinken ragen um die Materialstärke über die Kante hinaus, das Gegenstück bekommt an denselben Stellen gleich tiefe Aussparungen. So wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos (Bild links); die gemeinsame Linie wird nur einmal geschnitten. Für eine 90°-Ecke zeichnet man das Teil mit den Zinken um die Materialstärke kürzer. **Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben**: wie beim Box-Generator – beide Teile behalten ihr Außenmaß und bekommen abwechselnd Aussparungen (Bild rechts). Flach nebeneinander bleiben Lücken; erst um 90° gedreht greifen sie ineinander |
-| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben) |
+| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben; bei *Kante an Fläche*: das Teil, das auf der Fläche steht) |
 | Materialstärke | Tiefe der Zinken/Aussparungen |
 | Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt |
 | Dogbone-Durchmesser | Rundet jede **Innenecke** mit einem kleinen Kreis frei („Hundeknochen“), damit eckige Zinken ganz hineinpassen – wichtig bei dickem Material, starker Kegelform des Strahls oder beim Fräsen. 0 = aus |
+| Kante an Fläche: Abstand der Löcher von der Kante | Wo das Teil mit den Zinken auf der Fläche steht: Abstand der Löcher (ihrer näheren Seite) von der Kante des anderen Teils |
+| Kante an Fläche: Zinkenlänge | Wie weit die Zinken herausragen; 0 = Materialstärke (bündig mit der Rückseite). Länger = sie stehen hinten über, z. B. zum Verkeilen |
+| Kante an Fläche: Spiel in den Löchern | Die Löcher werden ringsum um die Hälfte davon größer |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
-| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet (bei *Kante an Fläche* immer nur die längste) |
+
+**Kante an Fläche:** Die beiden Teile wie bei den anderen Arten **Kante an Kante** hinlegen – die Kante des
+Teils mit den Zinken an die Kante des anderen, an der entlang die Löcher liegen sollen. Die Zinken sitzen in
+der Mitte der Kante, an beiden Enden bleibt ein Stück glatte Kante stehen, die auf der Fläche aufliegt. Die
+Löcher liegen im eingestellten Abstand von der Kante des anderen Teils; das Teil mit den Zinken wird danach um
+Zinkenlänge + 3 mm weggeschoben, damit sich nichts überlappt.
+
+![Kante an Fläche: Zinken am stehenden Teil, Löcher in der Fläche](screenshots/zinken_flaeche.png)
 
 Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
 nutzen ([Kerf ermitteln](#kerf-ermitteln)).

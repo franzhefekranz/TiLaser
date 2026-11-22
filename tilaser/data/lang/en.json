@@ -1318,7 +1318,6 @@
  "rechts": "right",
  "oben": "top",
  "unten": "bottom",
- "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Curves of the parts are converted into fine polylines.",
  "Kanten aneinanderlegen": "Place edges together",
  "Erst eine Kante des Teils anklicken, das bewegt wird, dann die Zielkante am anderen Teil: das erste Teil wird gedreht und bündig angelegt": "First click an edge of the part to be moved, then the target edge on the other part: the first part is rotated and placed flush",
  "Kanten aneinanderlegen: Kante des Teils anklicken, das bewegt werden soll (Esc = abbrechen)": "Place edges together: click the edge of the part to be moved (Esc = cancel)",
@@ -1553,5 +1552,15 @@
  "Wie weit die Pfeiltasten ausgewählte Teile verschieben: klein (Strg), mittel, groß (Shift)": "How far the arrow keys move selected parts: small (Ctrl), medium, large (Shift)",
  "Klein (Strg + Pfeiltaste)": "Small (Ctrl + arrow key)",
  "Mittel (Pfeiltaste)": "Medium (arrow key)",
- "Groß (Shift + Pfeiltaste)": "Large (Shift + arrow key)"
+ "Groß (Shift + Pfeiltaste)": "Large (Shift + arrow key)",
+ "Kante an Fläche: Zinken am einen Teil, passende Löcher in der Fläche des anderen": "Edge to surface: fingers on one part, matching holes in the surface of the other",
+ "Kante an Fläche: Abstand der Löcher von der Kante": "Edge to surface: distance of the holes from the edge",
+ "Kante an Fläche: Zinkenlänge (0 = Materialstärke)": "Edge to surface: finger length (0 = material thickness)",
+ "Kante an Fläche: Spiel in den Löchern": "Edge to surface: clearance in the holes",
+ "Fingerzinken Kante an Fläche: {0} Löcher in {1}; {2} wurde um {3} mm weggeschoben.": "Finger joint edge to surface: {0} holes in {1}; {2} was moved away by {3} mm.",
+ "Die Löcher passen nicht in Teil B – Abstand von der Kante verkleinern oder ein größeres Teil B wählen.": "The holes do not fit into part B – reduce the distance from the edge or choose a larger part B.",
+ "Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, dass sich die zu verbindenden Kanten berühren (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut versuchen.": "No shared edge found. Place the two parts so that the edges to be joined touch (e.g. with Arrange → Place edges together), then try again.",
+ "Teile nach dem Erzeugen": "Parts after creating",
+ "zusammengesteckt (Ansicht von vorn)": "assembled (front view)",
+ "Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr Außenmaß. Kante an Fläche (T-Verbindung, z. B. Zwischenwand oder Regalboden): das gewählte Teil bekommt Zinken, das andere keine Zinken, sondern passende Löcher in der Fläche, im eingestellten Abstand von seiner Kante; das Teil mit den Zinken wird danach etwas weggeschoben. Kurven der Teile werden in feine Linienzüge umgewandelt.": "Interlocking: the chosen part gets fingers that protrude beyond the edge by the material thickness, the other exactly matching cut-outs – as the parts lie, the fingers fill the cut-outs without gaps. Corner joint: like the box generator, both parts keep their outside dimensions. Edge to surface (T-joint, e.g. a divider or shelf): the chosen part gets fingers, the other no fingers but matching holes in its surface at the set distance from its edge; the part with the fingers is then moved away a little. Curves of the parts are converted into fine polylines."
 }

@@ -2449,6 +2449,32 @@ def test_node_snap():
     assert np.allclose(d, [10, 10]) and np.allclose(t, [10, 10])
     assert node_snap_delta((0, 0), (5, 5), nodes, 0.6) is None
 
+
+def test_finger_holes():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import finger_holes
+    A = [np.array([[0, 0], [80, 0], [80, 40], [0, 40]], float)]                # steht später auf B
+    B = [np.array([[0, 0], [0, -60], [100, -60], [100, 0]], float)]            # Fläche mit Löchern
+    ra, rb, n, shift = finger_holes(A, B, 3.0, 10.0, inset=20.0, clearance=0.2)
+    assert n == 4 and len(rb) == 5 and np.allclose(rb[0], B[0])                # Kontur von B unverändert
+    assert np.allclose(shift, [0, 6.0])                                         # Zinkenlänge 3 + 3 mm Abstand
+    # Zinken ragen 3 mm über die (verschobene) Kante; Enden der Kante bleiben glatt
+    assert np.isclose(ra[0][:, 1].min(), 3.0)
+    assert np.isclose(min(y for x, y in ra[0] if x < 1e-9), 6.0)
+    w = 80 / 9
+    for k, h in enumerate(rb[1:]):
+        i = 2 * k + 1
+        assert np.isclose(np.ptp(h[:, 0]), w + 0.2) and np.isclose(np.ptp(h[:, 1]), 3.2)
+        assert np.isclose(h[:, 0].min(), i * w - 0.1) and np.isclose(h[:, 1].max(), -20 + 0.1)
+        assert inside(h, [B[0]]).all()
+    # längere Zinken, zu großer Abstand
+    assert np.isclose(finger_holes(A, B, 3.0, 10.0, inset=5, length=5)[0][0][:, 1].min(), 3.0)
+    try:
+        finger_holes(A, B, 3.0, 10.0, inset=58)
+        raise AssertionError("ValueError erwartet")
+    except ValueError:
+        pass
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

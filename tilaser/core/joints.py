@@ -252,6 +252,55 @@ def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind:
     return ra, rb, len(edges)
 
 
+def finger_holes(rings_a, rings_b, thickness: float, finger: float = 10.0, inset: float = 3.0,
+                 clearance: float = 0.1, gap: float = 3.0, dogbone: float = 0.0, tol: float = 0.5,
+                 length: float = 0.0):
+    """Fingerzinken Kante an Fläche (T-Verbindung): Teil A bekommt an der längsten gemeinsamen Kante Zinken,
+    Teil B statt Aussparungen an der Kante rechteckige Löcher in der Fläche, im Abstand ``inset`` von seiner
+    Kante – dort steht A später senkrecht auf B. Die Teile liegen beim Aufruf Kante an Kante (wie bei den
+    übrigen Verbindungen); danach wird A um Zinkenlänge + ``gap`` von B weggeschoben.
+
+    ``length``: wie weit die Zinken herausragen (0 = Materialstärke, also bündig mit der Rückseite von B).
+    Gibt (Ringe A, Ringe B inkl. Löcher, Anzahl Löcher, Verschiebung von A) zurück."""
+    t = thickness
+    if t <= 0:
+        raise ValueError("Materialstärke muss größer als 0 sein.")
+    tab = length if length > 0 else t
+    ra = [np.asarray(r, float).copy() for r in rings_a]
+    rb = [np.asarray(r, float).copy() for r in rings_b]
+    edges = find_shared_edges(ra, rb, tol=tol, min_len=max(3 * t, finger))
+    if not edges:
+        raise ValueError("Keine gemeinsame Kante gefunden. Die beiden Teile so hinlegen, dass sich die zu "
+                         "verbindenden Kanten berühren (z. B. mit Anordnen → Kanten aneinanderlegen), dann erneut "
+                         "versuchen.")
+    e = edges[0]
+    # Zinken an den ungeraden Abschnitten: an beiden Enden bleibt ein Stück Kante stehen, das auf B aufliegt,
+    # und die Löcher liegen ganz in der Fläche (auch wenn A bis an den Rand von B reicht)
+    cnt = max(3, finger_count(e.length, finger))
+    w = e.length / cnt
+    u = (e.p1 - e.p0) / e.length
+    v = -_material_normal(ra, e.p0, e.p1)                # von A nach B
+    c = clearance / 2
+    holes = []
+    for i in range(1, cnt, 2):
+        s0, s1 = i * w - c, (i + 1) * w + c
+        d0, d1 = inset - c, inset + t + c
+        ring = np.array([e.p0 + u * s + v * d for s, d in ((s0, d0), (s1, d0), (s1, d1), (s0, d1))])
+        if not inside(ring, rb).all():
+            raise ValueError("Die Löcher passen nicht in Teil B – Abstand von der Kante verkleinern oder ein "
+                             "größeres Teil B wählen.")
+        holes.append(ring)
+    n_a = -v
+    da = [-tab if i % 2 == 1 else 0.0 for i in range(cnt)]
+    new = _apply_profile(ra[e.ra], e.ka, e.p0, e.p1, da, n_a)
+    corners = [p for p in new if not any(np.allclose(p, q) for q in ra[e.ra])]
+    ra[e.ra] = new
+    if dogbone > 0:
+        ra = add_dogbones(ra, dogbone, corners)
+    shift = -v * (tab + gap)
+    return [r + shift for r in ra], rb + holes, len(holes), shift
+
+
 # ---------------------------------------------------------------- Puzzle-Verbindung
 
 def puzzle_profile(centers, signs, size: float, delta: float = 0.0, step_deg: float = 8.0) -> list[tuple[float, float]]:
