@@ -2508,6 +2508,27 @@ def test_living_hinge_relief():
     except ValueError:
         pass
 
+
+def test_finger_joint_slanted_whole_fingers():
+    from tilaser.core.clip import distance_to_edges, inside
+    from tilaser.core.joints import find_shared_edges, finger_joint, finger_range
+    A = [np.array([[0, 0], [100, 0], [100, 40], [0, 70]], float)]
+    B = [np.array([[0, 70], [100, 40], [100, 90], [0, 110]], float)]
+    e = find_shared_edges(A, B)[0]
+    lo, hi = finger_range(A, B, e.p0, e.p1, 4)
+    assert 0.5 < lo < 2 and e.length - 2 < hi < e.length - 0.5            # schräge Enden: Stück frei
+    ra, rb, _ = finger_joint(A, B, 4, 12, "tabs")
+    # keine Zinke steht über die senkrechten Seiten hinaus, alle Zinkenecken liegen in B (oder auf dem Rand)
+    assert ra[0][:, 0].min() >= -1e-6 and ra[0][:, 0].max() <= 100 + 1e-6
+    out = ra[0][ra[0][:, 1] > 40.0 + 1e-6]
+    ok = inside(out, [B[0]]) | (distance_to_edges(out, [B[0]]) < 1e-6) | (distance_to_edges(out, [A[0]]) < 1e-6)
+    assert ok.all()
+    # rechtwinklige Kanten: wie bisher die ganze Kante
+    R1 = [np.array([[0, 0], [100, 0], [100, 40], [0, 40]], float)]
+    R2 = [np.array([[0, 40], [100, 40], [100, 80], [0, 80]], float)]
+    e2 = find_shared_edges(R1, R2)[0]
+    assert np.allclose(finger_range(R1, R2, e2.p0, e2.p1, 4), (0, 100))
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

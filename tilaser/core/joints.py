@@ -22,7 +22,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from . import geometry as g
-from .clip import inside
+from .clip import distance_to_edges, inside
 
 
 @dataclass
@@ -89,19 +89,24 @@ def _material_normal(rings, p0, p1) -> np.ndarray:
     return n if inside((mid + n * eps)[None], rings)[0] else -n
 
 
-def _apply_profile(ring: np.ndarray, k: int, p0, p1, depths, n_in) -> np.ndarray:
+def _apply_profile(ring: np.ndarray, k: int, p0, p1, depths, n_in, lo: float = 0.0,
+                   hi: float | None = None) -> np.ndarray:
     """Segment k des Rings: zwischen p0 und p1 durch das Zinkenprofil ersetzen.
-    depths: Liste (Tiefe) je Abschnitt; Tiefe > 0 geht ins Material, < 0 heraus."""
+    depths: Liste (Tiefe) je Abschnitt; Tiefe > 0 geht ins Material, < 0 heraus.
+    lo/hi: die Abschnitte nur auf dem Stück lo…hi (gemessen ab p0) verteilen, davor und danach bleibt die
+    Kante gerade (schräge Kanten: dort hätte nur eine angeschnittene Zinke Platz)."""
     a, b = ring[k], ring[(k + 1) % len(ring)]
     u = (b - a) / max(1e-12, float(np.hypot(*(b - a))))
+    L = float(np.hypot(*(p1 - p0)))
+    hi = L if hi is None else hi
     if (p1 - p0) @ u < 0:
         p0, p1 = p1, p0
         depths = depths[::-1]
-    L = float(np.hypot(*(p1 - p0)))
-    w = L / len(depths)
+        lo, hi = L - hi, L - lo
+    w = (hi - lo) / len(depths)
     pts = [p0]
     for i, d in enumerate(depths):
-        s0, s1 = i * w, (i + 1) * w
+        s0, s1 = lo + i * w, lo + (i + 1) * w
         pts += [p0 + u * s0 + n_in * d, p0 + u * s1 + n_in * d]
     pts.append(p1)
     new = [ring[: k + 1]] + [np.array(pts)] + [ring[k + 1:]]
@@ -207,6 +212,39 @@ def sides(rings_a, rings_b, tol: float = 0.5, min_len: float = 3.0):
     return ("bottom", "top") if to_b[1] > 0 else ("top", "bottom")
 
 
+def finger_range(ra, rb, p0, p1, depth: float) -> tuple[float, float]:
+    """Stück der gemeinsamen Kante p0…p1, auf dem ganze Zinken Platz haben: An jeder Stelle muss das
+    Material um ``depth`` senkrecht zur Kante in beide Teile reichen. Bei rechtwinklig anschließenden Kanten
+    ist das die ganze Kante; bei schrägen Kanten fehlt an den Enden ein Stück – dort bliebe sonst nur eine
+    angeschnittene Zinke, die über den Rand hinaussteht. Rückgabe (lo, hi) gemessen ab p0."""
+    L = float(np.hypot(*(p1 - p0)))
+    u = (p1 - p0) / max(L, 1e-12)
+    v = -_material_normal(ra, p0, p1)                   # in Teil B hinein
+
+    def on(q, rings):
+        q = q[None]
+        return bool(inside(q, rings)[0]) or float(distance_to_edges(q, rings)[0]) < 1e-6
+
+    def ok(s):
+        p = p0 + u * s
+        return on(p + v * depth, rb) and on(p - v * depth, ra)
+
+    def edge_end(a, b):                                 # erste Stelle von a aus (Richtung b), ab der es passt
+        if ok(a):
+            return a
+        if not ok(b):
+            return None
+        for _ in range(40):
+            m = (a + b) / 2
+            a, b = (a, m) if ok(m) else (m, b)
+        return b
+    lo = edge_end(0.0, L / 2)
+    hi = edge_end(L, L / 2)
+    if lo is None or hi is None or hi - lo < 1e-6:
+        return 0.0, L
+    return lo, hi
+
+
 def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind: str = "tabs",
                  dogbone: float = 0.0, tol: float = 0.5, all_edges: bool = False):
     """Zinken an der längsten gemeinsamen Kante (oder allen). Gibt neue Ringe für A und B und
@@ -223,27 +261,24 @@ def finger_joint(rings_a, rings_b, thickness: float, finger: float = 10.0, kind:
         edges = edges[:1]
     # pro Ring von hinten nach vorn bearbeiten, damit die Segmentnummern stimmen
     corners_a, corners_b = [], []
+    spans = {id(e): finger_range(ra, rb, e.p0, e.p1, thickness) for e in edges}
     for e in sorted(edges, key=lambda e: -e.ka):
-        cnt = finger_count(e.length, finger)
+        lo, hi = spans[id(e)]
+        cnt = finger_count(hi - lo, finger)
         n_a = _material_normal(ra, e.p0, e.p1)
         if kind == "tabs":
             da = [-thickness if i % 2 == 0 else 0.0 for i in range(cnt)]
         else:
             da = [0.0 if i % 2 == 0 else thickness for i in range(cnt)]
-        new = _apply_profile(ra[e.ra], e.ka, e.p0, e.p1, da, n_a)
+        new = _apply_profile(ra[e.ra], e.ka, e.p0, e.p1, da, n_a, lo, hi)
         corners_a += [p for p in new if not any(np.allclose(p, q) for q in ra[e.ra])]
         ra[e.ra] = new
     for e in sorted(edges, key=lambda e: -e.kb):
-        cnt = finger_count(e.length, finger)
+        lo, hi = spans[id(e)]
+        cnt = finger_count(hi - lo, finger)
         n_b = _material_normal(rb, e.p0, e.p1)
         db = [thickness if i % 2 == 0 else 0.0 for i in range(cnt)]
-        # Teil B kann die Kante in Gegenrichtung durchlaufen – Profil an p0/p1 ausrichten
-        seg0 = rb[e.rb][e.kb]
-        seg1 = rb[e.rb][(e.kb + 1) % len(rb[e.rb])]
-        u = seg1 - seg0
-        p0, p1 = (e.p0, e.p1) if (e.p1 - e.p0) @ u >= 0 else (e.p1, e.p0)
-        dd = db if (e.p1 - e.p0) @ u >= 0 else db[::-1]
-        new = _apply_profile(rb[e.rb], e.kb, p0, p1, dd, n_b)
+        new = _apply_profile(rb[e.rb], e.kb, e.p0, e.p1, db, n_b, lo, hi)
         corners_b += [p for p in new if not any(np.allclose(p, q) for q in rb[e.rb])]
         rb[e.rb] = new
     if dogbone > 0:
