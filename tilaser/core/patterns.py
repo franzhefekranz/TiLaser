@@ -40,7 +40,7 @@ HINGE_STYLES = {"straight": "Normal (gerade Schlitze)", "triple": "Dreifach vers
 
 
 def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float = 1.5, margin: float = 3.0,
-                 angle: float = 0.0, style: str = "straight") -> list[g.Polyline]:
+                 angle: float = 0.0, style: str = "straight", relief: float = 0.0) -> list[g.Polyline]:
     """Versetzte Schnittlinien. Biegeachse parallel zu den Schlitzen (angle 0 = waagerechte Schlitze).
 
     Die Reihen liegen mittig in der Fläche. Die äußeren Reihen und jede zweite dazwischen halten den
@@ -51,9 +51,16 @@ def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float
     triple:   Reihen um je eine drittel Teilung versetzt – die Stege liegen weiter auseinander, das
               Holz verdreht sich auf längerer Strecke (weicher). Punktsymmetrisch zur Mitte.
     wave:     wie straight, aber wellenförmige Schlitze (alle Wellen parallel, punktsymmetrisch).
+
+    relief: Durchmesser einer kleinen Rundung (Stress Relief, wie ein Dogbone) an jedem Schlitzende, das im
+    Material endet – die Biegespannung verteilt sich dort auf einen Bogen statt auf die Spitze des Schnitts,
+    das Holz reißt nicht so leicht weiter. Enden, die am Rand herauslaufen, bekommen keine. 0 = aus.
     """
     if slit <= 0 or spacing <= 0 or bridge <= 0:
         raise ValueError("Schlitzlänge, Steg und Abstand müssen größer als 0 sein.")
+    if relief < 0 or relief >= spacing:
+        raise ValueError("Der Durchmesser der Entlastungsbohrung muss kleiner als der Reihenabstand sein, sonst "
+                         "berührt sie die Nachbarreihe.")
     if style not in HINGE_STYLES:
         style = "straight"
     rings = _region(region)
@@ -109,7 +116,18 @@ def living_hinge(region, slit: float = 20.0, bridge: float = 3.0, spacing: float
                             if len(q.pts) >= 2 and np.hypot(*(q.pts[-1] - q.pts[0])) >= 1.0]
                 else:
                     out.append(g.Polyline(pts, False))
+    if relief > 0:
+        out += _reliefs(out, rr, relief)
     return _rot(out, angle, cx, cy)
+
+
+def _reliefs(slits, rr, diameter: float) -> list[g.Polyline]:
+    """Kreise an den Schlitzenden, die im Material liegen (nicht an einem Rand der Fläche)."""
+    ends = np.array([q.pts[i] for q in slits if not q.closed and len(q.pts) >= 2 for i in (0, -1)])
+    if not len(ends):
+        return []
+    keep = distance_to_edges(ends, rr) > max(0.05, diameter / 2)
+    return [g.Polyline(g.circle_points(float(x), float(y), diameter / 2), True) for (x, y), k in zip(ends, keep) if k]
 
 
 def _trim_margin(line, rr, margin, min_len):
@@ -313,7 +331,7 @@ def engrave_pattern(region, kind: str = "houndstooth", size: float = 8.0, gap: f
 
 def bend_between(closed_a, closed_b, moving, target, radius: float, angle_deg: float, thickness: float,
                  slit: float = 20.0, bridge: float = 3.0, spacing: float = 1.5, margin: float = 3.0,
-                 style: str = "straight"):
+                 style: str = "straight", relief: float = 0.0):
     """Zwei Teile über eine Biegezone verbinden.
 
     ``moving``/``target`` sind Kanten (edgealign.Edge) von Teil B bzw. A. Teil B wird so gedreht und
@@ -353,5 +371,5 @@ def bend_between(closed_a, closed_b, moving, target, radius: float, angle_deg: f
     merged = [g.Polyline(tidy_ring(snap(tidy_ring(p.pts))), True) for p in merged]
     region, _ = strip_between(target, ma, mb, L, extend=margin - spacing / 2)
     ang = float(np.degrees(np.arctan2(*(target.b - target.a)[::-1])))
-    slits = living_hinge([g.Polyline(region, True)], slit, bridge, spacing, margin, ang, style)
+    slits = living_hinge([g.Polyline(region, True)], slit, bridge, spacing, margin, ang, style, relief)
     return m, merged, slits, L, width

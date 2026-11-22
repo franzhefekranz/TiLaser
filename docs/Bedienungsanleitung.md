@@ -524,6 +524,7 @@ Kontur selbst bleibt unverändert und wird wie gewohnt ausgeschnitten.
 | Schlitzlänge, Steg | Länge der Schnitte und der stehen bleibenden Stege dazwischen |
 | Abstand der Reihen | Kleiner = biegsamer, aber zerbrechlicher. 3-mm-Sperrholz: etwa 1,5 mm |
 | Abstand zum Rand | Abstand der Schlitze zum Rand (siehe unten) |
+| Stress Relief an den Schlitzenden | Durchmesser eines kleinen Lochs an jedem Schlitzende, das im Material endet – wie ein Dogbone: Die Biegespannung verteilt sich auf einen Bogen statt auf die spitze Ecke am Ende des Schnitts, das Holz reißt dort nicht so leicht ein. Etwa 0,5–1 mm; muss kleiner als der Reihenabstand sein. Enden, die am Rand herauslaufen, bekommen keins. 0 = aus |
 | Richtung der Schlitze | 0° = waagerecht; die Biegeachse liegt parallel zu den Schlitzen |
 
 Das Muster ist symmetrisch: Die Reihen liegen mittig in der Fläche, und jede Reihe ist links und rechts
@@ -588,6 +589,7 @@ Gravuren beider Teile bleiben erhalten. *Bearbeiten → Rückgängig* stellt die
 | Materialstärke | Biegelänge = Winkel × (Radius + halbe Materialstärke), gemessen in der Mitte des Materials – z. B. 90° bei 10 mm Radius und 3 mm Material: 18,1 mm |
 | Art, Schlitzlänge, Steg, Abstand der Reihen | Wie beim [Biegescharnier](#muster-in-einer-fläche) in einer Fläche |
 | Abstand zum Rand | Abstand der geschlossenen Schlitzreihen von den Enden der Biegezone |
+| Stress Relief an den Schlitzenden | Kleines Loch an jedem Schlitzende im Material, wie beim [Biegescharnier](#muster-in-einer-fläche) in einer Fläche |
 
 Die Biegezone ist so breit, wie sich die beiden Kanten nach dem Ausrichten überdecken. Sind die Kanten
 verschieden lang, steht das längere Teil seitlich über.

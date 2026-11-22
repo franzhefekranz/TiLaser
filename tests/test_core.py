@@ -2482,6 +2482,32 @@ def test_finger_holes():
     except ValueError:
         pass
 
+
+def test_living_hinge_relief():
+    from tilaser.core.clip import distance_to_edges
+    from tilaser.core import patterns as pt
+    rect = [g.Polyline(np.array([[0, 0], [80, 0], [80, 30], [0, 30]], float), True)]
+    plain = pt.living_hinge(rect, 20, 3, 1.5, 3)
+    res = pt.living_hinge(rect, 20, 3, 1.5, 3, relief=0.8)
+    slits = [q for q in res if not q.closed]
+    holes = [q for q in res if q.closed]
+    assert len(slits) == len(plain) and holes
+    ends = np.array([q.pts[i] for q in slits for i in (0, -1)])
+    inner = ends[distance_to_edges(ends, [rect[0].pts]) > 0.4]
+    centers = np.array([h.pts.mean(axis=0) for h in holes])
+    assert len(holes) == len(inner)                                   # genau die Enden im Material
+    for c in centers:
+        assert np.min(np.hypot(*(inner - c).T)) < 1e-6
+        r = np.hypot(*(holes[0].pts - holes[0].pts.mean(axis=0)).T)
+        assert np.allclose(r, 0.4, atol=1e-6)
+    for st in ("triple", "wave"):
+        assert any(q.closed for q in pt.living_hinge(rect, 20, 3, 1.5, 3, style=st, relief=0.6))
+    try:
+        pt.living_hinge(rect, 20, 3, 1.5, 3, relief=1.5)
+        raise AssertionError("ValueError erwartet")
+    except ValueError:
+        pass
+
 if __name__ == "__main__":
     import inspect
     for name, fn in list(globals().items()):

@@ -521,6 +521,7 @@ cut out as usual.
 | Slit length, bridge | Length of the cuts and of the bridges left between them |
 | Row spacing | Smaller = more flexible, but more fragile. 3 mm plywood: about 1.5 mm |
 | Distance to the edge | Distance of the slits from the edge (see below) |
+| Stress relief at the slit ends | Diameter of a small hole at every slit end that ends in the material – like a dogbone: the bending stress is spread over an arc instead of the sharp corner at the end of the cut, so the wood does not tear there so easily. About 0.5–1 mm; must be smaller than the row spacing. Ends that run out at the edge get none. 0 = off |
 | Direction of the slits | 0° = horizontal; the bending axis is parallel to the slits |
 
 The pattern is symmetric: the rows are centred in the area, and each row is built the same on the left
@@ -582,6 +583,7 @@ both parts are kept. *Edit → Undo* restores the two parts.
 | Material thickness | Bending length = angle × (radius + half the material thickness), measured in the middle of the material – e.g. 90° at 10 mm radius and 3 mm material: 18.1 mm |
 | Type, slit length, bridge, row spacing | As with the [living hinge](#patterns-in-an-area) in an area |
 | Distance to the edge | Distance of the closed rows of slits from the ends of the bending zone |
+| Stress relief at the slit ends | Small hole at every slit end in the material, as with the [living hinge](#patterns-in-an-area) in an area |
 
 The bending zone is as wide as the two edges overlap after aligning. If the edges have different lengths,
 the longer part protrudes at the side.

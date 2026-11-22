@@ -6,6 +6,8 @@ the GitHub release.
 
 ## Unveröffentlicht
 
+- Biegescharnier (in einer Fläche und zwischen zwei Kanten): optional *Stress Relief* – kleine Löcher an den
+  Schlitzenden im Material, wie Dogbones, damit das Holz beim Biegen nicht einreißt.
 - Biegescharnier zwischen zwei Kanten: Die Kontur des verbundenen Teils ist jetzt exakt – an den Enden der
   Biegezone blieb sonst eine minimal schräge statt einer geraden Kante; bei gleich breiten Teilen entsteht ein
   glattes Rechteck ohne Zwischenpunkte.

@@ -1738,6 +1738,7 @@ class MainWindow(QMainWindow):
                       ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
                       ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
                       ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                      ("relief", "Stress Relief an den Schlitzenden (Ø, 0 = aus)", "f", 0.0, (0, 10, 2, 0.1, " mm")),
                       ("angle", "Richtung der Schlitze", "f", 0.0, (-180, 180, 0, 15, " °")),
                       ("layer", "Ebene", "layer", None, (("cut",), cut_pref))]
             info = ("Die Fläche biegt sich um eine Achse parallel zu den Schlitzen. Kleinerer Reihenabstand "
@@ -1767,7 +1768,8 @@ class MainWindow(QMainWindow):
         v = dlg.values()
         try:
             if kind == "hinge":
-                res = pt.living_hinge(region, v["slit"], v["bridge"], v["spacing"], v["margin"], v["angle"], v["style"])
+                res = pt.living_hinge(region, v["slit"], v["bridge"], v["spacing"], v["margin"], v["angle"], v["style"],
+                                      v["relief"])
             elif kind == "holes":
                 res = pt.hole_pattern(region, v["shape"], v["size"], v["web"], v["layout"], v["margin"],
                                       v["slot_len"], v["angle"])
@@ -2711,7 +2713,8 @@ class MainWindow(QMainWindow):
                   ("slit", "Schlitzlänge", "f", 20.0, (2, 500, 1, 1, " mm")),
                   ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
                   ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
-                  ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm"))]
+                  ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                  ("relief", "Stress Relief an den Schlitzenden (Ø, 0 = aus)", "f", 0.0, (0, 10, 2, 0.1, " mm"))]
         info = (f"„{b.name}“ wird so gedreht und verschoben, dass seine Kante der Kante von „{a.name}“ im Abstand der "
                 "Biegelänge gegenüberliegt. Beide werden mit der Biegezone zu einem Teil verbunden; die Biegezone "
                 "bekommt das Schnittmuster. Biegelänge = Winkel × (Radius + halbe Materialstärke), z. B. 90° bei "
@@ -2725,7 +2728,7 @@ class MainWindow(QMainWindow):
             m, merged, slits, L, width = pt.bend_between(
                 [p for p, _ in wa if p.closed], [p for p in b.world_paths() if p.closed], moving, target,
                 v["radius"], v["angle"], v["thickness"], v["slit"], v["bridge"], v["spacing"], v["margin"],
-                v["style"])
+                v["style"], v["relief"])
         except ValueError as e:
             QMessageBox.information(self, title, str(e))
             return
@@ -2743,7 +2746,7 @@ class MainWindow(QMainWindow):
         self.layers.set_project(self.project)
         self.canvas.select_only([n.id])
         self.statusBar().showMessage(f"Biegezone {L:.1f} mm lang ({v['angle']:g}° bei {v['radius']:g} mm Radius), "
-                                     f"{width:.1f} mm breit, {len(slits)} Schlitze.", 10000)
+                                     f"{width:.1f} mm breit, {sum(not s.closed for s in slits)} Schlitze.", 10000)
 
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):
