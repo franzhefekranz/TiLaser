@@ -521,6 +521,7 @@ cut out as usual.
 | Slit length, bridge | Length of the cuts and of the bridges left between them |
 | Row spacing | Smaller = more flexible, but more fragile. 3 mm plywood: about 1.5 mm |
 | Distance to the edge | Distance of the slits from the edge (see below) |
+| Stress relief at the slit ends | Diameter of a small hole at every slit end that ends in the material – like a dogbone: the bending stress is spread over an arc instead of the sharp corner at the end of the cut, so the wood does not tear there so easily. About 0.5–1 mm; must be smaller than the row spacing. Ends that run out at the edge get none. 0 = off |
 | Direction of the slits | 0° = horizontal; the bending axis is parallel to the slits |
 
 The pattern is symmetric: the rows are centred in the area, and each row is built the same on the left
@@ -582,6 +583,7 @@ both parts are kept. *Edit → Undo* restores the two parts.
 | Material thickness | Bending length = angle × (radius + half the material thickness), measured in the middle of the material – e.g. 90° at 10 mm radius and 3 mm material: 18.1 mm |
 | Type, slit length, bridge, row spacing | As with the [living hinge](#patterns-in-an-area) in an area |
 | Distance to the edge | Distance of the closed rows of slits from the ends of the bending zone |
+| Stress relief at the slit ends | Small hole at every slit end in the material, as with the [living hinge](#patterns-in-an-area) in an area |
 
 The bending zone is as wide as the two edges overlap after aligning. If the edges have different lengths,
 the longer part protrudes at the side.
@@ -590,7 +592,8 @@ the longer part protrudes at the side.
 ### Finger joint on edge
 
 Joins any two parts with finger joints – e.g. a self-drawn back panel with a bottom: one part gets fingers,
-the other exactly matching cut-outs. This is how:
+the other exactly matching cut-outs. With *Edge to surface* one part meets the middle of the other's surface
+(T-joint, e.g. a divider or a shelf) – matching holes are created there instead of fingers. This is how:
 
 1. Place the two parts so that the **edges to be joined lie on top of each other** (same line,
    overlapping). Easiest with [Placing edges together](#placing-edges-together) (Alt+K).
@@ -603,12 +606,23 @@ the other exactly matching cut-outs. This is how:
 | Setting | Effect |
 |---|---|
 | Type | **Interlocking: one part with fingers, the other with cut-outs** (default): the fingers protrude beyond the edge by the material thickness, the mating part gets equally deep cut-outs at the same places. As the parts lie, the fingers fill the cut-outs without gaps (left picture); the shared line is cut only once. For a 90° corner, draw the part with the fingers shorter by the material thickness. **Corner joint: both parts with offset cut-outs, outside dimensions stay**: like the box generator – both parts keep their outside dimensions and get alternating cut-outs (right picture). Lying flat side by side there are gaps; they only interlock when turned by 90° |
-| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay) |
+| Fingers on | Part that gets the fingers (for *corner joint*: the part whose outer fingers stay; for *edge to surface*: the part standing on the surface) |
 | Material thickness | Depth of the fingers/cut-outs |
-| Finger width | Desired width; an odd number of equally wide fingers is distributed along the edge |
+| Finger width | Desired width; an odd number of equally wide fingers is distributed along the edge. On **slanted edges** whose neighbouring edges do not meet at a right angle, a short straight piece of edge remains at the ends – so there are only whole fingers and none that are cut off and stick out over the edge |
 | Dogbone diameter | Relieves every **inner corner** with a small circle (“dogbone”) so that square fingers go in completely – important for thick material, a strongly tapered beam or milling. 0 = off |
+| Edge to surface: distance of the holes from the edge | Where the part with the fingers stands on the surface: distance of the holes (their nearer side) from the edge of the other part |
+| Edge to surface: finger length | How far the fingers stick out; 0 = material thickness (flush with the back). Longer = they protrude at the back, e.g. for wedging |
+| Edge to surface: clearance in the holes | The holes become larger all round by half of it |
 | Tolerance | How far apart the edges may be and still count as “touching” |
-| All shared edges | Otherwise only the longest shared edge is processed |
+| All shared edges | Otherwise only the longest shared edge is processed (for *edge to surface* always only the longest) |
+
+**Edge to surface:** As with the other types, lay the two parts **edge to edge** – the edge of the part with the
+fingers against the edge of the other part along which the holes should lie. The fingers sit in the middle of
+the edge; at both ends a piece of plain edge remains that rests on the surface. The holes lie at the set
+distance from the edge of the other part; the part with the fingers is then moved away by finger length + 3 mm
+so that nothing overlaps.
+
+![Edge to surface: fingers on the standing part, holes in the surface](screenshots/en/zinken_flaeche.png)
 
 Curves of the parts are converted into fine polylines. Use the kerf compensation of the layer for the fit
 ([Determining the kerf](#determining-the-kerf)).
@@ -629,7 +643,7 @@ than its head, so the parts cannot be pulled apart in the plane.
 
 | Setting | Effect |
 |---|---|
-| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob) |
+| Knobs on | Part that gets the knobs (with *alternating*: the part with the first knob). On slanted edges, the knobs are distributed only over the piece where they fit completely into both parts – no knob sticks out over a slanted neighbouring edge |
 | Knob size (head diameter) | Diameter of the round head. The neck is 60 % as wide, the knob protrudes about 1.15 × head diameter beyond the edge – the other part must be at least that deep |
 | Number per edge | 0 = automatic: about one knob every 2.5 head diameters, evenly distributed |
 | Alternate knobs on both parts | The knobs sit alternately on one and the other part (right picture) – holds equally well when pulled in both directions across the edge |
@@ -665,7 +679,7 @@ tabs away a little so that nothing overlaps (the status bar shows the distance).
 | Tabs on | Part that gets the tabs; the other gets the slots |
 | Material thickness | Thickness of the material (both parts). The hooks sit just above it, the slots are that wide |
 | Tab width | Width of one tab (both prongs and the spring slit together) |
-| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed |
+| Number per edge | 0 = automatic: about one tab per 4 tab widths, evenly distributed. On slanted edges only over the piece where the slots lie completely in the other part |
 | Hook (sideways overhang) | How far each hook protrudes sideways. More = holds tighter, harder to plug in. Together they must be smaller than spring slit + clearance, otherwise the prongs do not get through |
 | Spring slit | Width of the slit between the two prongs. It reaches a little into the part so that the prongs are longer and spring more softly |
 | Clearance | Play in the slot and under the hooks |
@@ -704,7 +718,7 @@ the part with the tenons away a little so that nothing overlaps.
 | Tenons on | Part that gets the tenons; the other gets the mortises |
 | Material thickness | Thickness of the material (both parts); the mortise is that wide plus *clearance*, the tenon that long plus *protrusion* |
 | Tenon width | Length of the mortise (proven: 20 mm). The tenon itself is wider by the *oversize* |
-| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed |
+| Number per edge | 0 = automatic: about one tenon per 3 tenon widths, evenly distributed. On slanted edges only over the piece where the slot and the mortise fit completely into the parts |
 | Tenon protrusion | How far the tenon protrudes beyond the mating part (for sanding flush) |
 | Wedge protrusion before driving in | How far the wedge sticks out beyond the tenon – this is also the distance it slides into the slot when driven in. The original drawing uses 10 mm for all thicknesses |
 | Spread by the wedge | The wedge is this much wider at the top than the slot at the tip of the tenon (in total). More = tighter, but a higher risk of breaking |

@@ -1738,6 +1738,7 @@ class MainWindow(QMainWindow):
                       ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
                       ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
                       ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                      ("relief", "Stress Relief an den Schlitzenden (Ø, 0 = aus)", "f", 0.0, (0, 10, 2, 0.1, " mm")),
                       ("angle", "Richtung der Schlitze", "f", 0.0, (-180, 180, 0, 15, " °")),
                       ("layer", "Ebene", "layer", None, (("cut",), cut_pref))]
             info = ("Die Fläche biegt sich um eine Achse parallel zu den Schlitzen. Kleinerer Reihenabstand "
@@ -1767,7 +1768,8 @@ class MainWindow(QMainWindow):
         v = dlg.values()
         try:
             if kind == "hinge":
-                res = pt.living_hinge(region, v["slit"], v["bridge"], v["spacing"], v["margin"], v["angle"], v["style"])
+                res = pt.living_hinge(region, v["slit"], v["bridge"], v["spacing"], v["margin"], v["angle"], v["style"],
+                                      v["relief"])
             elif kind == "holes":
                 res = pt.hole_pattern(region, v["shape"], v["size"], v["web"], v["layout"], v["margin"],
                                       v["slot_len"], v["angle"])
@@ -1785,7 +1787,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"{title}: {len(res)} Konturen erzeugt.", 6000)
 
     def finger_joint_tool(self):
-        from ..core.joints import finger_joint, sides
+        from ..core.joints import finger_holes, finger_joint, sides
         title = "Fingerzinken an Kante"
         items = self._vector_selection()
         if len(items) != 2:
@@ -1803,17 +1805,24 @@ class MainWindow(QMainWindow):
         who = {str(k): f"{it.name} ({i18n_tr(where[pos[k]])})" for k, it in enumerate(items)}
         fields = [("kind", "Art", "c", "tabs",
                    {"tabs": "Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen",
-                    "corner": "Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben"}),
+                    "corner": "Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben",
+                    "surface": "Kante an Fläche: Zinken am einen Teil, passende Löcher in der Fläche des anderen"}),
                   ("fingers_on", "Zinken an", "c", "0", who),
                   ("thickness", "Materialstärke", "f", 3.0, (0.5, 50, 2, 0.1, " mm")),
                   ("finger", "Zinkenbreite", "f", 10.0, (1, 200, 1, 1, " mm")),
                   ("dogbone", "Dogbone-Durchmesser (0 = aus)", "f", 1.0, (0, 20, 2, 0.1, " mm")),
+                  ("inset", "Kante an Fläche: Abstand der Löcher von der Kante", "f", 3.0, (0.5, 2000, 1, 1, " mm")),
+                  ("length", "Kante an Fläche: Zinkenlänge (0 = Materialstärke)", "f", 0.0, (0, 50, 2, 0.5, " mm")),
+                  ("clearance", "Kante an Fläche: Spiel in den Löchern", "f", 0.1, (0, 2, 2, 0.05, " mm")),
                   ("tol", "Toleranz für „berühren“", "f", 0.5, (0.01, 5, 2, 0.1, " mm")),
                   ("all", "Alle gemeinsamen Kanten (sonst nur die längste)", "b", False, None)]
         info = ("Ineinandergreifend: Das gewählte Teil bekommt Zinken, die um die Materialstärke über die Kante "
                 "hinausragen, das andere genau passende Aussparungen – so wie die Teile liegen, füllen die Zinken "
                 "die Aussparungen lückenlos. Eckverbindung: wie beim Box-Generator, beide Teile behalten ihr "
-                "Außenmaß. Kurven der Teile werden in feine Linienzüge umgewandelt.")
+                "Außenmaß. Kante an Fläche (T-Verbindung, z. B. Zwischenwand oder Regalboden): das gewählte Teil "
+                "bekommt Zinken, das andere keine Zinken, sondern passende Löcher in der Fläche, im eingestellten "
+                "Abstand von seiner Kante; das Teil mit den Zinken wird danach etwas weggeschoben. Kurven der Teile "
+                "werden in feine Linienzüge umgewandelt.")
         dlg = ParamDialog(title, fields, self.project, info, self)
         if dlg.exec() != ParamDialog.DialogCode.Accepted:
             return
@@ -1824,6 +1833,24 @@ class MainWindow(QMainWindow):
         wa, wb = worlds[order[0]], worlds[order[1]]
         ia = [i for i, (p, _) in enumerate(wa) if p.closed]
         ib = [i for i, (p, _) in enumerate(wb) if p.closed]
+        if v["kind"] == "surface":
+            try:
+                ra, rb, n, shift = finger_holes([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib],
+                                                v["thickness"], v["finger"], v["inset"], v["clearance"], 3.0,
+                                                v["dogbone"], v["tol"], v["length"])
+            except ValueError as e:
+                QMessageBox.information(self, title, str(e))
+                return
+            self._checkpoint(title)
+            moved = [(p.transformed(g.translate(float(shift[0]), float(shift[1]))), lid) for p, lid in wa]
+            for k, i in enumerate(ia):
+                moved[i] = (g.Polyline(ra[k], True), wa[i][1])
+            lid_b = wb[ib[0]][1] if ib else next(iter(b.layer_ids()))
+            new_b = list(wb) + [(g.Polyline(r, True), lid_b) for r in rb[len(ib):]]
+            self.canvas.select_only([self._replace_item(a, moved).id, self._replace_item(b, new_b).id])
+            self.statusBar().showMessage(f"Fingerzinken Kante an Fläche: {n} Löcher in {b.name}; {a.name} wurde "
+                                         f"um {float(np.hypot(*shift)):.1f} mm weggeschoben.", 8000)
+            return
         try:
             ra, rb, n = finger_joint([wa[i][0].pts for i in ia], [wb[i][0].pts for i in ib], v["thickness"],
                                      v["finger"], v["kind"], v["dogbone"], v["tol"], v["all"])
@@ -2686,7 +2713,8 @@ class MainWindow(QMainWindow):
                   ("slit", "Schlitzlänge", "f", 20.0, (2, 500, 1, 1, " mm")),
                   ("bridge", "Steg zwischen Schlitzen", "f", 3.0, (0.5, 50, 1, 0.5, " mm")),
                   ("spacing", "Abstand der Reihen", "f", 1.5, (0.3, 20, 2, 0.1, " mm")),
-                  ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm"))]
+                  ("margin", "Abstand zum Rand", "f", 3.0, (0, 100, 1, 0.5, " mm")),
+                  ("relief", "Stress Relief an den Schlitzenden (Ø, 0 = aus)", "f", 0.0, (0, 10, 2, 0.1, " mm"))]
         info = (f"„{b.name}“ wird so gedreht und verschoben, dass seine Kante der Kante von „{a.name}“ im Abstand der "
                 "Biegelänge gegenüberliegt. Beide werden mit der Biegezone zu einem Teil verbunden; die Biegezone "
                 "bekommt das Schnittmuster. Biegelänge = Winkel × (Radius + halbe Materialstärke), z. B. 90° bei "
@@ -2700,7 +2728,7 @@ class MainWindow(QMainWindow):
             m, merged, slits, L, width = pt.bend_between(
                 [p for p, _ in wa if p.closed], [p for p in b.world_paths() if p.closed], moving, target,
                 v["radius"], v["angle"], v["thickness"], v["slit"], v["bridge"], v["spacing"], v["margin"],
-                v["style"])
+                v["style"], v["relief"])
         except ValueError as e:
             QMessageBox.information(self, title, str(e))
             return
@@ -2718,7 +2746,7 @@ class MainWindow(QMainWindow):
         self.layers.set_project(self.project)
         self.canvas.select_only([n.id])
         self.statusBar().showMessage(f"Biegezone {L:.1f} mm lang ({v['angle']:g}° bei {v['radius']:g} mm Radius), "
-                                     f"{width:.1f} mm breit, {len(slits)} Schlitze.", 10000)
+                                     f"{width:.1f} mm breit, {sum(not s.closed for s in slits)} Schlitze.", 10000)
 
     # ------------------------------------------------------------ Zeichnen / Knoten
     def _on_tool_changed(self, tool):

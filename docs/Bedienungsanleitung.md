@@ -524,6 +524,7 @@ Kontur selbst bleibt unverändert und wird wie gewohnt ausgeschnitten.
 | Schlitzlänge, Steg | Länge der Schnitte und der stehen bleibenden Stege dazwischen |
 | Abstand der Reihen | Kleiner = biegsamer, aber zerbrechlicher. 3-mm-Sperrholz: etwa 1,5 mm |
 | Abstand zum Rand | Abstand der Schlitze zum Rand (siehe unten) |
+| Stress Relief an den Schlitzenden | Durchmesser eines kleinen Lochs an jedem Schlitzende, das im Material endet – wie ein Dogbone: Die Biegespannung verteilt sich auf einen Bogen statt auf die spitze Ecke am Ende des Schnitts, das Holz reißt dort nicht so leicht ein. Etwa 0,5–1 mm; muss kleiner als der Reihenabstand sein. Enden, die am Rand herauslaufen, bekommen keins. 0 = aus |
 | Richtung der Schlitze | 0° = waagerecht; die Biegeachse liegt parallel zu den Schlitzen |
 
 Das Muster ist symmetrisch: Die Reihen liegen mittig in der Fläche, und jede Reihe ist links und rechts
@@ -588,6 +589,7 @@ Gravuren beider Teile bleiben erhalten. *Bearbeiten → Rückgängig* stellt die
 | Materialstärke | Biegelänge = Winkel × (Radius + halbe Materialstärke), gemessen in der Mitte des Materials – z. B. 90° bei 10 mm Radius und 3 mm Material: 18,1 mm |
 | Art, Schlitzlänge, Steg, Abstand der Reihen | Wie beim [Biegescharnier](#muster-in-einer-fläche) in einer Fläche |
 | Abstand zum Rand | Abstand der geschlossenen Schlitzreihen von den Enden der Biegezone |
+| Stress Relief an den Schlitzenden | Kleines Loch an jedem Schlitzende im Material, wie beim [Biegescharnier](#muster-in-einer-fläche) in einer Fläche |
 
 Die Biegezone ist so breit, wie sich die beiden Kanten nach dem Ausrichten überdecken. Sind die Kanten
 verschieden lang, steht das längere Teil seitlich über.
@@ -596,7 +598,9 @@ verschieden lang, steht das längere Teil seitlich über.
 ### Fingerzinken an Kante
 
 Verzinkt zwei beliebige Teile miteinander – z. B. eine selbst gezeichnete Rückwand mit einem Boden: Das
-eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
+eine Teil bekommt Zinken, das andere genau passende Aussparungen. Mit *Kante an Fläche* stößt das eine Teil
+mitten auf die Fläche des anderen (T-Verbindung, z. B. Zwischenwand oder Regalboden) – dort entstehen statt
+Zinken passende Löcher. So geht es:
 
 1. Die beiden Teile so hinlegen, dass die zu verbindenden **Kanten aufeinanderliegen** (gleiche Linie,
    überlappend). Am einfachsten mit [Kanten aneinanderlegen](#kanten-aneinanderlegen) (Alt+K).
@@ -609,12 +613,23 @@ eine Teil bekommt Zinken, das andere genau passende Aussparungen. So geht es:
 | Einstellung | Wirkung |
 |---|---|
 | Art | **Ineinandergreifend: ein Teil mit Zinken, das andere mit Aussparungen** (Standard): Die Zinken ragen um die Materialstärke über die Kante hinaus, das Gegenstück bekommt an denselben Stellen gleich tiefe Aussparungen. So wie die Teile liegen, füllen die Zinken die Aussparungen lückenlos (Bild links); die gemeinsame Linie wird nur einmal geschnitten. Für eine 90°-Ecke zeichnet man das Teil mit den Zinken um die Materialstärke kürzer. **Eckverbindung: beide Teile mit versetzten Aussparungen, Außenmaße bleiben**: wie beim Box-Generator – beide Teile behalten ihr Außenmaß und bekommen abwechselnd Aussparungen (Bild rechts). Flach nebeneinander bleiben Lücken; erst um 90° gedreht greifen sie ineinander |
-| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben) |
+| Zinken an | Teil, das die Zinken bekommt (bei *Eckverbindung*: Teil, dessen äußere Zinken stehen bleiben; bei *Kante an Fläche*: das Teil, das auf der Fläche steht) |
 | Materialstärke | Tiefe der Zinken/Aussparungen |
-| Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt |
+| Zinkenbreite | Gewünschte Breite; auf der Kante wird eine ungerade Anzahl gleich breiter Zinken verteilt. An **schrägen Kanten**, an die die Nachbarkanten nicht rechtwinklig anschließen, bleibt an den Enden ein kurzes Stück gerade Kante – so gibt es nur ganze Zinken und keine, die angeschnitten über den Rand hinausstehen |
 | Dogbone-Durchmesser | Rundet jede **Innenecke** mit einem kleinen Kreis frei („Hundeknochen“), damit eckige Zinken ganz hineinpassen – wichtig bei dickem Material, starker Kegelform des Strahls oder beim Fräsen. 0 = aus |
+| Kante an Fläche: Abstand der Löcher von der Kante | Wo das Teil mit den Zinken auf der Fläche steht: Abstand der Löcher (ihrer näheren Seite) von der Kante des anderen Teils |
+| Kante an Fläche: Zinkenlänge | Wie weit die Zinken herausragen; 0 = Materialstärke (bündig mit der Rückseite). Länger = sie stehen hinten über, z. B. zum Verkeilen |
+| Kante an Fläche: Spiel in den Löchern | Die Löcher werden ringsum um die Hälfte davon größer |
 | Toleranz | Wie weit die Kanten auseinanderliegen dürfen und trotzdem als „berührend“ gelten |
-| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet |
+| Alle gemeinsamen Kanten | Sonst wird nur die längste gemeinsame Kante bearbeitet (bei *Kante an Fläche* immer nur die längste) |
+
+**Kante an Fläche:** Die beiden Teile wie bei den anderen Arten **Kante an Kante** hinlegen – die Kante des
+Teils mit den Zinken an die Kante des anderen, an der entlang die Löcher liegen sollen. Die Zinken sitzen in
+der Mitte der Kante, an beiden Enden bleibt ein Stück glatte Kante stehen, die auf der Fläche aufliegt. Die
+Löcher liegen im eingestellten Abstand von der Kante des anderen Teils; das Teil mit den Zinken wird danach um
+Zinkenlänge + 3 mm weggeschoben, damit sich nichts überlappt.
+
+![Kante an Fläche: Zinken am stehenden Teil, Löcher in der Fläche](screenshots/zinken_flaeche.png)
 
 Kurven der Teile werden dabei in feine Linienzüge umgewandelt. Für die Passung den Kerf-Ausgleich der Ebene
 nutzen ([Kerf ermitteln](#kerf-ermitteln)).
@@ -636,7 +651,7 @@ auseinanderziehen.
 
 | Einstellung | Wirkung |
 |---|---|
-| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase) |
+| Nasen an | Teil, das die Nasen bekommt (bei *abwechselnd*: Teil mit der ersten Nase). An schrägen Kanten werden die Nasen nur auf dem Stück verteilt, auf dem sie ganz in beide Teile passen – keine Nase ragt über eine schräg anschließende Nachbarkante |
 | Nasengröße (Kopfdurchmesser) | Durchmesser des runden Kopfes. Der Hals ist 60 % so breit, die Nase ragt etwa 1,15 × Kopfdurchmesser über die Kante – so tief muss auch das andere Teil mindestens sein |
 | Anzahl je Kante | 0 = automatisch: etwa alle 2,5 Kopfdurchmesser eine Nase, gleichmäßig verteilt |
 | Nasen abwechselnd an beiden Teilen | Die Nasen sitzen abwechselnd am einen und am anderen Teil (Bild rechts) – hält auch bei Zug in beide Richtungen quer zur Kante gleich gut |
@@ -672,7 +687,7 @@ den Laschen anschließend etwas weg, damit sich nichts überlappt (die Statuslei
 | Laschen an | Teil, das die Laschen bekommt; das andere bekommt die Schlitze |
 | Materialstärke | Dicke des Materials (beide Teile). Die Haken sitzen knapp darüber, die Schlitze sind so breit |
 | Laschenbreite | Breite einer Lasche (beide Zungen und der Federschlitz zusammen) |
-| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt |
+| Anzahl je Kante | 0 = automatisch: etwa eine Lasche je 4 Laschenbreiten, gleichmäßig verteilt. An schrägen Kanten nur auf dem Stück, auf dem die Schlitze ganz im anderen Teil liegen |
 | Haken (seitlicher Überstand) | Wie weit jeder Haken seitlich übersteht. Mehr = hält fester, lässt sich schwerer stecken. Muss zusammen kleiner sein als Federschlitz + Spiel, sonst kommen die Zungen nicht durch |
 | Federschlitz | Breite des Schlitzes zwischen den beiden Zungen. Er reicht etwas in das Teil hinein, damit die Zungen länger und weicher federn |
 | Spiel | Luft im Schlitz und unter den Haken |
@@ -713,7 +728,7 @@ den Zapfen etwas weg, damit sich nichts überlappt.
 | Zapfen an | Teil, das die Zapfen bekommt; das andere bekommt die Zapfenlöcher |
 | Materialstärke | Dicke des Materials (beide Teile); das Zapfenloch ist so breit plus *Spiel*, der Zapfen so lang plus *Überstand* |
 | Zapfenbreite | Länge des Zapfenlochs (bewährt: 20 mm). Der Zapfen selbst ist um das *Übermaß* breiter |
-| Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt |
+| Anzahl je Kante | 0 = automatisch: etwa ein Zapfen je 3 Zapfenbreiten, gleichmäßig verteilt. An schrägen Kanten nur auf dem Stück, auf dem Schlitz und Zapfenloch ganz in die Teile passen |
 | Überstand des Zapfens | So weit steht der Zapfen über das Gegenstück hinaus (zum Bündigschleifen) |
 | Keilüberstand vor dem Einschlagen | So weit ragt der Keil über den Zapfen – das ist auch der Weg, den er beim Einschlagen in den Schlitz rutscht. Die Originalzeichnung verwendet für alle Stärken 10 mm |
 | Spreizung durch den Keil | Um so viel ist der Keil oben breiter als der Schlitz an der Zapfenspitze (gesamt). Mehr = fester, aber höhere Bruchgefahr |

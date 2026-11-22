@@ -2297,6 +2297,13 @@ def test_bend_between_edges():
     outer = max(merged, key=lambda p: np.ptp(p.pts[:, 1]))
     assert abs(outer.pts[:, 1].max() - (60 + L + 80)) < 1e-6                      # B um 90° gedreht dahinter
     assert len(merged) == 2                                                       # Loch von A bleibt
+    # Kontur genau: Streifenenden senkrecht (keine Reste der 0,005-mm-Überlappung)
+    xs = sorted({round(float(x), 9) for x in outer.pts[:, 0]})
+    assert xs == [0.0, 30.0, 70.0, 100.0], xs
+    same = [np.array([[150, 0], [250, 0], [250, 30], [150, 30]], float)]       # gleich breit -> ein Rechteck
+    e_same = Edge("b", np.array([150., 30.]), np.array([250., 30.]), np.array([0., 1.]))
+    out = bend_between(A[:1], same, e_same, target, 10, 90, 3)[1]
+    assert len(out) == 1 and len(out[0].pts) == 4
     pts = np.vstack([q.pts for q in slits])
     assert len(slits) > 20 and pts[:, 1].min() >= 60 - 1e-6 and pts[:, 1].max() <= 60 + L + 1e-6
     assert inside(pts * 0.999 + np.array([50, 69]) * 0.001, [p.pts for p in merged]).all()
@@ -2448,6 +2455,108 @@ def test_node_snap():
     d, t = node_snap_delta((0, 0), (9.6, 9.7), nodes, 0.6)
     assert np.allclose(d, [10, 10]) and np.allclose(t, [10, 10])
     assert node_snap_delta((0, 0), (5, 5), nodes, 0.6) is None
+
+
+def test_finger_holes():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import finger_holes
+    A = [np.array([[0, 0], [80, 0], [80, 40], [0, 40]], float)]                # steht später auf B
+    B = [np.array([[0, 0], [0, -60], [100, -60], [100, 0]], float)]            # Fläche mit Löchern
+    ra, rb, n, shift = finger_holes(A, B, 3.0, 10.0, inset=20.0, clearance=0.2)
+    assert n == 4 and len(rb) == 5 and np.allclose(rb[0], B[0])                # Kontur von B unverändert
+    assert np.allclose(shift, [0, 6.0])                                         # Zinkenlänge 3 + 3 mm Abstand
+    # Zinken ragen 3 mm über die (verschobene) Kante; Enden der Kante bleiben glatt
+    assert np.isclose(ra[0][:, 1].min(), 3.0)
+    assert np.isclose(min(y for x, y in ra[0] if x < 1e-9), 6.0)
+    w = 80 / 9
+    for k, h in enumerate(rb[1:]):
+        i = 2 * k + 1
+        assert np.isclose(np.ptp(h[:, 0]), w + 0.2) and np.isclose(np.ptp(h[:, 1]), 3.2)
+        assert np.isclose(h[:, 0].min(), i * w - 0.1) and np.isclose(h[:, 1].max(), -20 + 0.1)
+        assert inside(h, [B[0]]).all()
+    # längere Zinken, zu großer Abstand
+    assert np.isclose(finger_holes(A, B, 3.0, 10.0, inset=5, length=5)[0][0][:, 1].min(), 3.0)
+    try:
+        finger_holes(A, B, 3.0, 10.0, inset=58)
+        raise AssertionError("ValueError erwartet")
+    except ValueError:
+        pass
+
+
+def test_living_hinge_relief():
+    from tilaser.core.clip import distance_to_edges
+    from tilaser.core import patterns as pt
+    rect = [g.Polyline(np.array([[0, 0], [80, 0], [80, 30], [0, 30]], float), True)]
+    plain = pt.living_hinge(rect, 20, 3, 1.5, 3)
+    res = pt.living_hinge(rect, 20, 3, 1.5, 3, relief=0.8)
+    slits = [q for q in res if not q.closed]
+    holes = [q for q in res if q.closed]
+    assert len(slits) == len(plain) and holes
+    ends = np.array([q.pts[i] for q in slits for i in (0, -1)])
+    inner = ends[distance_to_edges(ends, [rect[0].pts]) > 0.4]
+    centers = np.array([h.pts.mean(axis=0) for h in holes])
+    assert len(holes) == len(inner)                                   # genau die Enden im Material
+    for c in centers:
+        assert np.min(np.hypot(*(inner - c).T)) < 1e-6
+        r = np.hypot(*(holes[0].pts - holes[0].pts.mean(axis=0)).T)
+        assert np.allclose(r, 0.4, atol=1e-6)
+    for st in ("triple", "wave"):
+        assert any(q.closed for q in pt.living_hinge(rect, 20, 3, 1.5, 3, style=st, relief=0.6))
+    try:
+        pt.living_hinge(rect, 20, 3, 1.5, 3, relief=1.5)
+        raise AssertionError("ValueError erwartet")
+    except ValueError:
+        pass
+
+
+def test_finger_joint_slanted_whole_fingers():
+    from tilaser.core.clip import distance_to_edges, inside
+    from tilaser.core.joints import find_shared_edges, finger_joint, finger_range
+    A = [np.array([[0, 0], [100, 0], [100, 40], [0, 70]], float)]
+    B = [np.array([[0, 70], [100, 40], [100, 90], [0, 110]], float)]
+    e = find_shared_edges(A, B)[0]
+    lo, hi = finger_range(A, B, e.p0, e.p1, 4)
+    assert 0.5 < lo < 2 and e.length - 2 < hi < e.length - 0.5            # schräge Enden: Stück frei
+    ra, rb, _ = finger_joint(A, B, 4, 12, "tabs")
+    # keine Zinke steht über die senkrechten Seiten hinaus, alle Zinkenecken liegen in B (oder auf dem Rand)
+    assert ra[0][:, 0].min() >= -1e-6 and ra[0][:, 0].max() <= 100 + 1e-6
+    out = ra[0][ra[0][:, 1] > 40.0 + 1e-6]
+    ok = inside(out, [B[0]]) | (distance_to_edges(out, [B[0]]) < 1e-6) | (distance_to_edges(out, [A[0]]) < 1e-6)
+    assert ok.all()
+    # rechtwinklige Kanten: wie bisher die ganze Kante
+    R1 = [np.array([[0, 0], [100, 0], [100, 40], [0, 40]], float)]
+    R2 = [np.array([[0, 40], [100, 40], [100, 80], [0, 80]], float)]
+    e2 = find_shared_edges(R1, R2)[0]
+    assert np.allclose(finger_range(R1, R2, e2.p0, e2.p1, 4), (0, 100))
+
+
+def test_puzzle_joint_slanted():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import find_shared_edges, finger_range, puzzle_height, puzzle_joint
+    A = [np.array([[0, 0], [100, 0], [100, 40], [0, 70]], float)]
+    B = [np.array([[0, 70], [100, 40], [100, 90], [0, 110]], float)]
+    for alt in (False, True):
+        ra, rb, _ = puzzle_joint(A, B, 14, alternate=alt)
+        both = [A[0], B[0]]
+        allpts = np.vstack([ra[0], rb[0]])
+        assert allpts[:, 0].min() >= -1e-6 and allpts[:, 0].max() <= 100 + 1e-6
+        # jede Nase liegt in der Vereinigung der beiden Teile (nichts ragt über die Seiten hinaus)
+        assert (inside(ra[0] * 0.999 + 0.0005 * np.array([100, 110]), both)).all()
+    e = find_shared_edges(A, B)[0]
+    lo, hi = finger_range(A, B, e.p0, e.p1, puzzle_height(14))
+    assert lo > 1 and hi < e.length - 1
+
+
+def test_snap_hammer_slanted():
+    from tilaser.core.clip import inside
+    from tilaser.core.joints import HammerSpec, SnapSpec, hammer_joint, snap_lock
+    A = [np.array([[0, 0], [100, 0], [100, 20], [0, 78]], float)]               # Kante 30° geneigt
+    B = [np.array([[0, 78], [100, 20], [100, 90], [0, 140]], float)]
+    # früher lag der erste Schlitz halb außerhalb von B (Fehlermeldung), jetzt rücken die Laschen ein
+    _, rb, _, _ = snap_lock(A, B, SnapSpec(inset=12, count=5))
+    assert len(rb) == 6 and all(inside(r, [B[0]]).all() for r in rb[1:])
+    _, rb, _, _ = hammer_joint(A, B, HammerSpec(count=4, width=16))
+    assert len(rb) == 5 and all(inside(r, [B[0]]).all() for r in rb[1:])
 
 if __name__ == "__main__":
     import inspect
